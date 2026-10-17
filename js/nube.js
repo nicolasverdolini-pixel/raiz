@@ -189,26 +189,66 @@ const Nube = (() => {
       if (r.error) { ocupado(btn, false, 'Entrar'); return error(r.error); }
       s = { token: r.token, email: r.email, version: r.version || 0 };
       guardarSesion();
-      if (r.progreso) {
-        // Ya jugaba: se trae su árbol.
-        E = r.progreso;
-        guardarLocal();
-        procesar();
-      } else {
-        // Cuenta nueva: si ya venía jugando en este dispositivo, ese progreso se sube.
-        delete E.sinCuenta;
-        guardarLocal();
-        subir();
+      if (r.progreso && jugado(E) && jugado(r.progreso) && !mismoArbol(E, r.progreso)) {
+        // Hay progreso en la cuenta y en este dispositivo: que elija cuál conservar.
+        nubePendiente = r.progreso;
+        return mostrarEleccion();
       }
-      cerrarPantalla();
-      render();
-      if (!E.bienvenida) Intro.abrir();
-      else toast(`Hola de nuevo, <b>${esc(E.nombre)}</b>`);
-      Sonido.cumplir();
+      if (r.progreso) usarCuenta(r.progreso);
+      else usarDispositivo();
+      terminarIngreso();
     } catch {
       ocupado(btn, false, 'Entrar');
       error('No hay conexión. Probá de nuevo.');
     }
+  }
+
+  let nubePendiente = null;
+  const jugado = p => !!(p && p.bienvenida && ((p.cumplidas || 0) > 0 || (p.savia || 0) > 0));
+  const mismoArbol = (a, b) => a.creado === b.creado && a.nombre === b.nombre;
+
+  function usarCuenta(p) {
+    E = p;
+    guardarLocal();
+    procesar();
+  }
+
+  // Sube lo de este dispositivo a la cuenta (pisando lo que hubiera).
+  function usarDispositivo() {
+    delete E.sinCuenta;
+    guardarLocal();
+    subir();
+  }
+
+  function terminarIngreso() {
+    nubePendiente = null;
+    cerrarPantalla();
+    render();
+    if (!E.bienvenida) Intro.abrir();
+    else toast(`Hola de nuevo, <b>${esc(E.nombre)}</b>`);
+    Sonido.cumplir();
+  }
+
+  function resumen(p, titulo, accion) {
+    const nv = nivelDe(p.savia || 0).nivel;
+    const esp = ESPECIES.find(x => x.id === p.especie) || ESPECIES[0];
+    return `<button class="eleccion" data-nube="${accion}">
+      ${treeSVG(etapaDe(nv), p.vitalidad ?? 100, false, { especie: p.especie })}
+      <span><small>${titulo}</small><b>${esc(p.nombre || 'Sin nombre')} · ${esc(esp.nombre)}</b>
+      <span>Nivel ${nv} · ${p.cumplidas || 0} misiones · racha ${p.racha || 0}</span></span>
+    </button>`;
+  }
+
+  function mostrarEleccion() {
+    pantalla(`
+      <div class="intro-top"></div>
+      <div class="intro-paso">
+        <div class="eyebrow">Tenés dos árboles</div>
+        <h2 class="intro-titulo">¿Con cuál seguís?</h2>
+        <p class="intro-chico" style="margin-top:0">Encontramos progreso en tu cuenta y también en este dispositivo. Elegí cuál conservar: el otro se reemplaza.</p>
+        ${resumen(nubePendiente, 'En tu cuenta', 'elegir-cuenta')}
+        ${resumen(E, 'En este dispositivo', 'elegir-dispositivo')}
+      </div>`);
   }
 
   async function confirmarCambio(btn) {
@@ -277,6 +317,13 @@ const Nube = (() => {
     else if (a === 'entrar') mostrarIngreso();
     else if (a === 'cambiar') mostrarCambio();
     else if (a === 'salir') salir();
+    else if (a === 'elegir-cuenta' && nubePendiente) { usarCuenta(nubePendiente); terminarIngreso(); }
+    else if (a === 'elegir-dispositivo' && nubePendiente) {
+      if (!confirm('¿Seguir con el árbol de este dispositivo? El de tu cuenta se reemplaza.')) return;
+      s.version = nubePendiente.version ?? s.version;
+      usarDispositivo();
+      terminarIngreso();
+    }
     else if (a === 'sin-cuenta') {
       E.sinCuenta = true;
       guardarLocal();

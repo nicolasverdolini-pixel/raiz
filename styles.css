@@ -280,3 +280,9 @@ body.con-intro .tabs { display: none; }
 .item.bloq { opacity: .5; }
 .item:disabled { cursor: default; }
 .cat-sheet .item.done .t > span { text-decoration: none; color: var(--tinta-2); }
+.eleccion { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; margin-top: 12px; padding: 12px; background: var(--papel); border: 1.5px solid var(--linea); border-radius: 18px; }
+.eleccion:active { border-color: var(--bosque-2); transform: scale(.98); }
+.eleccion svg.tree { width: 64px; height: 74px; flex: none; }
+.eleccion small { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--tinta-2); }
+.eleccion b { display: block; font-family: var(--serif); font-weight: 400; font-size: 18px; }
+.eleccion span span { font-size: 13px; color: var(--tinta-2); }
