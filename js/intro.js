@@ -202,4 +202,4 @@ const Intro = (() => {
   return { abrir };
 })();
 
-if (!E.bienvenida) Intro.abrir();
+if (!E.bienvenida && !Nube.necesitaIngreso()) Intro.abrir();

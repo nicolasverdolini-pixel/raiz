@@ -45,7 +45,9 @@ function estadoNuevo() {
 let E;
 try { E = JSON.parse(localStorage.getItem(CLAVE)); } catch { E = null; }
 if (!E || E.v !== 1) E = estadoNuevo();
-const guardar = () => { try { localStorage.setItem(CLAVE, JSON.stringify(E)); } catch { /* sin almacenamiento */ } };
+const guardarLocal = () => { try { localStorage.setItem(CLAVE, JSON.stringify(E)); } catch { /* sin almacenamiento */ } };
+// Guarda en el dispositivo y, si hay cuenta, también en la nube.
+const guardar = () => { guardarLocal(); if (typeof Nube !== 'undefined') Nube.subir(); };
 
 let tab = 'hoy';
 let diaRender = hoy();
@@ -531,6 +533,8 @@ function vistaAjustes() {
   }
   h += `<div class="btns" style="margin-top:10px"><button class="btn primary" data-act="editar">+ Nueva misión</button><button class="btn" data-act="nueva-area">+ Nueva ramita</button></div></div>
 
+  ${typeof Nube !== 'undefined' ? Nube.ajustesHTML() : ''}
+
   <div class="section"><div class="eyebrow"><span>Tu árbol</span></div><div class="list">
     <button class="item" data-act="elegir-especie"><span class="t"><span>Tu árbol</span><small>${esc(especieActual().nombre)} · ${esc(especieActual().rasgo)}</small></span><span class="xp">Cambiar</span></button>
     <button class="item" data-act="ver-intro"><span class="t"><span>Cómo se juega</span><small>Volver a ver la introducción.</small></span><span class="xp">Ver</span></button>
@@ -541,11 +545,11 @@ function vistaAjustes() {
   </div></div>
 
   <div class="section"><div class="eyebrow"><span>Tus datos</span></div>
-    <div class="muted" style="font-size:13px;margin:0 2px 8px">Por ahora se guardan en este dispositivo. Descargá un respaldo de vez en cuando.</div>
+    <div class="muted" style="font-size:13px;margin:0 2px 8px">${typeof Nube !== 'undefined' && Nube.sesion ? 'Se guardan en la nube y en este dispositivo. Igual podés descargar un respaldo.' : 'Se guardan en este dispositivo. Descargá un respaldo de vez en cuando.'}</div>
     <div class="btns"><button class="btn" data-act="exportar">Descargar respaldo</button><button class="btn" data-act="importar">Restaurar respaldo</button><button class="btn danger ghost" data-act="reiniciar">Empezar de cero</button></div>
     <input type="file" id="archivo" accept="application/json" hidden>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 0.3</p>`;
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 0.4</p>`;
   return h;
 }
 

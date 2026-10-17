@@ -259,3 +259,7 @@ body.con-intro .tabs { display: none; }
 .tree.sacudir .planta { animation: sacudir .6s ease; }
 @keyframes sacudir { 20% { transform: rotate(-4deg); } 45% { transform: rotate(3.5deg); } 70% { transform: rotate(-2deg); } 100% { transform: rotate(0); } }
 .intro-raices .item.done .t > span { text-decoration: none; color: var(--tinta); }
+
+/* ---------- Ingreso ---------- */
+.intro-error { color: var(--alerta); font-size: 14px; min-height: 20px; margin: 8px 0 0; }
+.intro-input.codigo { letter-spacing: .5em; text-align: center; font-family: var(--sans); font-size: 30px; }
