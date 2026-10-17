@@ -1,7 +1,7 @@
 // Cuenta y guardado en la nube: ingreso con email + código, y sincronización del progreso.
 // El servidor es una aplicación web de Google Apps Script (ver servidor/Codigo.gs).
 
-const URL_SERVIDOR = '';
+const URL_SERVIDOR = 'https://script.google.com/macros/s/AKfycby10S1lKMa5-pTjh6L7duDCKV1YrW1txR-qTE8MOB7ClesoEcD0afTVgisntHMiHB__3A/exec';
 
 const Nube = (() => {
   const CLAVE = 'raiz:sesion';
