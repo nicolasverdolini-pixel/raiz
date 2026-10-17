@@ -1,6 +1,7 @@
-// Raíz · servicio de avisos.
+// Raíz · servicio de avisos y del Bosque.
 // Guarda las suscripciones de cada celular y, cada 15 minutos, manda los recordatorios
 // de la mañana y de la noche según la hora local de cada persona.
+// También guarda los jardines de quienes eligen aparecer en el Bosque.
 
 import { enviar } from './webpush.js';
 
@@ -78,6 +79,47 @@ async function mandar(fila, mensaje, env) {
   return codigo;
 }
 
+// ---------- Bosque: los jardines de todos ----------
+
+async function hash(texto) {
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto)));
+  return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+const entero = (v, max) => Math.max(0, Math.min(max, Math.round(Number(v) || 0)));
+
+// Publica (o actualiza) tu jardín. La clave impide que otro edite tu jardín.
+async function publicar(req, env, origen) {
+  const p = await req.json();
+  if (!/^[a-z0-9]{16,40}$/.test(p.id || '') || String(p.clave || '').length < 16) return json({ error: 'Datos inválidos' }, origen, 400);
+  const nombre = texto(p.nombre, 24).trim();
+  if (!nombre) return json({ error: 'Falta el nombre' }, origen, 400);
+  const clave = await hash(p.clave);
+  const actual = await env.DB.prepare('SELECT clave FROM bosque WHERE id = ?1').bind(p.id).first();
+  if (actual && actual.clave !== clave) return json({ error: 'No autorizado' }, origen, 403);
+  const logros = JSON.stringify((Array.isArray(p.logros) ? p.logros : []).slice(0, 40).map(l => texto(l, 20)));
+  await env.DB.prepare(`INSERT INTO bosque (id, clave, nombre, especie, nivel, racha, mejor_racha, cumplidas, vitalidad, logros, canjes, actualizado, creado)
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, datetime('now'), datetime('now'))
+      ON CONFLICT(id) DO UPDATE SET nombre = ?3, especie = ?4, nivel = ?5, racha = ?6, mejor_racha = ?7, cumplidas = ?8, vitalidad = ?9, logros = ?10, canjes = ?11, actualizado = datetime('now')`)
+    .bind(p.id, clave, nombre, texto(p.especie, 20), entero(p.nivel, 50) || 1, entero(p.racha, 9999), entero(p.mejorRacha, 9999),
+      entero(p.cumplidas, 999999), entero(p.vitalidad, 100), logros, entero(p.canjes, 9999))
+    .run();
+  return json({ ok: true }, origen);
+}
+
+async function salirDelBosque(req, env, origen) {
+  const p = await req.json();
+  const actual = await env.DB.prepare('SELECT clave FROM bosque WHERE id = ?1').bind(p.id || '').first();
+  if (actual && actual.clave === await hash(p.clave || '')) await env.DB.prepare('DELETE FROM bosque WHERE id = ?1').bind(p.id).run();
+  return json({ ok: true }, origen);
+}
+
+async function verBosque(env, origen) {
+  const { results } = await env.DB.prepare(`SELECT id, nombre, especie, nivel, racha, mejor_racha, cumplidas, vitalidad, logros, canjes, actualizado
+      FROM bosque ORDER BY nivel DESC, cumplidas DESC LIMIT 400`).all();
+  const jardines = results.map(r => ({ ...r, logros: JSON.parse(r.logros || '[]') }));
+  return new Response(JSON.stringify({ jardines }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...cors(origen) } });
+}
+
 async function recorrer(env) {
   const { results } = await env.DB.prepare('SELECT * FROM suscripciones').all();
   for (const fila of results) {
@@ -118,6 +160,9 @@ export default {
       if (req.method === 'POST' && ruta === '/estado') return await estado(req, env, origen);
       if (req.method === 'POST' && ruta === '/desuscribir') return await desuscribir(req, env, origen);
       if (req.method === 'POST' && ruta === '/probar') return await probar(req, env, origen);
+      if (req.method === 'GET' && ruta === '/bosque') return await verBosque(env, origen);
+      if (req.method === 'POST' && ruta === '/bosque/publicar') return await publicar(req, env, origen);
+      if (req.method === 'POST' && ruta === '/bosque/salir') return await salirDelBosque(req, env, origen);
       return json({ ok: true, app: 'Raíz avisos' }, origen);
     } catch (err) {
       console.error(err);

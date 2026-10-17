@@ -420,3 +420,75 @@ dialog::backdrop { background: rgba(31, 51, 38, .4); -webkit-backdrop-filter: bl
 .lamina { border-radius: 20px; box-shadow: var(--sombra); border-color: transparent; }
 .eleccion { border-radius: 24px; box-shadow: var(--sombra); }
 .hora { border: 1px solid var(--linea); border-radius: 12px; padding: 6px 10px; background: var(--crema); font-size: 15px; }
+
+/* ---------- Árbol vivo y Bosque ---------- */
+.bosque-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.arbol-vivo-marco, .mundo-marco { position: relative; padding: 0; overflow: hidden; border-radius: 28px; background: linear-gradient(#eef2e3, #f6f1e7); box-shadow: var(--sombra); }
+.mundo-marco { background: #dfe7cf; }
+svg.arbol-vivo, svg.mundo { display: block; width: 100%; height: 62vh; max-height: 560px; min-height: 380px; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+svg.arbol-vivo:active, svg.mundo:active { cursor: grabbing; }
+.mundo-botones { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.mundo-botones .btn { background: rgba(255, 253, 248, .92); box-shadow: var(--sombra); min-width: 40px; min-height: 40px; font-size: 15px; }
+.arbol-pista { position: absolute; left: 12px; bottom: 10px; right: 70px; font-size: 13px; color: var(--tinta-2); background: rgba(255, 253, 248, .85); padding: 6px 10px; border-radius: 12px; }
+.arbol-vivo .rama { cursor: pointer; transition: opacity .35s; }
+.arbol-vivo .rama.apagada { opacity: .25; }
+.arbol-vivo .t-tronco { font-family: var(--serif); font-size: 18px; fill: #efe8d8; }
+.arbol-vivo .t-rama { font-family: var(--sans); font-weight: 700; font-size: 15px; }
+.arbol-vivo .t-rama-g { cursor: pointer; }
+.arbol-vivo .t-ramita, .arbol-vivo .t-mini { font-family: var(--sans); fill: var(--tinta); paint-order: stroke; stroke: rgba(246, 241, 231, .9); stroke-width: 3px; opacity: 0; transition: opacity .3s; }
+.arbol-vivo .t-ramita { font-size: 11px; font-weight: 600; }
+.arbol-vivo .t-mini { font-size: 8px; }
+.arbol-vivo.cerca .t-ramita, .arbol-vivo.cerca .t-mini { opacity: 1; }
+.rama-elegida .row { gap: 12px; }
+.resumen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.resumen > div { background: var(--papel); border-radius: 20px; padding: 12px; text-align: center; box-shadow: var(--sombra); }
+.resumen b { display: block; font-family: var(--serif); font-weight: 400; font-size: 24px; }
+.resumen small { font-size: 12px; color: var(--tinta-2); }
+.jardin { cursor: pointer; }
+.jardin text { font-family: var(--sans); font-weight: 600; }
+.card.unirse { display: flex; gap: 12px; align-items: center; }
+.unirse-arte svg { width: 120px; height: 138px; display: block; }
+.campo { width: 100%; padding: 11px 14px; border: 1px solid var(--linea); border-radius: 14px; background: var(--crema); font-size: 16px; }
+.visita-datos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.visita-datos span { display: inline-flex; align-items: center; gap: 5px; background: var(--hoja-clara); color: var(--bosque-2); padding: 5px 11px; border-radius: 999px; font-size: 13px; }
+.visita-datos .ico { width: 15px; height: 15px; }
+.puesto { width: 28px; height: 28px; border-radius: 50%; background: var(--hoja-clara); display: grid; place-items: center; font-weight: 600; font-size: 13px; color: var(--bosque-2); flex: none; }
+.link { background: none; border: 0; padding: 0; color: var(--tierra); text-decoration: underline; font-size: inherit; }
+@media (max-width: 380px) { .card.unirse { flex-direction: column; } }
+
+/* ---------- Tipografía y accesibilidad ---------- */
+:root { --sans: "Nunito", -apple-system, system-ui, sans-serif; }
+body { font-size: 16.5px; line-height: 1.5; letter-spacing: .005em; }
+h1, h2, h3, .greet, .quote, .serif, .intro-titulo, .intro-texto, .num, .anillo b, .rama-card b, .resumen b, .lamina b, .esp b, .eleccion b, .arbol-vivo .t-tronco { font-variation-settings: "SOFT" 100; }
+.greet { font-size: 29px; line-height: 1.12; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .1em; }
+.mision .t > span { font-size: 16.5px; font-weight: 600; }
+.mision .t small, .item .t small { font-size: 13.5px; }
+.mision .xp, .item .xp { font-size: 13.5px; font-weight: 600; }
+.item .t > span { font-size: 16px; }
+.muted { color: #5f6e58; }
+.chip { font-size: 14.5px; font-weight: 600; }
+.btn { font-weight: 600; }
+.tabs button { font-size: 12px; font-weight: 600; }
+.pill { font-weight: 600; }
+.rama-card small, .anillo small { font-size: 11px; font-weight: 600; }
+.consejo .t { font-size: 15px; }
+.toast { font-size: 14.5px; font-weight: 500; }
+:focus-visible { outline: 3px solid #c9a96e; outline-offset: 2px; border-radius: 12px; }
+.mision, .item, .btn, .chip, .rama-card, .tabs button { min-height: 44px; }
+.chip { min-height: 38px; }
+
+/* Botón para plegar Hojas y Frutos */
+.plegar { border: 0; background: var(--papel); color: var(--tinta-2); font-size: 13px; font-weight: 700; letter-spacing: 0; text-transform: none; padding: 6px 12px; border-radius: 999px; box-shadow: var(--sombra); }
+.plegar .flecha { margin-left: 2px; }
+
+/* Selector de tamaño de letra */
+.segmentos { display: inline-flex; background: var(--linea-suave); border-radius: 999px; padding: 3px; }
+.segmentos button { border: 0; background: transparent; padding: 6px 12px; border-radius: 999px; font-weight: 700; color: var(--tinta-2); min-height: 36px; }
+.segmentos button.on { background: var(--papel); color: var(--bosque-2); box-shadow: var(--sombra); }
+.segmentos button:nth-child(2) { font-size: 17px; }
+.segmentos button:nth-child(3) { font-size: 19px; }
+
+/* Tamaños de letra: agranda toda la interfaz de forma pareja */
+html[data-letra="grande"] main, html[data-letra="grande"] dialog, html[data-letra="grande"] .intro { zoom: 1.12; }
+html[data-letra="enorme"] main, html[data-letra="enorme"] dialog, html[data-letra="enorme"] .intro { zoom: 1.25; }

@@ -403,6 +403,19 @@ function filaMision(m, d, recien) {
     : `<button class="${clases}" style="--fg:${e.fg};--bg:${e.bg}" data-act="marcar" data-id="${esc(m.id)}" data-o="0">${dentro}</button>`;
 }
 
+// Secciones de Hoy que se pliegan (Hojas y Frutos), recordadas en este dispositivo.
+function seccionAbierta(tipo) {
+  try { return JSON.parse(localStorage.getItem('raiz:abiertas') || '{}')[tipo] === true; } catch { return false; }
+}
+function alternarSeccion(tipo) {
+  let a = {};
+  try { a = JSON.parse(localStorage.getItem('raiz:abiertas') || '{}'); } catch { /* sin almacenamiento */ }
+  a[tipo] = !a[tipo];
+  try { localStorage.setItem('raiz:abiertas', JSON.stringify(a)); } catch { /* sin almacenamiento */ }
+  Sonido.tab();
+  render();
+}
+
 function vistaHoy(recien) {
   const d = hoy();
   const nv = nivelDe(E.savia);
@@ -463,9 +476,14 @@ function vistaHoy(recien) {
     if (tipo === 'fruto') ms = ms.filter(m => !m.hecha || m.hecha === d);
     if (!ms.length) continue;
     const info = TIPOS[tipo];
-    const cont = tipo === 'raiz' ? `${raices.length - faltan} de ${raices.length}` : info.ayuda;
-    h += `<div class="section"><div class="eyebrow"><span>${info.nombre} ${ayudaBtn(tipo)}</span><span style="text-transform:none;letter-spacing:0">${cont}</span></div>
-      <div class="misiones">${ms.map(m => filaMision(m, d, recien)).join('')}</div>${tipo === 'raiz' ? lugarLibre() : ''}</div>`;
+    const plegable = tipo === 'hoja' || tipo === 'fruto';
+    const abierta = !plegable || seccionAbierta(tipo);
+    const hechasT = ms.filter(m => hechas(d, m.id)).length;
+    const cont = tipo === 'raiz' ? `${raices.length - faltan} de ${raices.length}` : plegable ? `${hechasT ? `${hechasT} hechas · ` : ''}${ms.length} ${ms.length === 1 ? 'misión' : 'misiones'}` : info.ayuda;
+    h += `<div class="section"><div class="eyebrow"><span>${info.nombre} ${ayudaBtn(tipo)}</span>${plegable
+      ? `<button class="plegar" data-plegar="${tipo}" aria-expanded="${abierta}">${cont} <span class="flecha">${abierta ? '▴' : '▾'}</span></button>`
+      : `<span style="text-transform:none;letter-spacing:0">${cont}</span>`}</div>
+      ${abierta ? `<div class="misiones">${ms.map(m => filaMision(m, d, recien)).join('')}</div>` : ''}${tipo === 'raiz' ? lugarLibre() : ''}</div>`;
   }
 
   h += progresionAbajo(d);
@@ -483,27 +501,15 @@ function vistaArbol() {
   const nv = nivelDe(E.savia);
   const et = etapaDe(nv.nivel);
   const prox = ETAPAS[et + 1];
-  const nodos = areasOrdenadas();
 
-  let h = `<h1 class="greet" style="margin-top:0">Tu árbol</h1>
-  <div class="card dark section arbol-card" style="text-align:center">
-    ${treeSVG(et, E.vitalidad, enOtono(), { especie: E.especie, brotes: brotesHoy(hoy()) }).replace('class="tree"', 'class="tree" style="width:170px;height:190px"')}
-    <div class="lvl eyebrow" style="color:var(--dorado)">${esc(especieActual().nombre)} · Nivel ${nv.nivel} · ${esc(ETAPAS[et].nombre)}</div>
-    <div class="muted" style="font-size:13px;margin-top:4px">${prox ? `Próxima etapa: ${esc(prox.nombre)} en el nivel ${prox.desde}` : 'Llegaste al bosque.'}</div>
-    <div class="stats" style="justify-content:center"><span>Savia total <b>${E.savia}</b></span><span>Mejor racha <b>${E.mejorRacha}</b></span><span>Misiones <b>${E.cumplidas}</b></span></div>
+  let h = `<div class="bosque-top"><h1 class="greet" style="margin:0">Tu árbol</h1><span class="pill">${esc(especieActual().nombre)} · nivel ${nv.nivel}</span></div>
+  <p class="muted" style="margin:6px 0 0">El tronco sos vos. Cada rama es un área de tu vida y crece con la savia que le das. ${prox ? `Próxima etapa: ${esc(prox.nombre)} en el nivel ${prox.desde}.` : 'Llegaste al bosque.'}</p>
+  ${ArbolVivo.vista()}
+  <div class="resumen section">
+    <div><b>${E.savia}</b><small>savia total</small></div>
+    <div><b>${E.mejorRacha}</b><small>mejor racha</small></div>
+    <div><b>${E.cumplidas}</b><small>misiones</small></div>
   </div>
-
-  <div class="section"><div class="eyebrow"><span>Ramas y ramitas</span></div><div class="list tree-list">`;
-  for (const a of nodos) {
-    const prof = a.id.split('/').length - 1;
-    const sv = E.saviaArea[a.id] || 0;
-    const n = nivelArea(sv);
-    h += `<div class="node" style="padding-left:${14 + prof * 18}px">
-      <div class="row between"><span class="${prof ? '' : 'serif'}" style="${prof ? 'font-size:14px' : 'font-size:17px'}">${esc(a.nombre)}</span><span class="lvl-tag">nv ${n.nivel} · ${sv} savia</span></div>
-      ${prof ? '' : `<div class="bar light"><i style="width:${Math.round((n.dentro / n.falta) * 100)}%"></i></div>`}
-    </div>`;
-  }
-  h += `</div></div>
 
   <div class="section"><div class="eyebrow"><span>Herbario</span><span>${Object.keys(E.logros).length} de ${LOGROS.length}</span></div>
     <div class="herbario">${LOGROS.map(l => {
@@ -543,7 +549,10 @@ function vistaAjustes() {
 
   <div class="section"><div class="eyebrow"><span>Tu árbol</span></div><div class="list">
     <button class="item" data-act="elegir-especie"><span class="t"><span>Tu árbol</span><small>${esc(especieActual().nombre)} · ${esc(especieActual().rasgo)}</small></span><span class="xp">Cambiar</span></button>
+    <button class="item" data-act="ir-bosque"><span class="t"><span>El Bosque</span><small>${Bosque.unido() ? `Tu jardín aparece como ${esc(E.bosque.nombre)}` : 'Tu jardín no aparece en el Bosque'}</small></span><span class="xp">${Bosque.unido() ? 'Ver' : 'Sumarme'}</span></button>
     <button class="item" data-act="ver-intro"><span class="t"><span>Cómo se juega</span><small>Volver a ver la introducción.</small></span><span class="xp">Ver</span></button>
+    <div class="item"><span class="t"><span>Tamaño de letra</span><small>Para leer más cómodo</small></span>
+      <span class="segmentos">${[['normal', 'A'], ['grande', 'A+'], ['enorme', 'A++']].map(([v, t]) => `<button class="${(document.documentElement.dataset.letra || 'normal') === v ? 'on' : ''}" data-letra="${v}" aria-label="Letra ${v}">${t}</button>`).join('')}</span></div>
     <label class="item"><span class="t"><span>Tu nombre</span></span><input id="nombre" value="${esc(E.nombre)}" style="border:1px solid var(--linea);border-radius:8px;padding:6px 10px;width:130px;background:var(--crema)"></label>
     <label class="item"><span class="t"><span>Modo invierno</span><small>Pausa todo sin penalidad (enfermedad, viaje).</small></span><span class="toggle"><input type="checkbox" id="invierno" ${E.invierno ? 'checked' : ''}><span></span></span></label>
     <label class="item"><span class="t"><span>Sonidos</span><small>En el iPhone se escuchan si no está en silencio.</small></span><span class="toggle"><input type="checkbox" id="sonido" ${E.sonido !== false ? 'checked' : ''}><span></span></span></label>
@@ -554,7 +563,7 @@ function vistaAjustes() {
     <div class="btns"><button class="btn" data-act="exportar">Descargar respaldo</button><button class="btn" data-act="importar">Restaurar respaldo</button><button class="btn danger ghost" data-act="reiniciar">Empezar de cero</button></div>
     <input type="file" id="archivo" accept="application/json" hidden>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 0.9</p>`;
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 1.0</p>`;
   return h;
 }
 
@@ -651,9 +660,12 @@ function nuevoPremio() {
 // ---------- Render y eventos ----------
 function render(recien) {
   diaRender = hoy();
-  const vistas = { hoy: vistaHoy, arbol: vistaArbol, premios: vistaPremios, ajustes: vistaAjustes };
+  const vistas = { hoy: vistaHoy, arbol: vistaArbol, bosque: Bosque.vista, premios: vistaPremios, ajustes: vistaAjustes };
   $('#view').innerHTML = vistas[tab](recien);
   anim = {};
+  if (tab === 'arbol') ArbolVivo.montar();
+  if (tab === 'bosque') Bosque.montar();
+  Bosque.publicar();
   if (typeof Avisos !== 'undefined') Avisos.reportar();
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   // Al ver un fallo, caen algunas hojas (una vez por reporte).
@@ -690,6 +702,15 @@ document.querySelector('.tabs').addEventListener('click', e => {
 });
 
 document.addEventListener('click', e => {
+  const plegar = e.target.closest('[data-plegar]');
+  if (plegar) { alternarSeccion(plegar.dataset.plegar); return; }
+  const letra = e.target.closest('[data-letra]');
+  if (letra) {
+    document.documentElement.dataset.letra = letra.dataset.letra;
+    try { localStorage.setItem('raiz:letra', letra.dataset.letra); } catch { /* sin almacenamiento */ }
+    render();
+    return;
+  }
   const arbol = e.target.closest('.hero .tree, .arbol-card .tree');
   if (arbol) { tocarArbol(arbol); return; }
   const el = e.target.closest('[data-act]');
@@ -708,6 +729,7 @@ document.addEventListener('click', e => {
   else if (act === 'editar') editarMision(id);
   else if (act === 'sin-instalar') { E.sinAvisoInstalar = true; guardar(); render(); }
   else if (act === 'ver-intro') Intro.abrir(true);
+  else if (act === 'ir-bosque') { tab = 'bosque'; render(); window.scrollTo(0, 0); }
   else if (act === 'elegir-especie') elegirEspecie();
   else if (act === 'especie') {
     E.especie = el.dataset.esp;
