@@ -173,7 +173,7 @@ function progresionAbajo(d) {
   const dias = Array.from({ length: 7 }, (_, k) => E.registro[sumar(w, k)]?._desafio).filter(Boolean).length;
   const okD = !!E.registro[d]?._desafio;
   const completo = E.desafios?.[w];
-  return `<div class="section"><div class="eyebrow"><span>Extras</span><span style="text-transform:none;letter-spacing:0">Cambian cada día y cada semana</span></div>
+  return `<div class="section"><div class="eyebrow"><span>Extras ${ayudaBtn('extras')}</span><span style="text-transform:none;letter-spacing:0">Cambian cada día y cada semana</span></div>
     <div class="extras">
       <div class="card extra ${okS ? 'hecho' : ''}">
         <div class="eyebrow">Sorpresa del día · +${SAVIA_SORPRESA}</div>

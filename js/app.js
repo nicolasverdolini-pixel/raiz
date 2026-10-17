@@ -395,10 +395,12 @@ function filaMision(m, d, recien) {
     extraHtml = `<div class="chips">${m.opciones.map((op, k) => `<button class="chip ${lista.some(x => x.o === k) ? 'on' : ''} ${recien === m.id && anim.opcion === k ? 'pop' : ''}" data-act="marcar" data-id="${esc(m.id)}" data-o="${k}">${esc(op)}</button>`).join('')}</div>`;
   }
 
-  const fila = m.opciones?.length
-    ? `<div class="item ${n ? 'done' : ''} ${recien === m.id ? 'pop' : ''}"><span class="check"></span><span class="t"><span>${esc(m.titulo)}</span><small>${sub}</small></span><span class="xp">${derecha}</span></div>`
-    : `<button class="item ${n ? 'done' : ''} ${recien === m.id ? 'pop' : ''}" data-act="marcar" data-id="${esc(m.id)}" data-o="0"><span class="check"></span><span class="t"><span>${esc(m.titulo)}</span><small>${sub}</small></span><span class="xp">${derecha}</span></button>`;
-  return `<div>${fila}${extraHtml}</div>`;
+  const e = estiloDe(m.area);
+  const clases = `mision ${n ? 'done' : ''} ${recien === m.id ? 'pop' : ''}`;
+  const dentro = `${iconoRama(m.area)}<span class="t"><span>${esc(m.titulo)}</span><small>${sub}</small></span><span class="m-der"><span class="xp">${derecha}</span><span class="check"></span></span>`;
+  return m.opciones?.length
+    ? `<div class="${clases} con-opciones" style="--fg:${e.fg};--bg:${e.bg}"><div class="m-fila">${dentro}</div>${extraHtml}</div>`
+    : `<button class="${clases}" style="--fg:${e.fg};--bg:${e.bg}" data-act="marcar" data-id="${esc(m.id)}" data-o="0">${dentro}</button>`;
 }
 
 function vistaHoy(recien) {
@@ -415,16 +417,16 @@ function vistaHoy(recien) {
   if (E.invierno) estado = 'El árbol descansa.';
   else if (E.lluvia[d]) estado = 'Hoy es día de lluvia.';
 
-  let h = `<div class="top"><span>${esc(fechaLarga(d))} · día ${diaN}</span><span class="pill">racha ${E.racha}</span></div>
-  <h1 class="greet">${saludo()}, ${esc(E.nombre)}.<br><em>${estado}</em></h1>
+  let h = `<div class="top"><span>${esc(fechaLarga(d))} · día ${diaN}</span><button class="pill racha" data-ui="ayuda" data-k="racha">${svgIco(ICONOS.llama)} ${E.racha} ${E.racha === 1 ? 'día' : 'días'}</button></div>
+  <div class="saludo"><h1 class="greet">${saludo()}, ${esc(E.nombre)}.<br><em>${estado}</em></h1>${anillo(raices.length - faltan, raices.length)}</div>
 
   <div class="card dark hero">
     ${treeSVG(et, E.vitalidad, otono, { especie: E.especie, brotes: brotesHoy(d), nuevo: anim.nuevo })}
     <div style="flex:1;min-width:0">
-      <div class="lvl">Nivel ${nv.nivel} · ${esc(ETAPAS[et].nombre)}</div>
+      <button class="lvl" data-ui="ayuda" data-k="savia">Nivel ${nv.nivel} · ${esc(ETAPAS[et].nombre)} <span class="q-mini">?</span></button>
       <div class="num">${nv.nivel >= NIVEL_MAX ? E.savia : `${nv.dentro} <small>/ ${nv.falta} savia</small>`}</div>
       <div class="bar"><i style="width:${nv.nivel >= NIVEL_MAX ? 100 : Math.round((nv.dentro / nv.falta) * 100)}%"></i></div>
-      <div class="stats"><span>Vitalidad <b>${E.vitalidad}</b></span><span>Semillas <b>${E.semillas}</b></span></div>
+      <div class="stats"><button class="stat" data-ui="ayuda" data-k="vitalidad">${svgIco(ICONOS.corazon)}<b>${E.vitalidad}</b></button><button class="stat" data-ui="ayuda" data-k="semillas">${svgIco(ICONOS.semilla)}<b>${E.semillas}</b></button></div>
     </div>
   </div>`;
 
@@ -453,7 +455,8 @@ function vistaHoy(recien) {
   if (E.invierno) h += `<div class="card soft" style="margin-top:12px;font-size:13px">${esc(frase('invierno'))} Lo desactivás en Ajustes.</div>`;
   h += progresionArriba();
 
-  h += `<div class="areas">${tops.map(a => `<div><b>${nivelArea(E.saviaArea[a.id] || 0).nivel}</b>${esc(a.nombre.split(' ')[0])}</div>`).join('')}</div>`;
+  h += consejoHTML(d);
+  h += ramasHTML();
 
   for (const tipo of ['raiz', 'rama', 'hoja', 'fruto']) {
     let ms = activas().filter(m => m.tipo === tipo);
@@ -461,8 +464,8 @@ function vistaHoy(recien) {
     if (!ms.length) continue;
     const info = TIPOS[tipo];
     const cont = tipo === 'raiz' ? `${raices.length - faltan} de ${raices.length}` : info.ayuda;
-    h += `<div class="section"><div class="eyebrow"><span>${info.nombre}</span><span style="text-transform:none;letter-spacing:0">${cont}</span></div>
-      <div class="list">${ms.map(m => filaMision(m, d, recien)).join('')}</div>${tipo === 'raiz' ? lugarLibre() : ''}</div>`;
+    h += `<div class="section"><div class="eyebrow"><span>${info.nombre} ${ayudaBtn(tipo)}</span><span style="text-transform:none;letter-spacing:0">${cont}</span></div>
+      <div class="misiones">${ms.map(m => filaMision(m, d, recien)).join('')}</div>${tipo === 'raiz' ? lugarLibre() : ''}</div>`;
   }
 
   h += progresionAbajo(d);
@@ -551,7 +554,7 @@ function vistaAjustes() {
     <div class="btns"><button class="btn" data-act="exportar">Descargar respaldo</button><button class="btn" data-act="importar">Restaurar respaldo</button><button class="btn danger ghost" data-act="reiniciar">Empezar de cero</button></div>
     <input type="file" id="archivo" accept="application/json" hidden>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 0.7</p>`;
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 0.8</p>`;
   return h;
 }
 
