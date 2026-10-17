@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Raíz</title>
+  <meta name="description" content="Tu vida es un árbol. Cada hábito le da savia.">
+  <meta name="theme-color" content="#f6f1e7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Raíz">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="view"></main>
+
+  <nav class="tabs" aria-label="Secciones">
+    <button data-tab="hoy" class="on"><svg viewBox="0 0 24 24"><path d="M12 21V11M12 11c0-4 3-7 7-7 0 4-3 7-7 7zM12 14c0-3-2.5-5.5-6-5.5 0 3.5 2.5 5.5 6 5.5z"/></svg>Hoy</button>
+    <button data-tab="arbol"><svg viewBox="0 0 24 24"><path d="M12 21v-6M7 15h10l-5-11z"/></svg>Árbol</button>
+    <button data-tab="premios"><svg viewBox="0 0 24 24"><path d="M4 10h16v10H4zM2 6h20v4H2zM12 6v14M12 6C10 2 6 3 8 6M12 6c2-4 6-3 4 0"/></svg>Premios</button>
+    <button data-tab="ajustes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Ajustes</button>
+  </nav>
+
+  <div id="toasts" aria-live="polite"></div>
+  <dialog id="sheet"></dialog>
+
+  <script src="js/data.js"></script>
+  <script src="js/frases.js"></script>
+  <script src="js/tree.js"></script>
+  <script src="js/sonido.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
