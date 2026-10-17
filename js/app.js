@@ -337,7 +337,7 @@ const cerrar = () => $('#sheet').close();
 
 function celebrar(nivel, cambioEtapa, nivelAntes = nivel - 1) {
   const etapa = ETAPAS[etapaDe(nivel)].nombre;
-  const arbol = (et, clase) => treeSVG(et, E.vitalidad, enOtono()).replace('class="tree"', `class="tree ${clase}"`);
+  const arbol = (et, clase) => treeSVG(et, E.vitalidad, enOtono(), { especie: E.especie }).replace('class="tree"', `class="tree ${clase}"`);
   const escena = cambioEtapa
     ? arbol(etapaDe(nivelAntes), 'viejo') + arbol(etapaDe(nivel), 'nuevo-arbol')
     : arbol(etapaDe(nivel), 'solo');
@@ -417,7 +417,7 @@ function vistaHoy(recien) {
   <h1 class="greet">${saludo()}, ${esc(E.nombre)}.<br><em>${estado}</em></h1>
 
   <div class="card dark hero">
-    ${treeSVG(et, E.vitalidad, otono, { brotes: brotesHoy(d), nuevo: anim.nuevo })}
+    ${treeSVG(et, E.vitalidad, otono, { especie: E.especie, brotes: brotesHoy(d), nuevo: anim.nuevo })}
     <div style="flex:1;min-width:0">
       <div class="lvl">Nivel ${nv.nivel} · ${esc(ETAPAS[et].nombre)}</div>
       <div class="num">${nv.nivel >= NIVEL_MAX ? E.savia : `${nv.dentro} <small>/ ${nv.falta} savia</small>`}</div>
@@ -425,6 +425,10 @@ function vistaHoy(recien) {
       <div class="stats"><span>Vitalidad <b>${E.vitalidad}</b></span><span>Semillas <b>${E.semillas}</b></span></div>
     </div>
   </div>`;
+
+  if (/iPhone|iPad|iPod/.test(navigator.userAgent) && !navigator.standalone && !E.sinAvisoInstalar) {
+    h += `<div class="card soft" style="margin-top:12px;font-size:13px"><div class="row between"><b>Tenela como app</b><button class="btn ghost small" data-act="sin-instalar" aria-label="Cerrar">✕</button></div>En Safari tocá <b>Compartir</b> y después <b>Agregar a inicio</b>. Se abre en pantalla completa, con su ícono.</div>`;
+  }
 
   const rep = E.reporte;
   if (rep && !rep.visto) {
@@ -476,8 +480,8 @@ function vistaArbol() {
 
   let h = `<h1 class="greet" style="margin-top:0">Tu árbol</h1>
   <div class="card dark section arbol-card" style="text-align:center">
-    ${treeSVG(et, E.vitalidad, enOtono(), { brotes: brotesHoy(hoy()) }).replace('class="tree"', 'class="tree" style="width:170px;height:190px"')}
-    <div class="lvl eyebrow" style="color:var(--dorado)">Nivel ${nv.nivel} · ${esc(ETAPAS[et].nombre)}</div>
+    ${treeSVG(et, E.vitalidad, enOtono(), { especie: E.especie, brotes: brotesHoy(hoy()) }).replace('class="tree"', 'class="tree" style="width:170px;height:190px"')}
+    <div class="lvl eyebrow" style="color:var(--dorado)">${esc(especieActual().nombre)} · Nivel ${nv.nivel} · ${esc(ETAPAS[et].nombre)}</div>
     <div class="muted" style="font-size:13px;margin-top:4px">${prox ? `Próxima etapa: ${esc(prox.nombre)} en el nivel ${prox.desde}` : 'Llegaste al bosque.'}</div>
     <div class="stats" style="justify-content:center"><span>Savia total <b>${E.savia}</b></span><span>Mejor racha <b>${E.mejorRacha}</b></span><span>Misiones <b>${E.cumplidas}</b></span></div>
   </div>
@@ -528,6 +532,8 @@ function vistaAjustes() {
   h += `<div class="btns" style="margin-top:10px"><button class="btn primary" data-act="editar">+ Nueva misión</button><button class="btn" data-act="nueva-area">+ Nueva ramita</button></div></div>
 
   <div class="section"><div class="eyebrow"><span>Tu árbol</span></div><div class="list">
+    <button class="item" data-act="elegir-especie"><span class="t"><span>Tu árbol</span><small>${esc(especieActual().nombre)} · ${esc(especieActual().rasgo)}</small></span><span class="xp">Cambiar</span></button>
+    <button class="item" data-act="ver-intro"><span class="t"><span>Cómo se juega</span><small>Volver a ver la introducción.</small></span><span class="xp">Ver</span></button>
     <label class="item"><span class="t"><span>Tu nombre</span></span><input id="nombre" value="${esc(E.nombre)}" style="border:1px solid var(--linea);border-radius:8px;padding:6px 10px;width:130px;background:var(--crema)"></label>
     <label class="item"><span class="t"><span>Modo invierno</span><small>Pausa todo sin penalidad (enfermedad, viaje).</small></span><span class="toggle"><input type="checkbox" id="invierno" ${E.invierno ? 'checked' : ''}><span></span></span></label>
     <label class="item"><span class="t"><span>Sonidos</span><small>En el iPhone se escuchan si no está en silencio.</small></span><span class="toggle"><input type="checkbox" id="sonido" ${E.sonido !== false ? 'checked' : ''}><span></span></span></label>
@@ -539,7 +545,7 @@ function vistaAjustes() {
     <div class="btns"><button class="btn" data-act="exportar">Descargar respaldo</button><button class="btn" data-act="importar">Restaurar respaldo</button><button class="btn danger ghost" data-act="reiniciar">Empezar de cero</button></div>
     <input type="file" id="archivo" accept="application/json" hidden>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 0.2</p>`;
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 0.3</p>`;
   return h;
 }
 
@@ -597,6 +603,28 @@ function nuevaArea() {
   </form>`);
 }
 
+const especieActual = () => ESPECIES.find(x => x.id === E.especie) || ESPECIES[0];
+
+function elegirEspecie() {
+  abrir(`<div class="sheet">
+    <h2>Tu árbol</h2>
+    <p class="muted" style="font-size:13px;margin-top:-6px">Tu progreso no cambia: solo la especie.</p>
+    <div class="intro-especies">${ESPECIES.map(x => `<button class="esp ${x.id === especieActual().id ? 'on' : ''}" data-act="especie" data-esp="${x.id}">${treeSVG(5, 100, false, { especie: x.id })}<b>${esc(x.nombre)}</b><small>${esc(x.rasgo)}</small></button>`).join('')}</div>
+    <div class="btns"><button type="button" class="btn ghost" data-act="cerrar">Cancelar</button></div>
+  </div>`);
+}
+
+// Tocar el árbol: se sacude, caen hojas y te dice algo.
+function tocarArbol(svg) {
+  if (svg.classList.contains('sacudir')) return;
+  svg.classList.add('sacudir');
+  setTimeout(() => svg.classList.remove('sacudir'), 700);
+  Sonido.hojas();
+  const cont = svg.closest('.hero, .arbol-card');
+  hojasCayendo(cont, 3, coloresHoja(), cont?.clientHeight);
+  toast(esc(frase('manana')));
+}
+
 function nuevoPremio() {
   abrir(`<form class="sheet" id="form-premio">
     <h2>Nuevo premio</h2>
@@ -647,6 +675,8 @@ document.querySelector('.tabs').addEventListener('click', e => {
 });
 
 document.addEventListener('click', e => {
+  const arbol = e.target.closest('.hero .tree, .arbol-card .tree');
+  if (arbol) { tocarArbol(arbol); return; }
   const el = e.target.closest('[data-act]');
   if (!el) return;
   const { act, id } = el.dataset;
@@ -661,6 +691,15 @@ document.addEventListener('click', e => {
     guardar(); render();
   }
   else if (act === 'editar') editarMision(id);
+  else if (act === 'sin-instalar') { E.sinAvisoInstalar = true; guardar(); render(); }
+  else if (act === 'ver-intro') Intro.abrir(true);
+  else if (act === 'elegir-especie') elegirEspecie();
+  else if (act === 'especie') {
+    E.especie = el.dataset.esp;
+    guardar(); cerrar(); render();
+    Sonido.cumplir();
+    toast(`Ahora tu árbol es un <b>${esc(especieActual().nombre.toLowerCase())}</b>`);
+  }
   else if (act === 'archivar') {
     if (!confirm('¿Borrar esta misión? Tu historial y tu savia se conservan.')) return;
     E.misiones.find(x => x.id === id).archivada = true;

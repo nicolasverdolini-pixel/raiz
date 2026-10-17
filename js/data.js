@@ -92,3 +92,49 @@ const LOGROS = [
   { id: 'racha66', planta: 'Ceibo', texto: 'Racha de 66 días: hábito formado', forma: 'flor' },
   { id: 'nivel20', planta: 'Jacarandá', texto: 'Llegaste a Árbol en flor', forma: 'flor' },
 ];
+
+// Especies de árbol: tu "personaje". Cambian forma, colores, flores y frutos.
+const ESPECIES = [
+  {
+    id: 'roble', nombre: 'Roble', rasgo: 'Fuerza y constancia',
+    texto: 'Crece despacio y no lo tumba nadie. Para los que construyen de a poco.',
+    hojas: ['#5c7a4a', '#7c9a62', '#9db67f'], flor: '#f3e6c8', centro: '#c9a96e', fruto: '#8a6a45', forma: 'redonda',
+  },
+  {
+    id: 'ceibo', nombre: 'Ceibo', rasgo: 'Coraje',
+    texto: 'La flor nacional. Florece rojo intenso incluso a la orilla del río crecido.',
+    hojas: ['#4f7a44', '#6e9a58', '#8fb874'], flor: '#c8372d', centro: '#f0c27a', fruto: '#7a5a3a', forma: 'redonda', tronco: '#7b5a3c',
+  },
+  {
+    id: 'jacaranda', nombre: 'Jacarandá', rasgo: 'Creatividad',
+    texto: 'En primavera se vuelve violeta y cambia el color de toda la calle.',
+    hojas: ['#5f8a55', '#7ea86a', '#a6c48c'], hojasFlor: ['#6f6aa8', '#8f86c4', '#b3a9dc'], flor: '#c9bff0', centro: '#6f6aa8', fruto: '#8a6a45', forma: 'ancha',
+  },
+  {
+    id: 'olivo', nombre: 'Olivo', rasgo: 'Paciencia y paz',
+    texto: 'Vive cientos de años. No tiene apuro y siempre da frutos.',
+    hojas: ['#6f7f62', '#8e9c7e', '#b2bda2'], flor: '#efeadc', centro: '#c9a96e', fruto: '#3f4a2c', forma: 'ancha', tronco: '#7d6b55',
+  },
+  {
+    id: 'pino', nombre: 'Pino', rasgo: 'Resistencia',
+    texto: 'Verde todo el año, aunque nieve. Para los que no aflojan.',
+    hojas: ['#2f5a3c', '#3f6e4a', '#5b8a62'], flor: null, fruto: '#8a5a32', forma: 'conica', tronco: '#6e4f35',
+  },
+  {
+    id: 'cerezo', nombre: 'Cerezo', rasgo: 'Disfrutar el presente',
+    texto: 'Su flor dura poco y por eso se celebra. Para los que saben frenar y mirar.',
+    hojas: ['#5c7a4a', '#7c9a62', '#9db67f'], hojasFlor: ['#d48ea0', '#e6aebb', '#f4cfd7'], flor: '#fbe3e8', centro: '#d48ea0', fruto: '#a3203a', forma: 'redonda',
+  },
+];
+
+// Ideas para las primeras raíces (en la introducción elegís de 1 a 5).
+const RAICES_SUGERIDAS = [
+  { id: 'caminar', titulo: 'Caminar 10 minutos', area: 'cuerpo/movimiento' },
+  { id: 'leer', titulo: 'Leer 5 páginas', area: 'mente/lectura' },
+  { id: 'casa', titulo: 'Una tarea de la casa', area: 'casa/orden' },
+  { id: 'hilo', titulo: 'Hilo dental', area: 'cuerpo/salud/bucal' },
+  { id: 'agua', titulo: 'Dos vasos de agua al despertar', area: 'cuerpo/alimentacion' },
+  { id: 'estirar', titulo: '5 minutos de estiramiento', area: 'cuerpo/movimiento' },
+  { id: 'respirar', titulo: '3 minutos de respiración', area: 'mente/calma' },
+  { id: 'dormir', titulo: 'Acostarme antes de las 00', area: 'cuerpo/salud/sueno' },
+];

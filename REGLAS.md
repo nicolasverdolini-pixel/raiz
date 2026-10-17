@@ -12,6 +12,12 @@ Este documento es la referencia de cómo funciona. Lo vamos ajustando sobre la m
 | **Vitalidad** | Salud del árbol (0–100). Baja si no cumplís raíces. |
 | **Racha** | Días seguidos cumpliendo todas tus raíces. |
 
+## Tu árbol (especie)
+
+Al empezar elegís tu especie: Roble (fuerza y constancia), Ceibo (coraje), Jacarandá (creatividad),
+Olivo (paciencia y paz), Pino (resistencia) o Cerezo (disfrutar el presente).
+Cambia la forma, los colores, las flores y los frutos. Se puede cambiar en Ajustes sin perder progreso.
+
 ## Ramas (áreas) y ramitas (subáreas)
 
 - **Cuerpo**: Fuerza · Movimiento · Salud (Bucal, Piel, Pies, Sueño) · Alimentación

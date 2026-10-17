@@ -1,6 +1,6 @@
 // Guarda la app para que abra rápido y funcione sin conexión.
-const CACHE = 'raiz-v0.2';
-const ARCHIVOS = ['./', 'index.html', 'styles.css', 'js/data.js', 'js/frases.js', 'js/tree.js', 'js/sonido.js', 'js/app.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-180.png'];
+const CACHE = 'raiz-v0.3';
+const ARCHIVOS = ['./', 'index.html', 'styles.css', 'js/data.js', 'js/frases.js', 'js/tree.js', 'js/sonido.js', 'js/app.js', 'js/intro.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-180.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS)).then(() => self.skipWaiting()));

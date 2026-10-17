@@ -26,10 +26,12 @@ function puntosBrote(etapa) {
   });
 }
 
-// opts.brotes: misiones cumplidas hoy. opts.nuevo: anima el último brote.
+// opts.especie: id de ESPECIES. opts.brotes: misiones cumplidas hoy. opts.nuevo: anima el último brote.
 function treeSVG(etapa, vitalidad = 100, otono = false, opts = {}) {
-  const pal = otono || vitalidad < 30 ? PALETAS.otono : vitalidad < 60 ? PALETAS.cansado : PALETAS.sano;
-  const tronco = '#8a6a45';
+  const esp = (typeof ESPECIES !== 'undefined' && ESPECIES.find(e => e.id === opts.especie)) || { hojas: PALETAS.sano, flor: '#f3e6c8', centro: '#c9a96e', fruto: '#c9763e', forma: 'redonda' };
+  const enFlor = etapa >= 4 && esp.hojasFlor;
+  const pal = otono || vitalidad < 30 ? PALETAS.otono : vitalidad < 60 ? PALETAS.cansado : enFlor ? esp.hojasFlor : esp.hojas;
+  const tronco = esp.tronco || '#8a6a45';
   let s = `<svg class="tree" viewBox="0 0 120 140" role="img" aria-label="Tu árbol">`;
   s += `<ellipse cx="60" cy="130" rx="40" ry="6" fill="#d9ccb0" opacity=".7"/>`;
   s += `<g class="planta">`;
@@ -44,42 +46,65 @@ function treeSVG(etapa, vitalidad = 100, otono = false, opts = {}) {
     s += `<path d="M60 102 Q74 94 80 82 Q64 84 60 102Z" fill="${pal[2]}"/>`;
   } else if (etapa === 2) {
     s += `<path d="M60 130 Q58 108 60 82" stroke="${tronco}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
-    s += `<path d="M60 112 Q44 108 38 96 Q54 96 60 112Z" fill="${pal[0]}"/>`;
-    s += `<path d="M60 104 Q76 100 84 88 Q66 88 60 104Z" fill="${pal[1]}"/>`;
-    s += `<path d="M60 92 Q46 84 44 72 Q58 76 60 92Z" fill="${pal[1]}"/>`;
-    s += `<path d="M60 86 Q72 78 74 64 Q60 70 60 86Z" fill="${pal[2]}"/>`;
+    if (esp.forma === 'conica') {
+      s += `<path d="M44 108 L60 80 L76 108Z" fill="${pal[0]}"/><path d="M48 94 L60 70 L72 94Z" fill="${pal[1]}"/>`;
+    } else {
+      s += `<path d="M60 112 Q44 108 38 96 Q54 96 60 112Z" fill="${pal[0]}"/>`;
+      s += `<path d="M60 104 Q76 100 84 88 Q66 88 60 104Z" fill="${pal[1]}"/>`;
+      s += `<path d="M60 92 Q46 84 44 72 Q58 76 60 92Z" fill="${pal[1]}"/>`;
+      s += `<path d="M60 86 Q72 78 74 64 Q60 70 60 86Z" fill="${pal[2]}"/>`;
+    }
   } else {
     const n = Math.min(etapa, 6);
     const grosor = 5 + n * 1.4;
     const alto = { 3: 82, 4: 66, 5: 62, 6: 58 }[n];
     s += `<path d="M${60 - grosor / 2} 130 Q${58} ${(130 + alto) / 2} ${60 - 2} ${alto} L${62} ${alto} Q${62} ${(130 + alto) / 2} ${60 + grosor / 2} 130Z" fill="${tronco}"/>`;
-    if (n >= 4) {
+    if (n >= 4 && esp.forma !== 'conica') {
       s += `<path d="M60 ${alto + 22} Q46 ${alto + 12} 40 ${alto + 4}" stroke="${tronco}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
       s += `<path d="M60 ${alto + 16} Q74 ${alto + 6} 82 ${alto}" stroke="${tronco}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
     }
-    // Primero una silueta unida y oscura, después las luces: la copa se lee como una sola.
-    for (const [cx, cy, r] of COPAS[n]) s += `<circle cx="${cx}" cy="${cy + 2}" r="${r + 3}" fill="${pal[0]}" opacity=".9"/>`;
-    for (const [cx, cy, r, t] of COPAS[n]) if (t) s += `<circle cx="${cx - r * 0.18}" cy="${cy - r * 0.2}" r="${r * 0.72}" fill="${pal[t]}" opacity=".85"/>`;
-    if (etapa >= 4 && !otono) {
-      for (const [x, y] of [[48, 50], [70, 44], [84, 66], [38, 70], [62, 66], [56, 32]].slice(0, etapa >= 5 ? 6 : 4))
-        s += `<circle cx="${x}" cy="${y}" r="3" fill="#f3e6c8"/><circle cx="${x}" cy="${y}" r="1.2" fill="#c9a96e"/>`;
+    // La copa (y lo que crece en ella) va en un grupo: la forma "ancha" la estira de costado.
+    const estirar = esp.forma === 'ancha' ? ` transform="translate(60 ${alto - 6}) scale(1.2 .82) translate(-60 -${alto - 6})"` : '';
+    s += `<g${estirar}>`;
+    if (esp.forma === 'conica') {
+      const capas = n, base = alto + 26, cima = alto - 44 - (n - 3) * 6;
+      const paso = (base - cima) / (capas + 0.6);
+      for (let k = 0; k < capas; k++) {
+        const y0 = base - k * paso, w = (20 + n * 3) * (1 - k / (capas + 1.2));
+        s += `<path d="M${60 - w} ${y0} Q60 ${y0 + 4} ${60 + w} ${y0} L60 ${y0 - paso * 1.9}Z" fill="${pal[k % 2]}"/>`;
+      }
+    } else {
+      // Primero una silueta unida y oscura, después las luces: la copa se lee como una sola.
+      for (const [cx, cy, r] of COPAS[n]) s += `<circle cx="${cx}" cy="${cy + 2}" r="${r + 3}" fill="${pal[0]}" opacity=".9"/>`;
+      for (const [cx, cy, r, t] of COPAS[n]) if (t) s += `<circle cx="${cx - r * 0.18}" cy="${cy - r * 0.2}" r="${r * 0.72}" fill="${pal[t]}" opacity=".85"/>`;
+    }
+    if (etapa >= 4 && !otono && esp.flor) {
+      for (const [x, y] of [[48, 50], [70, 44], [84, 66], [38, 70], [62, 66], [56, 32], [44, 40], [76, 72]].slice(0, etapa >= 5 ? 8 : 5))
+        s += `<circle cx="${x}" cy="${y}" r="3.2" fill="${esp.flor}"/><circle cx="${x}" cy="${y}" r="1.2" fill="${esp.centro || '#c9a96e'}"/>`;
     }
     if (etapa >= 5) {
-      for (const [x, y] of [[44, 62], [76, 58], [64, 78], [34, 78]]) s += `<circle cx="${x}" cy="${y}" r="3.6" fill="#c9763e"/>`;
+      for (const [x, y] of [[44, 62], [76, 58], [64, 78], [34, 78]]) s += `<circle cx="${x}" cy="${y}" r="3.6" fill="${esp.fruto}"/>`;
     }
+    s += brotesSVG(etapa, opts) + '</g>';
     if (etapa >= 7) {
       s += `<path d="M14 130 L16 108 L18 130Z" fill="${tronco}"/><circle cx="16" cy="102" r="11" fill="${pal[1]}"/>`;
       s += `<path d="M102 130 L104 104 L106 130Z" fill="${tronco}"/><circle cx="104" cy="98" r="13" fill="${pal[2]}"/>`;
     }
+    return s + '</g></svg>';
   }
+  return s + brotesSVG(etapa, opts) + '</g></svg>';
+}
+
+function brotesSVG(etapa, opts) {
   const pts = puntosBrote(etapa);
   const n = Math.min(opts.brotes || 0, pts.length);
+  let s = '';
   for (let i = 0; i < n; i++) {
     const [x, y] = pts[i];
     const giro = (i * 67) % 180;
     s += `<ellipse class="brote${opts.nuevo && i === n - 1 ? ' nuevo' : ''}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="3.4" ry="1.9" fill="#cfe0a8" transform="rotate(${giro} ${x.toFixed(1)} ${y.toFixed(1)})"/>`;
   }
-  return s + '</g></svg>';
+  return s;
 }
 
 function laminaSVG(forma) {
