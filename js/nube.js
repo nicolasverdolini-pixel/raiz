@@ -361,5 +361,3 @@ const Nube = (() => {
     probar(fn) { llamar.prueba = fn; },
   };
 })();
-
-Nube.iniciar();

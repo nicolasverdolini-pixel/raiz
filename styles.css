@@ -286,3 +286,4 @@ body.con-intro .tabs { display: none; }
 .eleccion small { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--tinta-2); }
 .eleccion b { display: block; font-family: var(--serif); font-weight: 400; font-size: 18px; }
 .eleccion span span { font-size: 13px; color: var(--tinta-2); }
+.instalar-icono { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 10px 30px rgba(31, 51, 38, .25); }
