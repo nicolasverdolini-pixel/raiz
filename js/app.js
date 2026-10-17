@@ -539,6 +539,7 @@ function vistaAjustes() {
   h += `<div class="btns" style="margin-top:10px"><button class="btn primary" data-prog="catalogo">+ Del catálogo</button><button class="btn" data-act="editar">+ Misión propia</button><button class="btn" data-act="nueva-area">+ Nueva ramita</button></div></div>
 
   ${typeof Nube !== 'undefined' ? Nube.ajustesHTML() : ''}
+  ${typeof Avisos !== 'undefined' ? Avisos.ajustesHTML() : ''}
 
   <div class="section"><div class="eyebrow"><span>Tu árbol</span></div><div class="list">
     <button class="item" data-act="elegir-especie"><span class="t"><span>Tu árbol</span><small>${esc(especieActual().nombre)} · ${esc(especieActual().rasgo)}</small></span><span class="xp">Cambiar</span></button>
@@ -546,7 +547,6 @@ function vistaAjustes() {
     <label class="item"><span class="t"><span>Tu nombre</span></span><input id="nombre" value="${esc(E.nombre)}" style="border:1px solid var(--linea);border-radius:8px;padding:6px 10px;width:130px;background:var(--crema)"></label>
     <label class="item"><span class="t"><span>Modo invierno</span><small>Pausa todo sin penalidad (enfermedad, viaje).</small></span><span class="toggle"><input type="checkbox" id="invierno" ${E.invierno ? 'checked' : ''}><span></span></span></label>
     <label class="item"><span class="t"><span>Sonidos</span><small>En el iPhone se escuchan si no está en silencio.</small></span><span class="toggle"><input type="checkbox" id="sonido" ${E.sonido !== false ? 'checked' : ''}><span></span></span></label>
-    <div class="item"><span class="t"><span>Recordatorios</span><small>Próximamente: avisos en el iPhone.</small></span></div>
   </div></div>
 
   <div class="section"><div class="eyebrow"><span>Tus datos</span></div>
@@ -554,7 +554,7 @@ function vistaAjustes() {
     <div class="btns"><button class="btn" data-act="exportar">Descargar respaldo</button><button class="btn" data-act="importar">Restaurar respaldo</button><button class="btn danger ghost" data-act="reiniciar">Empezar de cero</button></div>
     <input type="file" id="archivo" accept="application/json" hidden>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 0.8</p>`;
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 0.9</p>`;
   return h;
 }
 
@@ -654,6 +654,7 @@ function render(recien) {
   const vistas = { hoy: vistaHoy, arbol: vistaArbol, premios: vistaPremios, ajustes: vistaAjustes };
   $('#view').innerHTML = vistas[tab](recien);
   anim = {};
+  if (typeof Avisos !== 'undefined') Avisos.reportar();
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   // Al ver un fallo, caen algunas hojas (una vez por reporte).
   const r = $('.reporte.warn');

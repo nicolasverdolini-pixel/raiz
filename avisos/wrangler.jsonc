@@ -1,0 +1,18 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "raiz-avisos",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  // Revisa cada 15 minutos si a alguien le toca el aviso de la mañana o de la noche.
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "vars": {
+    "VAPID_PUBLICA": "BKefXAGvyZ3jEpQxwxJS6MtVRNb9spebqPgVsGipNgxkR2YdsYFdqHbWUWWfHYD_8-SLgr_5BIAvtsX-jfrai20",
+    "VAPID_CONTACTO": "mailto:raizapp.oficial@gmail.com"
+  },
+  // VAPID_PRIVADA va como secreto (wrangler secret put), nunca en este archivo.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "raiz-avisos", "database_id": "7e36736b-98fb-44b1-aac7-47e5a638c624" }
+  ],
+  "observability": { "enabled": true }
+}
