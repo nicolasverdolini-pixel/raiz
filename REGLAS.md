@@ -67,6 +67,16 @@ Cada nivel pide un 8% más de savia que el anterior (el primero, 150).
 
 Al cambiar de etapa la app propone subir la dificultad de tus hábitos (vos decidís).
 
+## Progresión
+
+- **Misiones con niveles**: cada misión del catálogo tiene una escalera (ej. Leer 5 → 10 → 15 → 20 → 30 páginas).
+  Si la cumplís 7 días seguidos (o 3 semanas seguidas si es semanal), la app te propone el siguiente nivel, con más savia.
+  Podés decir "Todavía no" y te lo vuelve a proponer en una semana.
+- **Lugares de raíz por etapa**: Semilla 3 · Brote 4 · Plantín 5 · Arbusto 5 · Árbol en flor 6 · Con frutos 6 · Antiguo 7 · Bosque 7.
+- **Catálogo**: 92 misiones por rama y ramita. Las más difíciles se desbloquean con el nivel.
+- **Sorpresa del día**: una misión distinta cada día, +30 de savia.
+- **Desafío de la semana**: uno distinto cada semana. +10 por día cumplido y +100 al llegar a la meta.
+
 ## Cuando fallás
 
 - Cada **raíz** incumplida: **−10 vitalidad** y perdés la mitad de su savia (nunca bajás de nivel por esto).

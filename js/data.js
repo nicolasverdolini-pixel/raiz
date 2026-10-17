@@ -91,6 +91,9 @@ const LOGROS = [
   { id: 'cien', planta: 'Hiedra', texto: '100 misiones cumplidas', forma: 'trebol' },
   { id: 'racha66', planta: 'Ceibo', texto: 'Racha de 66 días: hábito formado', forma: 'flor' },
   { id: 'nivel20', planta: 'Jacarandá', texto: 'Llegaste a Árbol en flor', forma: 'flor' },
+  { id: 'escalon', planta: 'Bambú', texto: 'Subiste de nivel una misión', forma: 'espiga' },
+  { id: 'sorpresa5', planta: 'Girasol', texto: '5 misiones sorpresa', forma: 'flor' },
+  { id: 'desafio', planta: 'Ombú', texto: 'Completaste un desafío semanal', forma: 'brote' },
 ];
 
 // Especies de árbol: tu "personaje". Cambian forma, colores, flores y frutos.

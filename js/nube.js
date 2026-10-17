@@ -103,9 +103,12 @@ const Nube = (() => {
       <div class="intro-paso">
         <div class="intro-arte">${treeSVG(1, 100, false, { especie: E.especie })}</div>
         <h1 class="intro-titulo">Entrá a Raíz</h1>
-        <p class="intro-texto">Con tu cuenta, tu árbol queda guardado y lo ves desde cualquier dispositivo.</p>
+        <p class="intro-texto">Poné tu email y te mandamos un código. Sin contraseñas.</p>
         <input id="ingreso-email" class="intro-input" type="email" inputmode="email" autocomplete="email" placeholder="tu@email.com" value="${esc(emailIngreso)}">
-        <p class="intro-chico">Te mandamos un código a tu mail. Sin contraseñas.</p>
+        <div class="intro-lista" style="margin-top:14px">
+          <div><span><b>¿Ya tenés cuenta?</b>Usá el mismo email y recuperás tu árbol tal como lo dejaste.</span></div>
+          <div><span><b>¿Es tu primera vez?</b>Con tu email se crea tu cuenta y tu árbol queda guardado.</span></div>
+        </div>
         <p class="intro-error" id="ingreso-error"></p>
       </div>
       <div class="intro-pie">

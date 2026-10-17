@@ -57,9 +57,9 @@ const Intro = (() => {
     () => `
       <div class="eyebrow">Tu árbol</div>
       <h2 class="intro-titulo">Elegí tus primeras raíces</h2>
-      <p class="intro-chico" style="margin-top:0">Empezá con pocas: 3 es ideal. Después las cambiás cuando quieras.</p>
+      <p class="intro-chico" style="margin-top:0">Elegí hasta 3. A medida que tu árbol crece, se desbloquean más lugares y misiones más difíciles.</p>
       <div class="intro-raices">${RAICES_SUGERIDAS.map(r => `<button class="item ${raices.has(r.id) ? 'done' : ''}" data-raiz="${r.id}"><span class="check"></span><span class="t"><span>${esc(r.titulo)}</span></span></button>`).join('')}</div>
-      <p class="intro-chico" id="intro-cuenta">${raices.size} de 5 elegidas</p>`,
+      <p class="intro-chico" id="intro-cuenta">${raices.size} de 3 elegidas</p>`,
     () => {
       const e = ESPECIES.find(x => x.id === especie);
       const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -129,7 +129,10 @@ const Intro = (() => {
       const m = E.misiones.find(x => x.id === r.id);
       if (raices.has(r.id)) {
         if (m) { m.tipo = 'raiz'; delete m.archivada; }
-        else E.misiones.push({ id: r.id, titulo: r.titulo, tipo: 'raiz', area: r.area, savia: 10, creada: h });
+        else {
+          const c = CATALOGO.find(x => x.id === r.id);
+          E.misiones.push({ id: r.id, cat: c?.id, paso: 0, titulo: r.titulo, tipo: 'raiz', area: r.area, savia: 10, opciones: c?.opciones, creada: h });
+        }
       } else if (m && m.tipo === 'raiz') {
         m.tipo = 'hoja';
       }
@@ -170,8 +173,8 @@ const Intro = (() => {
     if (rz && document.getElementById('intro')) {
       const id = rz.dataset.raiz;
       if (raices.has(id)) raices.delete(id);
-      else if (raices.size < 5) raices.add(id);
-      else { toast('Con 5 alcanza para empezar'); return; }
+      else if (raices.size < 3) raices.add(id);
+      else { toast('En Semilla hay lugar para 3 raíces. Se desbloquean más al crecer.'); return; }
       Sonido.cumplir();
       pintar();
       return;

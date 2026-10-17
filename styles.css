@@ -263,3 +263,20 @@ body.con-intro .tabs { display: none; }
 /* ---------- Ingreso ---------- */
 .intro-error { color: var(--alerta); font-size: 14px; min-height: 20px; margin: 8px 0 0; }
 .intro-input.codigo { letter-spacing: .5em; text-align: center; font-family: var(--sans); font-size: 30px; }
+
+/* ---------- Progresión ---------- */
+.card.subir { background: #fbf3e0; border-color: #ecd9ad; color: #5b4520; }
+.card.subir .muted, .card.subir .eyebrow { color: #8a6d3a; }
+.libre { display: block; width: 100%; margin-top: 8px; padding: 11px 14px; border: 1.5px dashed #c9b98f; border-radius: 14px; background: transparent; color: var(--tierra); font-size: 14px; text-align: left; }
+.extras { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 380px) { .extras { grid-template-columns: 1fr; } }
+.card.extra { padding: 12px; display: flex; flex-direction: column; gap: 6px; border-color: #ecd9ad; }
+.card.extra .quote { font-size: 15px; margin: 0; flex: 1; }
+.card.extra .eyebrow { color: var(--tierra); font-size: 10px; }
+.card.extra.hecho { background: var(--hoja-clara); border-color: transparent; }
+.catalogo-btn { width: 100%; margin-top: 10px; }
+.cat-sheet .filtro { padding: 0; margin: 4px 0 6px; }
+.cat-grupo { font-size: 12px; margin: 14px 2px 6px; }
+.item.bloq { opacity: .5; }
+.item:disabled { cursor: default; }
+.cat-sheet .item.done .t > span { text-decoration: none; color: var(--tinta-2); }

@@ -63,7 +63,7 @@ const cadena = area => area.split('/').map((_, i, p) => p.slice(0, i + 1).join('
 const nombreArea = id => E.areas.find(a => a.id === id)?.nombre || id;
 const lluviasDelMes = d => Object.keys(E.lluvia).filter(k => k.slice(0, 7) === d.slice(0, 7)).length;
 const enOtono = () => E.otonoHasta && E.otonoHasta >= hoy();
-const brotesHoy = d => Object.entries(E.registro[d] || {}).reduce((a, [k, v]) => a + (Array.isArray(v) ? v.length : k === '_rescate' ? 1 : 0), 0);
+const brotesHoy = d => Object.values(E.registro[d] || {}).reduce((a, v) => a + (Array.isArray(v) ? v.length : v && typeof v === 'object' && 'g' in v ? 1 : 0), 0);
 const diaCompleto = d => { const r = raicesDe(d); return r.length > 0 && r.every(m => hechas(d, m.id) > 0); };
 
 function mover(g, s, area) {
@@ -350,7 +350,7 @@ function celebrar(nivel, cambioEtapa, nivelAntes = nivel - 1) {
     <div class="eyebrow">${cambioEtapa ? 'Nueva etapa' : 'Nuevo nivel'}</div>
     <h2>${cambioEtapa ? esc(etapa) : `Nivel ${nivel}`}</h2>
     <p class="quote" style="margin-top:10px">${esc(frase(cambioEtapa ? 'etapa' : 'nivel'))}</p>
-    ${cambioEtapa ? `<p class="muted" style="font-size:13px">Buen momento para subir un poco la dificultad de tus hábitos. Lo podés hacer en Ajustes.</p>` : ''}
+    ${cambioEtapa ? `<p class="muted" style="font-size:13px">${esc(textoEtapa(nivelAntes, nivel))}</p>` : ''}
     <div class="btns" style="justify-content:center"><button class="btn primary" data-act="cerrar">Seguir creciendo</button></div>
   </div>`);
 }
@@ -451,6 +451,7 @@ function vistaHoy(recien) {
   }
   if (otono) h += `<div class="card warn" style="margin-top:12px;font-size:13px"><b>Otoño</b> hasta el ${esc(fechaLarga(E.otonoHasta))}. Semana suave: con las raíces alcanza.</div>`;
   if (E.invierno) h += `<div class="card soft" style="margin-top:12px;font-size:13px">${esc(frase('invierno'))} Lo desactivás en Ajustes.</div>`;
+  h += progresionArriba();
 
   h += `<div class="areas">${tops.map(a => `<div><b>${nivelArea(E.saviaArea[a.id] || 0).nivel}</b>${esc(a.nombre.split(' ')[0])}</div>`).join('')}</div>`;
 
@@ -461,9 +462,10 @@ function vistaHoy(recien) {
     const info = TIPOS[tipo];
     const cont = tipo === 'raiz' ? `${raices.length - faltan} de ${raices.length}` : info.ayuda;
     h += `<div class="section"><div class="eyebrow"><span>${info.nombre}</span><span style="text-transform:none;letter-spacing:0">${cont}</span></div>
-      <div class="list">${ms.map(m => filaMision(m, d, recien)).join('')}</div></div>`;
+      <div class="list">${ms.map(m => filaMision(m, d, recien)).join('')}</div>${tipo === 'raiz' ? lugarLibre() : ''}</div>`;
   }
 
+  h += progresionAbajo(d);
   h += `<div class="card soft section quote">“${esc(frase('manana', hash(d)))}”</div>`;
 
   const quedan = 2 - lluviasDelMes(d);
@@ -531,7 +533,7 @@ function vistaAjustes() {
     if (!ms.length) continue;
     h += `<div class="muted" style="font-size:12px;margin:12px 2px 6px">${TIPOS[tipo].nombre}</div><div class="list">${ms.map(m => `<button class="item" data-act="editar" data-id="${esc(m.id)}"><span class="t"><span>${esc(m.titulo)}</span><small>${esc(nombreArea(m.area))} · ${m.savia} savia${m.meta ? ` · ${m.meta}×/semana` : ''}${m.opciones?.length ? ` · ${m.opciones.length} opciones` : ''}${m.hecha ? ' · cumplido' : ''}</small></span><span class="xp">Editar</span></button>`).join('')}</div>`;
   }
-  h += `<div class="btns" style="margin-top:10px"><button class="btn primary" data-act="editar">+ Nueva misión</button><button class="btn" data-act="nueva-area">+ Nueva ramita</button></div></div>
+  h += `<div class="btns" style="margin-top:10px"><button class="btn primary" data-prog="catalogo">+ Del catálogo</button><button class="btn" data-act="editar">+ Misión propia</button><button class="btn" data-act="nueva-area">+ Nueva ramita</button></div></div>
 
   ${typeof Nube !== 'undefined' ? Nube.ajustesHTML() : ''}
 
@@ -549,7 +551,7 @@ function vistaAjustes() {
     <div class="btns"><button class="btn" data-act="exportar">Descargar respaldo</button><button class="btn" data-act="importar">Restaurar respaldo</button><button class="btn danger ghost" data-act="reiniciar">Empezar de cero</button></div>
     <input type="file" id="archivo" accept="application/json" hidden>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 0.4</p>`;
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 0.5</p>`;
   return h;
 }
 
@@ -585,8 +587,13 @@ function guardarMision(f) {
     opciones: opciones.length ? opciones : undefined,
     nota: datos.nota.trim() || undefined,
   };
+  const previa = datos.id && E.misiones.find(x => x.id === datos.id);
+  if (base.tipo === 'raiz' && previa?.tipo !== 'raiz' && raicesActivas() >= maxRaices()) {
+    toast(`En ${ETAPAS[etapaDe(nivelDe(E.savia).nivel)].nombre} podés tener hasta ${maxRaices()} raíces. Sumala como hoja o esperá a crecer.`);
+    return;
+  }
   if (datos.id) {
-    Object.assign(E.misiones.find(x => x.id === datos.id), base);
+    Object.assign(previa, base);
   } else {
     let nid = slug(titulo);
     while (E.misiones.some(x => x.id === nid)) nid += '-1';
@@ -783,6 +790,7 @@ setInterval(revisarDia, 60000);
 
 document.addEventListener('pointerdown', () => Sonido.despertar(), { once: true });
 
+vincularCatalogo();
 procesar();
 render();
 
