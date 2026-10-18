@@ -100,9 +100,9 @@ const Bosque = (() => {
       return { y: py, s: `<svg x="${(px - 14).toFixed(1)}" y="${(py - 26).toFixed(1)}" width="28" height="28" viewBox="0 0 48 48">${itemSVG(id)}</svg>` };
     }).filter(Boolean);
     g += piezas.filter(p => p.y < 110).map(p => p.s).join('');
-    g += treeSVG(etapaDe(nv), vit, false, { especie: j.especie }).replace('<svg class="tree" viewBox="0 0 120 140"', '<svg x="45" y="22" width="110" height="128" viewBox="0 0 120 140"').replace(/role="img" aria-label="[^"]*"/, '');
+    g += treeSVG(etapaDe(nv), vit, false, { especie: j.especie, brotes: j.brotes, nuevo: j.nuevo }).replace('<svg class="tree" viewBox="0 0 120 140"', `<svg class="${j.yo ? 'tree' : ''}" x="45" y="22" width="110" height="128" viewBox="0 0 120 140"`).replace(/role="img" aria-label="[^"]*"/, '');
     g += piezas.filter(p => p.y >= 110).map(p => p.s).join('');
-    g += `<g class="cartel"><rect x="${100 - 60}" y="196" width="120" height="26" rx="13" fill="${j.yo ? '#1f3326' : '#fffdf8'}" stroke="rgba(47,74,53,.15)"/>
+    if (!j.sinCartel) g += `<g class="cartel"><rect x="${100 - 60}" y="196" width="120" height="26" rx="13" fill="${j.yo ? '#1f3326' : '#fffdf8'}" stroke="rgba(47,74,53,.15)"/>
       <text x="100" y="213" text-anchor="middle" font-size="12" fill="${j.yo ? '#efe8d8' : '#24382a'}">${esc((j.nombre || '').slice(0, 16))} · nv ${nv}</text></g>`;
     return g + '</g>';
   }

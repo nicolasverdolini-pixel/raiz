@@ -120,6 +120,7 @@ function marcarEspecial(clave, g, area, el) {
   Sonido.extra();
   anim = { nuevo: true };
   render();
+  flotar(origen, `+${g}`);
   efectosDeSavia(origen, antes, completoDesafio, barraAntes);
 }
 

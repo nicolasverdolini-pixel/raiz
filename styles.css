@@ -524,3 +524,110 @@ html[data-letra="enorme"] main, html[data-letra="enorme"] dialog, html[data-letr
 .tienda-banner span:not(.xp) { flex: 1; }
 .tienda-banner b { display: block; font-size: 17px; }
 .tienda-banner small { color: var(--tinta-2); font-size: 13.5px; }
+
+/* =========================================================
+   Modo juego 1.2: HUD, escenario, cofre y botones con relieve
+   ========================================================= */
+:root { --juego: "Fredoka", "Nunito", system-ui, sans-serif; --verde: #4f8a52; --verde-osc: #2f5e33; --oro: #f2b632; --oro-osc: #c98a12; }
+main { padding-top: calc(10px + var(--safe-t)); }
+
+/* Tipografía de juego para números, títulos y botones */
+.hud, .escudo b, .hud-pill b, .cuenta, .btn, .btn-juego, .tabs button, .section > .eyebrow, .rama-card b, .resumen b, .monedas, .item-tienda b, .editor-top b, .bosque-top .greet, .puesto, .anillo b { font-family: var(--juego); }
+.section > .eyebrow { font-size: 18px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--tinta); margin-bottom: 10px; }
+.section > .eyebrow > span:last-child:not(:first-child) { font-family: var(--sans); font-size: 13px; color: var(--tinta-2); font-weight: 600; }
+.greet { font-family: var(--juego); font-weight: 600; }
+.greet em { font-family: var(--serif); font-weight: 400; }
+
+/* Barra de juego */
+.hud { position: sticky; top: calc(6px + var(--safe-t)); z-index: 8; display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 8px; background: rgba(255, 253, 248, .92); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-radius: 24px; border: 2px solid #ece4d2; box-shadow: 0 4px 0 #e3d9c3; }
+.hud-nivel { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 0; text-align: left; }
+.escudo { position: relative; width: 40px; height: 44px; flex: none; }
+.escudo svg { width: 100%; height: 100%; fill: var(--verde); stroke: var(--verde-osc); stroke-width: 2.5; }
+.escudo b { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 17px; font-weight: 700; padding-bottom: 3px; }
+.hud-barra { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.hud-etapa { font-size: 12px; font-weight: 600; color: var(--tinta-2); line-height: 1; }
+.hud-xp { display: block; height: 12px; border-radius: 999px; background: #ece4d2; overflow: hidden; box-shadow: inset 0 2px 0 rgba(0, 0, 0, .06); }
+.hud-xp > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(#f6cf5c, var(--oro)); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .1); transition: width .6s cubic-bezier(.3, 1.3, .5, 1); }
+.hud-xp.pulso { animation: pulso .6s ease; }
+.hud-barra small { font-size: 11px; color: var(--tinta-2); font-weight: 600; line-height: 1; }
+.hud-cont { display: flex; gap: 5px; }
+.hud-pill { display: inline-flex; align-items: center; gap: 3px; border: 0; padding: 6px 8px; border-radius: 14px; min-height: 36px; }
+.hud-pill .ico { width: 17px; height: 17px; stroke-width: 2.2; }
+.hud-pill b { font-size: 15px; font-weight: 700; }
+.hud-pill.fuego { background: #ffe8d6; color: #d0571f; }
+.hud-pill.vida { background: #fde0e4; color: #c63b56; }
+.hud-pill.semillas { background: #fbefcf; color: #a8721a; }
+.hud-pill:active { transform: scale(.92); }
+
+/* Escenario: tu jardín */
+.escena-hoy { position: relative; margin-top: 12px; padding: 34px 6px 12px; border-radius: 32px; background: linear-gradient(#cfe6f2 0%, #e8f1e6 55%, #eef2e3 100%); border: 2px solid #dbe6d4; box-shadow: 0 4px 0 #cfdcc6; overflow: hidden; }
+.escena-svg { display: block; width: 100%; max-height: 300px; position: relative; z-index: 1; }
+.escena-svg .tree { cursor: pointer; }
+.escena-fecha { position: absolute; top: 12px; left: 16px; font-size: 13px; font-weight: 700; color: #4d6a7a; z-index: 2; }
+.dialogo { position: relative; z-index: 2; margin: 2px 8px 0; padding: 10px 14px; background: #fff; border-radius: 18px; font-size: 15px; box-shadow: 0 3px 0 #dfe7da; }
+.dialogo b { color: var(--hoja); }
+.dialogo::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 16px; height: 16px; background: #fff; transform: translateX(-50%) rotate(45deg); border-radius: 3px; }
+.escena-botones { position: relative; z-index: 2; display: flex; gap: 8px; justify-content: center; margin-top: 4px; }
+.nube { position: absolute; background: #fff; border-radius: 999px; opacity: .85; animation: nube 40s linear infinite; }
+.nube::before, .nube::after { content: ""; position: absolute; background: #fff; border-radius: 50%; }
+.nube.n1 { width: 60px; height: 18px; top: 14px; left: -70px; }
+.nube.n1::before { width: 28px; height: 28px; left: 10px; top: -14px; }
+.nube.n1::after { width: 22px; height: 22px; left: 30px; top: -9px; }
+.nube.n2 { width: 44px; height: 14px; top: 40px; left: -60px; animation-duration: 55s; animation-delay: -20s; }
+.nube.n2::before { width: 20px; height: 20px; left: 8px; top: -10px; }
+@keyframes nube { to { transform: translateX(520px); } }
+
+/* Botones de juego, con relieve */
+.btn-juego { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 16px; padding: 12px 18px; font-family: var(--juego); font-weight: 600; font-size: 16px; color: #fff; background: var(--verde); box-shadow: 0 4px 0 var(--verde-osc); transition: transform .08s, box-shadow .08s; }
+.btn-juego:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--verde-osc); }
+.btn-juego.chico { padding: 8px 14px; font-size: 14px; border-radius: 14px; min-height: 40px; }
+.btn-juego.claro { background: #fff; color: var(--verde-osc); box-shadow: 0 4px 0 #d5dccb; }
+.btn-juego .ico { width: 17px; height: 17px; }
+.btn.primary { background: var(--verde); border-color: var(--verde); box-shadow: 0 4px 0 var(--verde-osc); border-radius: 16px; }
+.btn.primary:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--verde-osc); }
+
+/* Cofre del día */
+.cofre-card { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 12px 12px 12px 16px; background: #fffaf0; border: 2px solid #f0dfb6; border-radius: 24px; box-shadow: 0 4px 0 #ecd7a6; }
+.cofre-info { flex: 1; min-width: 0; }
+.cofre-info b { font-family: var(--juego); font-weight: 600; font-size: 16px; }
+.cofre-info .cuenta { color: var(--oro-osc); }
+.cofre-barra { height: 14px; margin: 6px 0 5px; border-radius: 999px; background: #f1e6cc; overflow: hidden; box-shadow: inset 0 2px 0 rgba(0, 0, 0, .06); }
+.cofre-barra i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(#7cc47f, var(--verde)); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .12); transition: width .6s cubic-bezier(.3, 1.3, .5, 1); }
+.cofre-info small { font-size: 13px; color: var(--tinta-2); font-weight: 600; }
+.cofre { width: 64px; height: 58px; border: 0; background: none; padding: 0; flex: none; }
+.cofre svg { width: 100%; height: 100%; }
+.cofre-card.listo { border-color: var(--oro); box-shadow: 0 4px 0 var(--oro-osc), 0 0 0 4px rgba(242, 182, 50, .2); }
+.cofre-card.listo .cofre { animation: saltito 1s ease-in-out infinite; }
+.cofre-card.listo small { color: var(--oro-osc); }
+.cofre.abriendo { animation: sacudon .65s ease; }
+@keyframes saltito { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-6px) rotate(-4deg); } 60% { transform: translateY(0) rotate(4deg); } }
+@keyframes sacudon { 20% { transform: scale(1.1) rotate(-8deg); } 40% { transform: scale(1.15) rotate(8deg); } 60% { transform: scale(1.2) rotate(-6deg); } 100% { transform: scale(1.3); opacity: .6; } }
+
+/* Números que saltan */
+.flota { position: fixed; z-index: 70; transform: translate(-50%, 0); display: inline-flex; align-items: center; gap: 3px; font-family: var(--juego); font-weight: 700; font-size: 20px; color: var(--oro-osc); text-shadow: 0 2px 0 #fff, 0 0 8px rgba(255, 255, 255, .9); pointer-events: none; animation: flota 1.2s cubic-bezier(.2, .8, .3, 1) forwards; }
+.flota .ico { width: 20px; height: 20px; stroke-width: 2.4; }
+.flota.semilla { color: #a8721a; font-size: 24px; }
+@keyframes flota { 0% { opacity: 0; transform: translate(-50%, 10px) scale(.6); } 20% { opacity: 1; transform: translate(-50%, -10px) scale(1.15); } 100% { opacity: 0; transform: translate(-50%, -70px) scale(1); } }
+.chispa.suelta { position: fixed; z-index: 70; width: 10px; height: 10px; background: #f6cf5c; }
+
+/* Misiones con relieve */
+.mision { border: 2px solid #ece4d2; box-shadow: 0 4px 0 #e3d9c3; border-radius: 22px; }
+button.mision:active, .mision .m-fila:active { transform: translateY(3px); box-shadow: 0 1px 0 #e3d9c3; }
+.mision .t > span { font-family: var(--sans); font-weight: 700; }
+.mision .xp { display: inline-flex; align-items: center; gap: 2px; background: #fbefcf; color: #a8721a; padding: 4px 9px; border-radius: 999px; font-family: var(--juego); font-weight: 600; font-size: 14px; }
+.mision .check { width: 32px; height: 32px; border-width: 3px; border-color: #d9d2bf; background: #fff; }
+.mision.done { border-color: var(--fg); background: color-mix(in srgb, var(--bg) 70%, #fff); box-shadow: 0 4px 0 color-mix(in srgb, var(--fg) 45%, #fff); }
+.mision.done .check { background: var(--fg); border-color: var(--fg); }
+.mision.done .xp { background: var(--fg); color: #fff; }
+.mision .chip { border: 2px solid #ece4d2; background: #fff; font-weight: 700; box-shadow: 0 2px 0 #e3d9c3; }
+.mision .chip.on { color: #fff; box-shadow: 0 2px 0 color-mix(in srgb, var(--fg) 60%, #000); }
+.libre { border: 2px dashed #d8c99e; box-shadow: none; font-family: var(--juego); font-weight: 600; }
+.rama-card { border: 2px solid #ece4d2; box-shadow: 0 4px 0 #e3d9c3; }
+.card.extra { border-width: 2px; box-shadow: 0 4px 0 #ecd7a6; }
+.consejo { border-width: 2px; box-shadow: 0 4px 0 #ecd7a6; }
+
+/* Barra de abajo */
+.tabs { border: 2px solid #ece4d2; box-shadow: 0 4px 0 #e3d9c3, 0 10px 30px rgba(31, 51, 38, .12); }
+.tabs button { font-size: 12.5px; font-weight: 600; }
+.tabs button.on { background: var(--verde); color: #fff; box-shadow: 0 3px 0 var(--verde-osc); }
+.tabs svg { width: 24px; height: 24px; stroke-width: 2; }

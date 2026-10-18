@@ -140,6 +140,7 @@ function marcar(id, o = 0, el = null) {
   extra ? Sonido.extra() : Sonido.cumplir();
   anim = { nuevo: true, opcion: o };
   render(id);
+  flotar(origen, `+${g}`);
   efectosDeSavia(origen, antes, completo, barraAntes);
 }
 
@@ -152,7 +153,7 @@ function pctBarra() {
 // La gota vuela hasta la barra, la barra se llena, y si corresponde: destello o celebración.
 function efectosDeSavia(origen, nivelAntes, completo, barraAntes) {
   const subio = nivelDe(E.savia).nivel > nivelAntes;
-  const barra = $('.hero .bar > i');
+  const barra = $('.hud-xp > i');
   if (barra) {
     const meta = subio ? 100 : pctBarra();
     barra.style.transition = 'none';
@@ -172,7 +173,7 @@ function efectosDeSavia(origen, nivelAntes, completo, barraAntes) {
 }
 
 function volarGota(desde, alFinal) {
-  const barra = $('.hero .bar');
+  const barra = $('.hud-xp');
   if (!barra || !desde || reducido() || !Element.prototype.animate) { alFinal(); return; }
   const b = barra.getBoundingClientRect();
   const x0 = desde.left + desde.width / 2, y0 = desde.top + desde.height / 2;
@@ -191,7 +192,7 @@ function volarGota(desde, alFinal) {
 // Día completo: brillo dorado y chispas sobre el árbol.
 function destello() {
   Sonido.dia();
-  const hero = $('.hero');
+  const hero = $('.escena-hoy');
   if (!hero || reducido()) return;
   hero.classList.remove('brillo');
   void hero.offsetWidth;
@@ -380,7 +381,7 @@ function filaMision(m, d, recien) {
   const lista = E.registro[d]?.[m.id] || [];
   const gan = lista.reduce((a, x) => a + x.g, 0);
   let sub = esc(nombreArea(m.area));
-  let derecha = n ? `+${gan}` : `+${m.savia}`;
+  let derecha = `${svgIco(ICONOS.gota)}${n ? `+${gan}` : `+${m.savia}`}`;
   let extraHtml = '';
 
   if (m.tipo === 'rama') {
@@ -430,18 +431,7 @@ function vistaHoy(recien) {
   if (E.invierno) estado = 'El árbol descansa.';
   else if (E.lluvia[d]) estado = 'Hoy es día de lluvia.';
 
-  let h = `<div class="top"><span>${esc(fechaLarga(d))} · día ${diaN}</span><button class="pill racha" data-ui="ayuda" data-k="racha">${svgIco(ICONOS.llama)} ${E.racha} ${E.racha === 1 ? 'día' : 'días'}</button></div>
-  <div class="saludo"><h1 class="greet">${saludo()}, ${esc(E.nombre)}.<br><em>${estado}</em></h1>${anillo(raices.length - faltan, raices.length)}</div>
-
-  <div class="card dark hero">
-    ${treeSVG(et, E.vitalidad, otono, { especie: E.especie, brotes: brotesHoy(d), nuevo: anim.nuevo })}
-    <div style="flex:1;min-width:0">
-      <button class="lvl" data-ui="ayuda" data-k="savia">Nivel ${nv.nivel} · ${esc(ETAPAS[et].nombre)} <span class="q-mini">?</span></button>
-      <div class="num">${nv.nivel >= NIVEL_MAX ? E.savia : `${nv.dentro} <small>/ ${nv.falta} savia</small>`}</div>
-      <div class="bar"><i style="width:${nv.nivel >= NIVEL_MAX ? 100 : Math.round((nv.dentro / nv.falta) * 100)}%"></i></div>
-      <div class="stats"><button class="stat" data-ui="ayuda" data-k="vitalidad">${svgIco(ICONOS.corazon)}<b>${E.vitalidad}</b></button><button class="stat" data-ui="ayuda" data-k="semillas">${svgIco(ICONOS.semilla)}<b>${E.semillas}</b></button></div>
-    </div>
-  </div>`;
+  let h = hudHTML() + escenaHTML(d, estado) + cofreHTML(d, raices.length - faltan, raices.length);
 
   if (/iPhone|iPad|iPod/.test(navigator.userAgent) && !navigator.standalone && !E.sinAvisoInstalar) {
     h += `<div class="card soft" style="margin-top:12px;font-size:13px"><div class="row between"><b>Tenela como app</b><button class="btn ghost small" data-act="sin-instalar" aria-label="Cerrar">✕</button></div>En Safari tocá <b>Compartir</b> y después <b>Agregar a inicio</b>. Se abre en pantalla completa, con su ícono.</div>`;
@@ -567,7 +557,7 @@ function vistaAjustes() {
     <div class="btns"><button class="btn" data-act="exportar">Descargar respaldo</button><button class="btn" data-act="importar">Restaurar respaldo</button><button class="btn danger ghost" data-act="reiniciar">Empezar de cero</button></div>
     <input type="file" id="archivo" accept="application/json" hidden>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 1.1</p>`;
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 1.2</p>`;
   return h;
 }
 
@@ -647,7 +637,7 @@ function tocarArbol(svg) {
   svg.classList.add('sacudir');
   setTimeout(() => svg.classList.remove('sacudir'), 700);
   Sonido.hojas();
-  const cont = svg.closest('.hero, .arbol-card');
+  const cont = svg.closest('.escena-hoy, .arbol-card');
   hojasCayendo(cont, 3, coloresHoja(), cont?.clientHeight);
   toast(esc(frase('manana')));
 }
@@ -687,7 +677,7 @@ setInterval(() => {
   if (document.hidden || $('#sheet').open) return;
   ritmo++;
   if (ritmo % (enOtono() || E.vitalidad < 30 ? 1 : 3)) return;
-  const cont = $('.hero') || $('.arbol-card');
+  const cont = $('.escena-hoy') || $('.arbol-card');
   if (cont) hojasCayendo(cont, 1, coloresHoja(), cont.clientHeight);
 }, 4000);
 
@@ -708,14 +698,15 @@ document.querySelector('.tabs').addEventListener('click', e => {
 document.addEventListener('click', e => {
   const plegar = e.target.closest('[data-plegar]');
   if (plegar) { alternarSeccion(plegar.dataset.plegar); return; }
-  const letra = e.target.closest('[data-letra]');
+  // Ojo: <html> también tiene data-letra (el tamaño elegido), por eso se busca solo en botones.
+  const letra = e.target.closest('button[data-letra]');
   if (letra) {
     document.documentElement.dataset.letra = letra.dataset.letra;
     try { localStorage.setItem('raiz:letra', letra.dataset.letra); } catch { /* sin almacenamiento */ }
     render();
     return;
   }
-  const arbol = e.target.closest('.hero .tree, .arbol-card .tree');
+  const arbol = e.target.closest('.escena-hoy svg.tree, .arbol-card .tree');
   if (arbol) { tocarArbol(arbol); return; }
   const el = e.target.closest('[data-act]');
   if (!el) return;
