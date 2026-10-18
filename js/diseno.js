@@ -14,7 +14,9 @@ const estiloDe = area => ESTILO_RAMA[String(area || '').split('/')[0]] || ESTILO
 const svgIco = (path, clase = '') => `<svg viewBox="0 0 24 24" class="ico ${clase}" aria-hidden="true">${path}</svg>`;
 const iconoRama = (area, clase = '') => {
   const e = estiloDe(area);
-  return `<span class="burbuja ${clase}" style="--fg:${e.fg};--bg:${e.bg}">${svgIco(e.ico)}</span>`;
+  const top = String(area || '').split('/')[0];
+  const dibujo = typeof IL !== 'undefined' && IL[top] ? ilus(top) : svgIco(e.ico);
+  return `<span class="burbuja ${clase}" style="--fg:${e.fg};--bg:${e.bg}">${dibujo}</span>`;
 };
 
 const ICONOS = {
@@ -48,7 +50,7 @@ function abrirAyuda(clave) {
   const a = AYUDAS[clave];
   if (!a) return;
   abrir(`<div class="sheet ayuda">
-    <span class="burbuja grande" style="--fg:var(--bosque-2);--bg:var(--hoja-clara)">${svgIco(ICONOS[a.ico] || ICONOS.gota)}</span>
+    <span class="burbuja grande" style="--fg:var(--bosque-2);--bg:var(--hoja-clara)">${ilus({ gota: 'gota', corazon: 'corazon', semilla: 'semilla', llama: 'llama', foco: 'bombilla' }[a.ico] || 'gota')}</span>
     <h2>${esc(a.t)}</h2>
     <p class="quote">${esc(a.txt)}</p>
     <ul>${a.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
@@ -98,7 +100,7 @@ function anillo(hechasN, total) {
 
 function ramasHTML() {
   const tops = E.areas.filter(a => !a.id.includes('/'));
-  return `<div class="section"><div class="eyebrow"><span>Tus ramas ${ayudaBtn('ramas')}</span></div>
+  return `<div class="section"><div class="eyebrow"><span class="titulo-il">${ilus('t_arbol', 'chico')}Tus ramas ${ayudaBtn('ramas')}</span></div>
     <div class="ramas">${tops.map(a => {
       const n = nivelArea(E.saviaArea[a.id] || 0);
       const e = estiloDe(a.id);

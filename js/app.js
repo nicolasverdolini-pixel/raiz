@@ -381,7 +381,7 @@ function filaMision(m, d, recien) {
   const lista = E.registro[d]?.[m.id] || [];
   const gan = lista.reduce((a, x) => a + x.g, 0);
   let sub = esc(nombreArea(m.area));
-  let derecha = `${svgIco(ICONOS.gota)}${n ? `+${gan}` : `+${m.savia}`}`;
+  let derecha = `${ilus('gota', 'mini')}${n ? `+${gan}` : `+${m.savia}`}`;
   let extraHtml = '';
 
   if (m.tipo === 'rama') {
@@ -398,7 +398,7 @@ function filaMision(m, d, recien) {
 
   const e = estiloDe(m.area);
   const clases = `mision ${n ? 'done' : ''} ${recien === m.id ? 'pop' : ''}`;
-  const dentro = `${iconoRama(m.area)}<span class="t"><span>${esc(m.titulo)}</span><small>${sub}</small></span><span class="m-der"><span class="xp">${derecha}</span><span class="check"></span></span>`;
+  const dentro = `<span class="burbuja il-burbuja" style="--bg:${e.bg}">${ilus(iconoDeMision(m))}</span><span class="t"><span>${esc(m.titulo)}</span><small>${sub}</small></span><span class="m-der"><span class="xp">${derecha}</span><span class="check"></span></span>`;
   return m.opciones?.length
     ? `<div class="${clases} con-opciones" style="--fg:${e.fg};--bg:${e.bg}"><div class="m-fila">${dentro}</div>${extraHtml}</div>`
     : `<button class="${clases}" style="--fg:${e.fg};--bg:${e.bg}" data-act="marcar" data-id="${esc(m.id)}" data-o="0">${dentro}</button>`;
@@ -470,7 +470,7 @@ function vistaHoy(recien) {
     const abierta = !plegable || seccionAbierta(tipo);
     const hechasT = ms.filter(m => hechas(d, m.id)).length;
     const cont = tipo === 'raiz' ? `${raices.length - faltan} de ${raices.length}` : plegable ? `${hechasT ? `${hechasT} hechas · ` : ''}${ms.length} ${ms.length === 1 ? 'misión' : 'misiones'}` : info.ayuda;
-    h += `<div class="section"><div class="eyebrow"><span>${info.nombre} ${ayudaBtn(tipo)}</span>${plegable
+    h += `<div class="section"><div class="eyebrow"><span class="titulo-il">${ilus(tipo, 'chico')}${info.nombre} ${ayudaBtn(tipo)}</span>${plegable
       ? `<button class="plegar" data-plegar="${tipo}" aria-expanded="${abierta}">${cont} <span class="flecha">${abierta ? '▴' : '▾'}</span></button>`
       : `<span style="text-transform:none;letter-spacing:0">${cont}</span>`}</div>
       ${abierta ? `<div class="misiones">${ms.map(m => filaMision(m, d, recien)).join('')}</div>` : ''}${tipo === 'raiz' ? lugarLibre() : ''}</div>`;
@@ -557,7 +557,7 @@ function vistaAjustes() {
     <div class="btns"><button class="btn" data-act="exportar">Descargar respaldo</button><button class="btn" data-act="importar">Restaurar respaldo</button><button class="btn danger ghost" data-act="reiniciar">Empezar de cero</button></div>
     <input type="file" id="archivo" accept="application/json" hidden>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 1.3</p>`;
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 1.4</p>`;
   return h;
 }
 

@@ -11,9 +11,9 @@ function hudHTML() {
       <span class="hud-barra"><span class="hud-etapa">${esc(ETAPAS[et].nombre)}</span><span class="hud-xp"><i style="width:${pct}%"></i></span><small>${nv.nivel >= NIVEL_MAX ? E.savia : `${nv.dentro}/${nv.falta}`}</small></span>
     </button>
     <div class="hud-cont">
-      <button class="hud-pill fuego" data-ui="ayuda" data-k="racha" aria-label="Racha ${E.racha}">${svgIco(ICONOS.llama)}<b>${E.racha}</b></button>
-      <button class="hud-pill vida" data-ui="ayuda" data-k="vitalidad" aria-label="Vitalidad ${E.vitalidad}">${svgIco(ICONOS.corazon)}<b>${E.vitalidad}</b></button>
-      <button class="hud-pill semillas" data-ui="ayuda" data-k="semillas" aria-label="Semillas ${E.semillas}">${svgIco(ICONOS.semilla)}<b>${E.semillas}</b></button>
+      <button class="hud-pill fuego" data-ui="ayuda" data-k="racha" aria-label="Racha ${E.racha}">${ilus('llama')}<b>${E.racha}</b></button>
+      <button class="hud-pill vida" data-ui="ayuda" data-k="vitalidad" aria-label="Vitalidad ${E.vitalidad}">${ilus('corazon')}<b>${E.vitalidad}</b></button>
+      <button class="hud-pill semillas" data-ui="ayuda" data-k="semillas" aria-label="Semillas ${E.semillas}">${ilus('semilla')}<b>${E.semillas}</b></button>
     </div>
   </div>`;
 }
@@ -26,7 +26,7 @@ function escenaHTML(d, estado) {
     <div class="dialogo">${saludo()}, ${esc(E.nombre)}. <b>${estado}</b></div>
     <svg class="escena-svg" viewBox="-12 -8 224 210" aria-label="Tu jardín">${Bosque.jardinSVG(yo, 0, 0)}</svg>
     <div class="escena-botones">
-      <button class="btn-juego chico" data-bosque="decorar">${svgIco(ICONOS.semilla)} Decorar</button>
+      <button class="btn-juego chico" data-bosque="decorar">${ilus('regadera')} Decorar</button>
       <button class="btn-juego chico claro" data-act="ir-bosque">Ver el Bosque</button>
     </div>
   </div>`;
@@ -85,7 +85,7 @@ function flotar(rect, texto, tipo = 'gota') {
   if (!rect || reducido()) return;
   const el = document.createElement('div');
   el.className = `flota ${tipo}`;
-  el.innerHTML = `${svgIco(tipo === 'semilla' ? ICONOS.semilla : ICONOS.gota)}${esc(texto)}`;
+  el.innerHTML = `${ilus(tipo === 'semilla' ? 'semilla' : 'gota')}${esc(texto)}`;
   el.style.left = rect.left + rect.width / 2 + 'px';
   el.style.top = rect.top + 'px';
   document.body.append(el);
@@ -106,4 +106,10 @@ function chispaEn(rect) {
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-juego="cofre"]');
   if (b) abrirCofre(b);
+});
+
+// Pestañas con dibujos a color.
+document.querySelectorAll('.tabs button[data-tab]').forEach(b => {
+  const svg = b.querySelector('svg');
+  if (svg) svg.outerHTML = ilus(`t_${b.dataset.tab}`, 'tab-il');
 });

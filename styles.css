@@ -648,3 +648,21 @@ svg.mundo .pajaro { animation: volar 26s linear infinite; }
 svg.mundo .pajaro.p1 { animation-delay: -8s; }
 svg.mundo .pajaro.p2 { animation-delay: -16s; }
 @keyframes volar { from { translate: 0 0; } to { translate: 1400px 120px; } }
+
+/* ---------- Íconos ilustrados ---------- */
+.il { width: 30px; height: 30px; display: block; flex: none; }
+.il.chico { width: 24px; height: 24px; }
+.il.mini { width: 16px; height: 16px; display: inline-block; }
+.burbuja.il-burbuja { width: 46px; height: 46px; border-radius: 16px; background: var(--bg); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .06); }
+.burbuja .il { width: 30px; height: 30px; }
+.burbuja.grande .il { width: 36px; height: 36px; }
+.rama-card .burbuja .il { width: 24px; height: 24px; }
+.titulo-il { display: inline-flex; align-items: center; gap: 8px; }
+.hud-pill .il { width: 20px; height: 20px; }
+.mision .xp .il { margin-right: 1px; }
+.flota .il { width: 22px; height: 22px; }
+.btn-juego .il { width: 20px; height: 20px; }
+.tabs .tab-il { width: 26px; height: 26px; filter: grayscale(.65) opacity(.75); transition: filter .25s, transform .25s; }
+.tabs button.on .tab-il { filter: none; transform: translateY(-2px) scale(1.12); }
+.tabs button.on { background: #e6f0dc; color: var(--verde-osc); box-shadow: 0 3px 0 #c9dbb8; }
+.cat-sheet .item { gap: 12px; }

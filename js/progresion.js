@@ -174,7 +174,7 @@ function progresionAbajo(d) {
   const dias = Array.from({ length: 7 }, (_, k) => E.registro[sumar(w, k)]?._desafio).filter(Boolean).length;
   const okD = !!E.registro[d]?._desafio;
   const completo = E.desafios?.[w];
-  return `<div class="section"><div class="eyebrow"><span>Extras ${ayudaBtn('extras')}</span><span style="text-transform:none;letter-spacing:0">Cambian cada día y cada semana</span></div>
+  return `<div class="section"><div class="eyebrow"><span class="titulo-il">${ilus('regalo', 'chico')}Extras ${ayudaBtn('extras')}</span><span style="text-transform:none;letter-spacing:0">Cambian cada día y cada semana</span></div>
     <div class="extras">
       <div class="card extra ${okS ? 'hecho' : ''}">
         <div class="eyebrow">Sorpresa del día · +${SAVIA_SORPRESA}</div>
@@ -223,7 +223,7 @@ function pintarCatalogo() {
     if (c.metas) detalle.push(`${c.metas[0]}× por semana`);
     if (c.pasos.length > 1) detalle.push(`${c.pasos.length} niveles`);
     return `<button class="item ${usada ? 'done' : ''} ${bloq ? 'bloq' : ''}" data-prog="elegir" data-id="${c.id}" ${bloq || usada ? 'disabled' : ''}>
-      <span class="t"><span>${esc(c.pasos[0])}</span><small>${esc(detalle.join(' · '))}</small></span>
+      <span class="burbuja il-burbuja" style="--bg:${estiloDe(c.area).bg}">${ilus(ICONO_MISION[c.id] || 'hoja')}</span><span class="t"><span>${esc(c.pasos[0])}</span><small>${esc(detalle.join(' · '))}</small></span>
       <span class="xp">${bloq ? `Nivel ${c.nivel}` : usada ? '✓' : `+${saviaPaso(c, 0)}`}</span></button>`;
   };
 
