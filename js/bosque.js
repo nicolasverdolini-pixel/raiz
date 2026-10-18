@@ -17,7 +17,7 @@ const Bosque = (() => {
     return {
       id: E.bosque?.id || 'yo', nombre: E.bosque?.nombre || E.nombre, especie: E.especie || 'roble', nivel: nv,
       racha: E.racha, mejor_racha: E.mejorRacha, cumplidas: E.cumplidas, vitalidad: E.vitalidad,
-      logros: Object.keys(E.logros || {}), canjes: (E.canjes || []).length, yo: true,
+      logros: Object.keys(E.logros || {}), canjes: (E.canjes || []).length, jardin: E.jardin || null, yo: true,
     };
   }
 
@@ -39,7 +39,7 @@ const Bosque = (() => {
   async function publicar() {
     if (!E.bosque?.activo) return;
     const j = miJardin();
-    const datos = { id: E.bosque.id, clave: E.bosque.clave, nombre: j.nombre, especie: j.especie, nivel: j.nivel, racha: j.racha, mejorRacha: j.mejor_racha, cumplidas: j.cumplidas, vitalidad: j.vitalidad, logros: j.logros, canjes: j.canjes };
+    const datos = { id: E.bosque.id, clave: E.bosque.clave, nombre: j.nombre, especie: j.especie, nivel: j.nivel, racha: j.racha, mejorRacha: j.mejor_racha, cumplidas: j.cumplidas, vitalidad: j.vitalidad, logros: j.logros, canjes: j.canjes, jardin: { fondo: fondoDe(j.jardin).id, lugares: lugaresDe(j.jardin, j.logros) } };
     const firma = JSON.stringify(datos);
     if (firma === ultimoPublicado) return;
     clearTimeout(espera);
@@ -76,35 +76,32 @@ const Bosque = (() => {
 
   // ---------- Dibujo de un jardín ----------
 
-  // Lugares alrededor del árbol para las plantas del herbario.
-  const LUGARES = Array.from({ length: 16 }, (_, i) => {
-    const a = (i / 16) * Math.PI * 2 + 0.3;
-    const r = i % 2 ? 66 : 78;
-    return [100 + Math.cos(a) * r, 104 + Math.sin(a) * r * 0.78];
-  }).sort((a, b) => a[1] - b[1]);
-
   function jardinSVG(j, x, y) {
     const vit = j.vitalidad ?? 100;
-    const pasto = vit < 30 ? '#d9cfa4' : vit < 60 ? '#cfd8a8' : '#c5d9a6';
+    const fondo = fondoDe(j.jardin);
     const nv = j.nivel || 1;
-    const logros = (j.logros || []).map(id => LOGROS.find(l => l.id === id)).filter(Boolean);
+    const noche = fondo.id === 'noche';
     let g = `<g class="jardin ${j.yo ? 'mio' : ''}" data-jardin="${esc(j.id)}" transform="translate(${x} ${y})">`;
-    g += `<ellipse cx="100" cy="110" rx="96" ry="82" fill="${pasto}"/>`;
-    g += `<ellipse cx="100" cy="110" rx="96" ry="82" fill="none" stroke="${j.yo ? '#c9a96e' : 'rgba(47,74,53,.15)'}" stroke-width="${j.yo ? 3 : 1.5}"/>`;
+    g += `<ellipse cx="100" cy="110" rx="96" ry="82" fill="${fondo.pasto}"/>`;
+    if (vit < 40) g += `<ellipse cx="100" cy="110" rx="96" ry="82" fill="#c9a26a" opacity=".25"/>`;
+    if (fondo.puntos) for (let k = 0; k < 14; k++) {
+      const a = k * 2.4, r = 30 + ((k * 37) % 55);
+      g += `<circle cx="${(100 + Math.cos(a) * r).toFixed(0)}" cy="${(110 + Math.sin(a) * r * 0.75).toFixed(0)}" r="${noche ? 1.2 : 1.8}" fill="${fondo.puntos}" opacity=".8"/>`;
+    }
+    g += `<ellipse cx="100" cy="110" rx="96" ry="82" fill="none" stroke="${j.yo ? '#c9a96e' : 'rgba(47,74,53,.18)'}" stroke-width="${j.yo ? 3 : 1.5}"/>`;
     if (nv >= 10) g += `<ellipse cx="100" cy="110" rx="88" ry="74" fill="none" stroke="#a9845a" stroke-width="1.6" stroke-dasharray="2 5"/>`;
-    if ((j.mejor_racha || 0) >= 7) g += `<path d="M100 188 Q92 170 100 158 Q108 146 100 138" stroke="#e9e1cc" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="6 5"/>`;
-    if ((j.mejor_racha || 0) >= 30) g += `<ellipse cx="148" cy="150" rx="20" ry="9" fill="#a9c7d6"/><ellipse cx="144" cy="148" rx="7" ry="2" fill="#d6e6ee"/>`;
-    // Plantas del herbario (detrás y delante del árbol según su altura).
-    const plantas = logros.slice(0, LUGARES.length).map((l, i) => {
-      const [px, py] = LUGARES[i];
-      return { y: py, s: `<svg x="${(px - 13).toFixed(1)}" y="${(py - 22).toFixed(1)}" width="26" height="26" viewBox="0 0 48 48">${laminaSVG(l.forma).replace(/^<svg[^>]*>|<\/svg>$/g, '')}</svg>` };
-    });
-    g += plantas.filter(p => p.y < 104).map(p => p.s).join('');
-    const etapa = etapaDe(nv);
-    g += treeSVG(etapa, vit, false, { especie: j.especie }).replace('<svg class="tree" viewBox="0 0 120 140"', '<svg x="45" y="20" width="110" height="128" viewBox="0 0 120 140"').replace(/role="img" aria-label="[^"]*"/, '');
-    g += plantas.filter(p => p.y >= 104).map(p => p.s).join('');
-    if ((j.canjes || 0) >= 1) g += `<g transform="translate(36 150)"><rect x="0" y="0" width="22" height="4" rx="2" fill="#8a6a45"/><rect x="2" y="4" width="2" height="6" fill="#6e5236"/><rect x="18" y="4" width="2" height="6" fill="#6e5236"/></g>`;
-    if ((j.canjes || 0) >= 5) g += `<g transform="translate(160 96)"><rect x="0" y="0" width="2" height="22" fill="#4a4a42"/><circle cx="1" cy="-1" r="4" fill="#f3e1b0"/></g>`;
+    if ((j.mejor_racha || 0) >= 7) g += `<path d="M100 188 Q92 170 100 158 Q108 146 100 138" stroke="${noche ? '#56677d' : '#e9e1cc'}" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="6 5"/>`;
+    // Decoración: lo de atrás primero, el árbol en el medio, lo de adelante al final.
+    const lugares = lugaresDe(j.jardin, j.logros);
+    const piezas = Object.entries(lugares).map(([i, id]) => {
+      const pos = LUGARES_JARDIN[Number(i)];
+      if (!pos) return null;
+      const [px, py] = pos;
+      return { y: py, s: `<svg x="${(px - 14).toFixed(1)}" y="${(py - 26).toFixed(1)}" width="28" height="28" viewBox="0 0 48 48">${itemSVG(id)}</svg>` };
+    }).filter(Boolean);
+    g += piezas.filter(p => p.y < 110).map(p => p.s).join('');
+    g += treeSVG(etapaDe(nv), vit, false, { especie: j.especie }).replace('<svg class="tree" viewBox="0 0 120 140"', '<svg x="45" y="22" width="110" height="128" viewBox="0 0 120 140"').replace(/role="img" aria-label="[^"]*"/, '');
+    g += piezas.filter(p => p.y >= 110).map(p => p.s).join('');
     g += `<g class="cartel"><rect x="${100 - 60}" y="196" width="120" height="26" rx="13" fill="${j.yo ? '#1f3326' : '#fffdf8'}" stroke="rgba(47,74,53,.15)"/>
       <text x="100" y="213" text-anchor="middle" font-size="12" fill="${j.yo ? '#efe8d8' : '#24382a'}">${esc((j.nombre || '').slice(0, 16))} · nv ${nv}</text></g>`;
     return g + '</g>';
@@ -158,7 +155,8 @@ const Bosque = (() => {
           <p class="quote" style="margin:4px 0 6px">Sumá tu jardín al mundo</p>
           <p class="muted" style="font-size:13px;margin:0 0 10px">Se ve tu nombre, tu árbol, tu nivel, tu racha y los adornos que ganaste. Nunca tus misiones.</p>
           <input id="bosque-nombre" class="campo" maxlength="24" value="${esc(E.bosque?.nombre || E.nombre)}" aria-label="Nombre que se muestra">
-          <button class="btn primary" data-bosque="unirse" style="margin-top:10px;width:100%">Aparecer en el Bosque</button></div>
+          <button class="btn primary" data-bosque="unirse" style="margin-top:10px;width:100%">Aparecer en el Bosque</button>
+          <button class="btn" data-bosque="decorar" style="margin-top:8px;width:100%">Decorar mi jardín</button></div>
       </div>`;
     }
 
@@ -180,6 +178,7 @@ const Bosque = (() => {
           <span class="puesto">${i + 1}</span><span class="t"><span>${esc(j.nombre)}${j.yo ? ' (vos)' : ''}</span><small>${esc((ESPECIES.find(e => e.id === j.especie) || ESPECIES[0]).nombre)} · racha ${j.racha || 0}</small></span><span class="xp">Nivel ${j.nivel}</span></button>`).join('')}
       </div></div>`;
     }
+    if (unido) h += `<button class="btn primary decorar-btn section" data-bosque="decorar">${svgIco(ICONOS.semilla)} Decorar mi jardín</button>`;
     if (unido) h += `<p class="muted" style="text-align:center;font-size:13px;margin-top:20px">Aparecés como <b>${esc(E.bosque.nombre)}</b> · <button class="link" data-bosque="salir">Dejar de aparecer</button></p>`;
     return h;
   }
@@ -236,6 +235,7 @@ const Bosque = (() => {
       unirse(nombre);
     }
     else if (a === 'salir') salir();
+    else if (a === 'decorar') Jardin.abrir();
     else if (a === 'recargar') { jardines = null; cargar(); render(); }
     else if (a === 'acercar') zoom?.acercar();
     else if (a === 'alejar') zoom?.alejar();
@@ -243,5 +243,5 @@ const Bosque = (() => {
     else if (a === 'mio') mostrarVisita(E.bosque.id);
   });
 
-  return { vista, montar, publicar, salir, cargar, unido: () => !!E.bosque?.activo };
+  return { vista, montar, publicar, salir, cargar, miJardin, jardinSVG, unido: () => !!E.bosque?.activo };
 })();

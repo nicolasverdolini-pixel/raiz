@@ -492,3 +492,35 @@ h1, h2, h3, .greet, .quote, .serif, .intro-titulo, .intro-texto, .num, .anillo b
 /* Tamaños de letra: agranda toda la interfaz de forma pareja */
 html[data-letra="grande"] main, html[data-letra="grande"] dialog, html[data-letra="grande"] .intro { zoom: 1.12; }
 html[data-letra="enorme"] main, html[data-letra="enorme"] dialog, html[data-letra="enorme"] .intro { zoom: 1.25; }
+
+/* ---------- Editor del jardín ---------- */
+.intro.editor { padding-left: 14px; padding-right: 14px; background: linear-gradient(#eef2e3, var(--crema)); }
+.editor-top { display: flex; justify-content: space-between; align-items: center; }
+.editor-top b { font-size: 22px; font-weight: 400; }
+.monedas { display: inline-flex; align-items: center; gap: 5px; background: #fbe9c8; color: #8a5a1a; font-weight: 700; padding: 6px 12px; border-radius: 999px; }
+.monedas .ico { width: 16px; height: 16px; }
+.editor-escena svg { display: block; width: 100%; max-height: 42vh; margin: 6px auto 0; }
+.editor .lugar circle { fill: rgba(255, 253, 248, .35); stroke: rgba(47, 74, 53, .35); stroke-width: 1.4; stroke-dasharray: 3 3; cursor: pointer; transition: fill .2s; }
+.editor .lugar.ocupado circle { fill: transparent; stroke: transparent; }
+.editor .lugar.listo circle { stroke: #c9a96e; stroke-width: 2; animation: latidoLugar 1.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.editor .lugar.listo.ocupado circle { fill: rgba(201, 169, 110, .15); }
+@keyframes latidoLugar { 50% { transform: scale(1.12); } }
+.editor-pista { text-align: center; font-size: 14px; color: var(--tinta-2); margin: 4px 0 10px; min-height: 40px; }
+.editor-tabs { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; }
+.editor-tabs button { border: 0; background: var(--papel); padding: 8px 16px; border-radius: 999px; font-weight: 700; color: var(--tinta-2); box-shadow: var(--sombra); }
+.editor-tabs button.on { background: var(--bosque-2); color: #fff; }
+.tienda { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; padding-bottom: 12px; align-content: start; }
+.item-tienda { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; background: var(--papel); border: 2px solid transparent; border-radius: 20px; box-shadow: var(--sombra); }
+.item-tienda svg { width: 48px; height: 48px; }
+.item-tienda b { font-size: 13px; font-weight: 700; text-align: center; line-height: 1.15; }
+.item-tienda small { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; color: var(--tierra); font-weight: 700; }
+.item-tienda small .ico { width: 13px; height: 13px; }
+.item-tienda.on { border-color: var(--dorado); background: #fbf3e0; }
+.item-tienda.bloq { opacity: .5; }
+.item-tienda .muestra { width: 48px; height: 48px; border-radius: 50%; border: 3px solid #fff; box-shadow: var(--sombra); }
+.decorar-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; }
+.tienda-banner { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 0; }
+.tienda-banner svg { width: 52px; height: 52px; flex: none; }
+.tienda-banner span:not(.xp) { flex: 1; }
+.tienda-banner b { display: block; font-size: 17px; }
+.tienda-banner small { color: var(--tinta-2); font-size: 13.5px; }

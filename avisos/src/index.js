@@ -97,11 +97,15 @@ async function publicar(req, env, origen) {
   const actual = await env.DB.prepare('SELECT clave FROM bosque WHERE id = ?1').bind(p.id).first();
   if (actual && actual.clave !== clave) return json({ error: 'No autorizado' }, origen, 403);
   const logros = JSON.stringify((Array.isArray(p.logros) ? p.logros : []).slice(0, 40).map(l => texto(l, 20)));
-  await env.DB.prepare(`INSERT INTO bosque (id, clave, nombre, especie, nivel, racha, mejor_racha, cumplidas, vitalidad, logros, canjes, actualizado, creado)
-      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, datetime('now'), datetime('now'))
-      ON CONFLICT(id) DO UPDATE SET nombre = ?3, especie = ?4, nivel = ?5, racha = ?6, mejor_racha = ?7, cumplidas = ?8, vitalidad = ?9, logros = ?10, canjes = ?11, actualizado = datetime('now')`)
+  // Decoración: fondo elegido y qué hay en cada lugar del jardín (0 a 15).
+  const lugares = {};
+  for (const [k, v] of Object.entries(p.jardin?.lugares || {})) if (/^\d{1,2}$/.test(k) && Number(k) < 16 && v) lugares[k] = texto(v, 24);
+  const jardin = JSON.stringify({ fondo: texto(p.jardin?.fondo, 20) || 'pradera', lugares });
+  await env.DB.prepare(`INSERT INTO bosque (id, clave, nombre, especie, nivel, racha, mejor_racha, cumplidas, vitalidad, logros, canjes, jardin, actualizado, creado)
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, datetime('now'), datetime('now'))
+      ON CONFLICT(id) DO UPDATE SET nombre = ?3, especie = ?4, nivel = ?5, racha = ?6, mejor_racha = ?7, cumplidas = ?8, vitalidad = ?9, logros = ?10, canjes = ?11, jardin = ?12, actualizado = datetime('now')`)
     .bind(p.id, clave, nombre, texto(p.especie, 20), entero(p.nivel, 50) || 1, entero(p.racha, 9999), entero(p.mejorRacha, 9999),
-      entero(p.cumplidas, 999999), entero(p.vitalidad, 100), logros, entero(p.canjes, 9999))
+      entero(p.cumplidas, 999999), entero(p.vitalidad, 100), logros, entero(p.canjes, 9999), jardin)
     .run();
   return json({ ok: true }, origen);
 }
@@ -114,9 +118,9 @@ async function salirDelBosque(req, env, origen) {
 }
 
 async function verBosque(env, origen) {
-  const { results } = await env.DB.prepare(`SELECT id, nombre, especie, nivel, racha, mejor_racha, cumplidas, vitalidad, logros, canjes, actualizado
+  const { results } = await env.DB.prepare(`SELECT id, nombre, especie, nivel, racha, mejor_racha, cumplidas, vitalidad, logros, canjes, jardin, actualizado
       FROM bosque ORDER BY nivel DESC, cumplidas DESC LIMIT 400`).all();
-  const jardines = results.map(r => ({ ...r, logros: JSON.parse(r.logros || '[]') }));
+  const jardines = results.map(r => ({ ...r, logros: JSON.parse(r.logros || '[]'), jardin: JSON.parse(r.jardin || 'null') }));
   return new Response(JSON.stringify({ jardines }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...cors(origen) } });
 }
 

@@ -15,3 +15,4 @@ CREATE INDEX IF NOT EXISTS bosque_nivel ON bosque (nivel DESC);
 -- ALTER TABLE bosque ADD COLUMN logros TEXT;
 -- ALTER TABLE bosque ADD COLUMN canjes INTEGER NOT NULL DEFAULT 0;
 -- ALTER TABLE bosque ADD COLUMN creado TEXT;
+-- ALTER TABLE bosque ADD COLUMN jardin TEXT;

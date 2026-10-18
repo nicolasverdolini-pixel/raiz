@@ -523,7 +523,11 @@ function vistaPremios() {
   let h = `<h1 class="greet" style="margin-top:0">Premios</h1>
   <div class="card dark section row between"><div><div class="eyebrow">Tus semillas</div><div class="serif" style="font-size:34px">${E.semillas}</div></div>
     <div class="muted" style="font-size:13px;max-width:180px;text-align:right">Ganás 1 semilla cada 10 de savia. Canjealas por cosas que te hagan bien.</div></div>
-  <div class="section"><div class="eyebrow"><span>Para canjear</span></div><div class="list">`;
+  <button class="card tienda-banner section" data-bosque="decorar">
+    <svg viewBox="0 0 48 48" aria-hidden="true">${DECOS.find(d => d.id === 'girasoles').svg}</svg>
+    <span><b>Tienda del jardín</b><small>Plantas, adornos y fondos para tu jardín del Bosque</small></span><span class="xp">Ver</span>
+  </button>
+  <div class="section"><div class="eyebrow"><span>Premios de la vida real</span></div><div class="list">`;
   h += E.premios.map(p => `<div class="item"><span class="t"><span>${esc(p.titulo)}</span><small>${p.costo} semillas</small></span>
     <button class="btn small" data-act="canjear" data-id="${esc(p.id)}" ${E.semillas < p.costo ? 'disabled' : ''}>Canjear</button>
     <button class="btn small ghost" data-act="borrar-premio" data-id="${esc(p.id)}" aria-label="Borrar">✕</button></div>`).join('') || '<div class="empty">Todavía no hay premios.</div>';
@@ -563,7 +567,7 @@ function vistaAjustes() {
     <div class="btns"><button class="btn" data-act="exportar">Descargar respaldo</button><button class="btn" data-act="importar">Restaurar respaldo</button><button class="btn danger ghost" data-act="reiniciar">Empezar de cero</button></div>
     <input type="file" id="archivo" accept="application/json" hidden>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 1.0</p>`;
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 1.1</p>`;
   return h;
 }
 
