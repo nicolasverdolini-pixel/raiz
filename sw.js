@@ -1,5 +1,5 @@
 // Guarda la app para que abra rápido y funcione sin conexión.
-const CACHE = 'raiz-v1.2';
+const CACHE = 'raiz-v1.3';
 const ARCHIVOS = ['./', 'index.html', 'styles.css', 'js/data.js', 'js/frases.js', 'js/tree.js', 'js/sonido.js', 'js/catalogo.js', 'js/progresion.js', 'js/diseno.js', 'js/zoom.js', 'js/arbolvivo.js', 'js/bosque.js', 'js/jardin.js', 'js/juego.js', 'js/app.js', 'js/intro.js', 'js/nube.js', 'js/avisos.js', 'js/instalar.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-180.png'];
 
 self.addEventListener('install', e => {

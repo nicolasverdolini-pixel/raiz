@@ -631,3 +631,20 @@ button.mision:active, .mision .m-fila:active { transform: translateY(3px); box-s
 .tabs button { font-size: 12.5px; font-weight: 600; }
 .tabs button.on { background: var(--verde); color: #fff; box-shadow: 0 3px 0 var(--verde-osc); }
 .tabs svg { width: 24px; height: 24px; stroke-width: 2; }
+.arbol-vivo .t-rama { font-family: var(--juego); font-weight: 600; font-size: 16px; }
+.arbol-vivo .t-tronco { font-family: var(--juego); font-weight: 600; font-size: 15px; fill: #f6efe0; }
+.arbol-vivo .t-ramita { font-size: 12px; font-weight: 700; }
+.arbol-vivo .t-mini { font-size: 10px; font-weight: 700; }
+.arbol-vivo .t-rama-g { transition: opacity .35s; }
+.arbol-vivo .t-rama-g.apagada { opacity: .2; }
+.arbol-vivo.con-eleccion .t-de:not(.activa) .t-ramita, .arbol-vivo.con-eleccion .t-de:not(.activa) .t-mini { opacity: 0; }
+svg.arbol-vivo { height: auto; aspect-ratio: 1 / 1.05; max-height: 70vh; min-height: 320px; }
+.arbol-vivo-marco:has(svg.cerca) .arbol-pista, .arbol-vivo-marco:has(svg.con-eleccion) .arbol-pista { opacity: 0; pointer-events: none; } .arbol-pista { transition: opacity .3s; }
+svg.mundo .corriente { animation: corriente 3s linear infinite; }
+@keyframes corriente { to { stroke-dashoffset: -80; } }
+svg.mundo .fuego { transform-box: fill-box; transform-origin: 50% 100%; animation: fuego .6s ease-in-out infinite alternate; }
+@keyframes fuego { to { transform: scale(1.08, .9); } }
+svg.mundo .pajaro { animation: volar 26s linear infinite; }
+svg.mundo .pajaro.p1 { animation-delay: -8s; }
+svg.mundo .pajaro.p2 { animation-delay: -16s; }
+@keyframes volar { from { translate: 0 0; } to { translate: 1400px 120px; } }

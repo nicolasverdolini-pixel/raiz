@@ -120,20 +120,90 @@ const Bosque = (() => {
     });
   }
 
+  // ---------- Paisaje del mundo ----------
+
+  // Azar fijo: el mismo número para la misma semilla, así el paisaje no cambia cada vez.
+  const fijo = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+
+  const PAISAJE = {
+    pino: (x, y, k) => `<g transform="translate(${x} ${y}) scale(${k})"><rect x="-3" y="-4" width="6" height="12" fill="#7a5a3a"/><path d="M0 -46 L18 -6 L-18 -6Z" fill="#3f6e4a"/><path d="M0 -58 L13 -28 L-13 -28Z" fill="#4f8a58"/></g>`,
+    redondo: (x, y, k) => `<g transform="translate(${x} ${y}) scale(${k})"><rect x="-3" y="-6" width="6" height="14" fill="#8a6a45"/><circle cx="0" cy="-22" r="18" fill="#5c7a4a"/><circle cx="-6" cy="-27" r="9" fill="#7c9a62"/></g>`,
+    arbusto: (x, y, k) => `<g transform="translate(${x} ${y}) scale(${k})"><circle cx="-8" cy="-6" r="9" fill="#5c7a4a"/><circle cx="6" cy="-8" r="11" fill="#6e8f58"/><circle cx="0" cy="-12" r="7" fill="#9db67f"/></g>`,
+    rocas: (x, y, k) => `<g transform="translate(${x} ${y}) scale(${k})"><ellipse cx="-6" cy="-4" rx="11" ry="7" fill="#a8a59a"/><ellipse cx="8" cy="-2" rx="7" ry="5" fill="#bdbab0"/></g>`,
+    flores: (x, y, k) => `<g transform="translate(${x} ${y}) scale(${k})"><circle cx="-8" cy="-3" r="3" fill="#f3e6c8"/><circle cx="0" cy="-6" r="3" fill="#e9a0b8"/><circle cx="8" cy="-2" r="3" fill="#f2c230"/><circle cx="3" cy="2" r="2.5" fill="#c9bff0"/></g>`,
+    hongo: (x, y, k) => `<g transform="translate(${x} ${y}) scale(${k})"><rect x="-2" y="-8" width="4" height="8" fill="#f3e6c8"/><path d="M-8 -7a8 7 0 0 1 16 0z" fill="#d8443a"/></g>`,
+  };
+
   function mundoSVG(lista) {
     const pos = ubicar(lista);
+    const centros = pos.map(p => ({ x: p.x + 100, y: p.y + 110 }));
     const xs = pos.map(p => p.x), ys = pos.map(p => p.y);
-    const minX = Math.min(...xs) - 120, minY = Math.min(...ys) - 120;
-    const ancho = Math.max(...xs) + TAM + 120 - minX, alto = Math.max(...ys) + TAM + 160 - minY;
-    // Florcitas del pasto, siempre en el mismo lugar.
-    let deco = '';
-    for (let i = 0; i < Math.min(300, 30 + lista.length * 12); i++) {
-      const fx = minX + ((i * 7919) % 1000) / 1000 * ancho, fy = minY + ((i * 104729) % 1000) / 1000 * alto;
-      deco += i % 3 ? `<circle cx="${fx.toFixed(0)}" cy="${fy.toFixed(0)}" r="2" fill="#b7c99a"/>` : `<circle cx="${fx.toFixed(0)}" cy="${fy.toFixed(0)}" r="2.4" fill="#f3e6c8"/>`;
+    // El mundo siempre es al menos así de grande, para que haya paisaje alrededor.
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 100, cy = (Math.min(...ys) + Math.max(...ys)) / 2 + 110;
+    const ancho = Math.max(1100, Math.max(...xs) - Math.min(...xs) + 700);
+    const alto = Math.max(1000, Math.max(...ys) - Math.min(...ys) + 700);
+    const minX = cx - ancho / 2, minY = cy - alto / 2;
+    const libre = (x, y, margen) => centros.every(c => Math.hypot((x - c.x) / 1.15, y - c.y) > margen);
+
+    let capa = '';
+    // Montañas al norte.
+    for (let k = 0; k < Math.ceil(ancho / 140) + 1; k++) {
+      const mx = minX + k * 140 - 40 + fijo(k) * 40, h = 120 + fijo(k + 9) * 90, by = minY + 170;
+      capa += `<path d="M${mx - 110} ${by} L${mx} ${by - h} L${mx + 110} ${by}Z" fill="${k % 2 ? '#a9b8b0' : '#93a69c'}"/>
+        <path d="M${mx - 26} ${by - h + 50} L${mx} ${by - h} L${mx + 26} ${by - h + 50} L${mx + 10} ${by - h + 42} L${mx} ${by - h + 54} L${mx - 12} ${by - h + 42}Z" fill="#f4f6f2"/>`;
     }
+    capa += `<rect x="${minX - 2000}" y="${minY + 160}" width="${ancho + 4000}" height="${alto + 2000}" fill="#dfe7cf"/>`;
+
+    // Río que baja desde las montañas por el este, y un lago al sudoeste.
+    const rx = cx + ancho * 0.36;
+    capa += `<path d="M${rx} ${minY + 150} C${rx - 120} ${minY + alto * 0.3} ${rx + 90} ${minY + alto * 0.55} ${rx - 40} ${minY + alto + 200}" stroke="#8fc0d8" stroke-width="44" fill="none" stroke-linecap="round"/>
+      <path d="M${rx} ${minY + 150} C${rx - 120} ${minY + alto * 0.3} ${rx + 90} ${minY + alto * 0.55} ${rx - 40} ${minY + alto + 200}" stroke="#bfe0ee" stroke-width="6" fill="none" stroke-dasharray="14 26" class="corriente"/>`;
+    const lx = cx - ancho * 0.33, ly = cy + alto * 0.3;
+    capa += `<ellipse cx="${lx}" cy="${ly}" rx="140" ry="70" fill="#8fc0d8"/><ellipse cx="${lx - 30}" cy="${ly - 18}" rx="50" ry="10" fill="#bfe0ee"/>
+      <g transform="translate(${lx + 40} ${ly + 10})"><ellipse cx="0" cy="0" rx="10" ry="6" fill="#f6f1e7"/><circle cx="8" cy="-5" r="4" fill="#f6f1e7"/><path d="M11 -5 l4 1 -4 1z" fill="#e2a33a"/></g>
+      <g transform="translate(${lx - 60} ${ly + 22})"><ellipse cx="0" cy="0" rx="8" ry="5" fill="#f6f1e7"/><circle cx="6" cy="-4" r="3.5" fill="#f6f1e7"/></g>`;
+
+    // Caminos desde el primer jardín hasta cada uno de los otros.
+    centros.slice(1).forEach((c, k) => {
+      const a = centros[0];
+      capa += `<path d="M${a.x} ${a.y + 70} Q${(a.x + c.x) / 2 + (k % 2 ? 60 : -60)} ${(a.y + c.y) / 2 + 40} ${c.x} ${c.y + 70}" stroke="#e9dcbc" stroke-width="16" fill="none" stroke-linecap="round" opacity=".9"/>`;
+    });
+
+    // Árboles silvestres, arbustos, rocas, flores y hongos donde no hay jardines.
+    const tipos = ['pino', 'pino', 'redondo', 'redondo', 'arbusto', 'rocas', 'flores', 'flores', 'hongo'];
+    const silvestres = [];
+    const paso = 78;
+    for (let gy = minY + 200; gy < minY + alto; gy += paso) {
+      for (let gx = minX + 20; gx < minX + ancho; gx += paso) {
+        const n = gx * 0.37 + gy * 0.91;
+        if (fijo(n) > 0.42) continue;
+        const x = gx + (fijo(n + 1) - 0.5) * 50, y = gy + (fijo(n + 2) - 0.5) * 50;
+        if (!libre(x, y, 150)) continue;
+        if (Math.abs(x - (rx - 20)) < 60) continue;
+        if (Math.hypot((x - lx) / 150, (y - ly) / 80) < 1.1) continue;
+        silvestres.push({ x, y, t: tipos[Math.floor(fijo(n + 3) * tipos.length)], k: 0.8 + fijo(n + 4) * 0.6 });
+      }
+    }
+    // Un fogón para juntarse y un cartel de bienvenida.
+    const fx = centros[0].x + 230, fy = centros[0].y + 150;
+    if (libre(fx, fy, 130)) silvestres.push({ x: fx, y: fy, t: 'fogon', k: 1 });
+    silvestres.push({ x: centros[0].x - 140, y: centros[0].y + 120, t: 'cartel', k: 1 });
+    silvestres.sort((a, b) => a.y - b.y);
+    capa += silvestres.map(d => {
+      if (d.t === 'fogon') return `<g transform="translate(${d.x} ${d.y})"><circle r="40" fill="#e9dcbc"/><path d="M-12 6 L12 -2 M-12 -2 L12 6" stroke="#7a5a3a" stroke-width="5" stroke-linecap="round"/><path d="M0 -22 C10 -10 8 2 0 4 C-8 2 -10 -10 0 -22Z" fill="#f2a640" class="fuego"/><path d="M0 -12 C5 -6 4 1 0 2 C-4 1 -5 -6 0 -12Z" fill="#f6d77a"/>
+        ${[0, 1, 2, 3].map(q => `<rect x="${Math.cos(q * 1.57 + 0.6) * 30 - 9}" y="${Math.sin(q * 1.57 + 0.6) * 30 - 3}" width="18" height="6" rx="3" fill="#8a6a45"/>`).join('')}</g>`;
+      if (d.t === 'cartel') return `<g transform="translate(${d.x} ${d.y})"><rect x="-2" y="-30" width="4" height="34" fill="#7a5a3a"/><rect x="-44" y="-50" width="88" height="24" rx="6" fill="#a9845a"/><text x="0" y="-33" text-anchor="middle" font-size="13" fill="#fff6e6" font-weight="700">El Bosque</text></g>`;
+      return PAISAJE[d.t](d.x.toFixed(0), d.y.toFixed(0), d.k.toFixed(2));
+    }).join('');
+
+    // Pájaros que cruzan el cielo.
+    const pajaros = [0, 1, 2].map(q => `<path class="pajaro p${q}" d="M0 0 q6 -6 12 0 q6 -6 12 0" stroke="#4d5b55" stroke-width="2.4" fill="none" stroke-linecap="round" transform="translate(${minX + 60 + q * 40} ${minY + 60 + q * 22})"/>`).join('');
+
     return `<svg class="mundo" viewBox="${minX.toFixed(0)} ${minY.toFixed(0)} ${ancho.toFixed(0)} ${alto.toFixed(0)}" role="img" aria-label="El Bosque: jardines de ${lista.length} personas">
-      <rect x="${minX - 2000}" y="${minY - 2000}" width="${ancho + 4000}" height="${alto + 4000}" fill="#dfe7cf"/>${deco}
+      <rect x="${minX - 2000}" y="${minY - 2000}" width="${ancho + 4000}" height="${alto + 4000}" fill="#cfe6f2"/>
+      ${capa}
       ${pos.map(p => jardinSVG(p.j, p.x, p.y)).join('')}
+      ${pajaros}
     </svg>`;
   }
 
