@@ -557,7 +557,7 @@ function vistaAjustes() {
     <div class="btns"><button class="btn" data-act="exportar">Descargar respaldo</button><button class="btn" data-act="importar">Restaurar respaldo</button><button class="btn danger ghost" data-act="reiniciar">Empezar de cero</button></div>
     <input type="file" id="archivo" accept="application/json" hidden>
   </div>
-  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 1.4</p>`;
+  <p class="muted" style="text-align:center;font-size:12px;margin-top:28px">Raíz · versión 1.5</p>`;
   return h;
 }
 
@@ -767,8 +767,10 @@ document.addEventListener('click', e => {
 document.addEventListener('submit', e => {
   e.preventDefault();
   const f = e.target;
-  if (f.id === 'form-mision') guardarMision(f);
-  else if (f.id === 'form-area') {
+  // Se lee el atributo: un campo llamado "id" dentro del formulario taparía f.id.
+  const cual = f.getAttribute('id');
+  if (cual === 'form-mision') guardarMision(f);
+  else if (cual === 'form-area') {
     const { nombre, padre } = Object.fromEntries(new FormData(f));
     if (!nombre.trim()) return;
     let nid = (padre ? padre + '/' : '') + slug(nombre);
@@ -776,7 +778,7 @@ document.addEventListener('submit', e => {
     E.areas.push({ id: nid, nombre: nombre.trim() });
     guardar(); cerrar(); render(); toast('Ramita agregada');
   }
-  else if (f.id === 'form-premio') {
+  else if (cual === 'form-premio') {
     const { titulo, costo } = Object.fromEntries(new FormData(f));
     if (!titulo.trim() || !(Number(costo) > 0)) return;
     E.premios.push({ id: slug(titulo) + '-' + Date.now().toString(36), titulo: titulo.trim(), costo: Math.round(Number(costo)) });
