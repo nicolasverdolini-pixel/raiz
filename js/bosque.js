@@ -82,28 +82,40 @@ const Bosque = (() => {
     const nv = j.nivel || 1;
     const noche = fondo.id === 'noche';
     let g = `<g class="jardin ${j.yo ? 'mio' : ''}" data-jardin="${esc(j.id)}" transform="translate(${x} ${y})">`;
-    g += `<ellipse cx="100" cy="110" rx="96" ry="82" fill="${fondo.pasto}"/>`;
-    if (vit < 40) g += `<ellipse cx="100" cy="110" rx="96" ry="82" fill="#c9a26a" opacity=".25"/>`;
-    if (fondo.puntos) for (let k = 0; k < 14; k++) {
-      const a = k * 2.4, r = 30 + ((k * 37) % 55);
-      g += `<circle cx="${(100 + Math.cos(a) * r).toFixed(0)}" cy="${(110 + Math.sin(a) * r * 0.75).toFixed(0)}" r="${noche ? 1.2 : 1.8}" fill="${fondo.puntos}" opacity=".8"/>`;
+    const tierra = { noche: 'l-tierra-noche', nieve: 'l-tierra-nieve', arena: 'l-tierra-arena' }[fondo.id] || 'l-tierra';
+    // Islita con volumen: sombra en el piso, borde de tierra y el pasto arriba.
+    g += `<ellipse cx="100" cy="134" rx="92" ry="64" fill="rgba(31,51,38,.18)" filter="url(#f-suave)"/>`;
+    g += `<ellipse cx="100" cy="120" rx="96" ry="74" fill="url(#${tierra})"/>`;
+    g += `<path d="M10 118 q8 6 16 3 q10 8 20 4 q12 9 26 5 q14 7 28 4 q14 7 28 3 q12 6 26 1 q10 4 18 -3" stroke="rgba(0,0,0,.18)" stroke-width="2" fill="none"/>`;
+    g += `<ellipse cx="100" cy="106" rx="96" ry="74" fill="url(#s-${fondo.id})"/>`;
+    g += `<ellipse cx="100" cy="104" rx="93" ry="71" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2"/>`;
+    if (vit < 40) g += `<ellipse cx="100" cy="106" rx="96" ry="74" fill="#c9a26a" opacity=".25"/>`;
+    // Matas de pasto y florcitas sueltas.
+    for (let k = 0; k < 16; k++) {
+      const a = k * 2.39996, r = 24 + ((k * 37) % 58);
+      const px = 100 + Math.cos(a) * r * 1.15, py = 106 + Math.sin(a) * r * 0.82;
+      if (fondo.puntos && k % 2) g += `<circle cx="${px.toFixed(0)}" cy="${py.toFixed(0)}" r="${noche ? 1.2 : 1.8}" fill="${fondo.puntos}" opacity=".85"/>`;
+      else if (!noche && fondo.id !== 'nieve') g += `<path d="M${(px - 3).toFixed(0)} ${py.toFixed(0)} l2 -5 l1 5 l2 -6 l1 6" stroke="rgba(47,94,51,.45)" stroke-width="1.4" fill="none" stroke-linecap="round"/>`;
     }
-    g += `<ellipse cx="100" cy="110" rx="96" ry="82" fill="none" stroke="${j.yo ? '#c9a96e' : 'rgba(47,74,53,.18)'}" stroke-width="${j.yo ? 3 : 1.5}"/>`;
-    if (nv >= 10) g += `<ellipse cx="100" cy="110" rx="88" ry="74" fill="none" stroke="#a9845a" stroke-width="1.6" stroke-dasharray="2 5"/>`;
-    if ((j.mejor_racha || 0) >= 7) g += `<path d="M100 188 Q92 170 100 158 Q108 146 100 138" stroke="${noche ? '#56677d' : '#e9e1cc'}" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="6 5"/>`;
+    g += `<ellipse cx="100" cy="106" rx="96" ry="74" fill="none" stroke="${j.yo ? '#c9a96e' : 'rgba(47,74,53,.12)'}" stroke-width="${j.yo ? 3 : 1.5}"/>`;
+    if (nv >= 10) g += `<ellipse cx="100" cy="106" rx="86" ry="64" fill="none" stroke="#a9845a" stroke-width="1.6" stroke-dasharray="2 5"/>`;
+    if ((j.mejor_racha || 0) >= 7) {
+      for (const [sx, sy, sr] of [[100, 170, 7], [94, 158, 6], [102, 147, 5.5], [97, 137, 5]]) g += `<ellipse cx="${sx}" cy="${sy}" rx="${sr}" ry="${sr * 0.55}" fill="url(#e-piedra)"/>`;
+    }
+    g += `<ellipse cx="100" cy="148" rx="34" ry="9" fill="rgba(31,51,38,.2)"/>`;
     // Decoración: lo de atrás primero, el árbol en el medio, lo de adelante al final.
     const lugares = lugaresDe(j.jardin, j.logros);
     const piezas = Object.entries(lugares).map(([i, id]) => {
       const pos = LUGARES_JARDIN[Number(i)];
       if (!pos) return null;
       const [px, py] = pos;
-      return { y: py, s: `<svg x="${(px - 14).toFixed(1)}" y="${(py - 26).toFixed(1)}" width="28" height="28" viewBox="0 0 48 48">${itemSVG(id)}</svg>` };
+      return { y: py, s: `<ellipse cx="${px.toFixed(1)}" cy="${(py + 1).toFixed(1)}" rx="11" ry="3.6" fill="rgba(31,51,38,.22)"/><svg x="${(px - 15).toFixed(1)}" y="${(py - 28).toFixed(1)}" width="30" height="30" viewBox="0 0 48 48">${itemSVG(id)}</svg>` };
     }).filter(Boolean);
     g += piezas.filter(p => p.y < 110).map(p => p.s).join('');
     g += treeSVG(etapaDe(nv), vit, false, { especie: j.especie, brotes: j.brotes, nuevo: j.nuevo }).replace('<svg class="tree" viewBox="0 0 120 140"', `<svg class="${j.yo ? 'tree' : ''}" x="45" y="22" width="110" height="128" viewBox="0 0 120 140"`).replace(/role="img" aria-label="[^"]*"/, '');
     g += piezas.filter(p => p.y >= 110).map(p => p.s).join('');
-    if (!j.sinCartel) g += `<g class="cartel"><rect x="${100 - 60}" y="196" width="120" height="26" rx="13" fill="${j.yo ? '#1f3326' : '#fffdf8'}" stroke="rgba(47,74,53,.15)"/>
-      <text x="100" y="213" text-anchor="middle" font-size="12" fill="${j.yo ? '#efe8d8' : '#24382a'}">${esc((j.nombre || '').slice(0, 16))} · nv ${nv}</text></g>`;
+    if (!j.sinCartel) g += `<g class="cartel"><rect x="${100 - 60}" y="200" width="120" height="26" rx="13" fill="${j.yo ? '#1f3326' : '#fffdf8'}" stroke="rgba(47,74,53,.15)"/>
+      <text x="100" y="217" text-anchor="middle" font-size="12" fill="${j.yo ? '#efe8d8' : '#24382a'}">${esc((j.nombre || '').slice(0, 16))} · nv ${nv}</text></g>`;
     return g + '</g>';
   }
 
