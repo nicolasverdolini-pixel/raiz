@@ -72,7 +72,7 @@ export async function enviar(sub, mensaje, env) {
       'Content-Encoding': 'aes128gcm',
       'Content-Type': 'application/octet-stream',
       TTL: '43200',
-      Urgency: 'normal',
+      Urgency: 'high',
     },
     body: cuerpo,
   });

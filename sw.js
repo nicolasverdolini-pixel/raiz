@@ -1,5 +1,5 @@
 // Guarda la app para que abra rápido y funcione sin conexión.
-const CACHE = 'raiz-v1.6';
+const CACHE = 'raiz-v1.7';
 const ARCHIVOS = ['./', 'index.html', 'styles.css', 'js/defs.js', 'js/data.js', 'js/frases.js', 'js/tree.js', 'js/sonido.js', 'js/catalogo.js', 'js/progresion.js', 'js/iconos.js', 'js/diseno.js', 'js/zoom.js', 'js/arbolvivo.js', 'js/bosque.js', 'js/jardin.js', 'js/juego.js', 'js/app.js', 'js/intro.js', 'js/nube.js', 'js/avisos.js', 'js/instalar.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-180.png'];
 
 self.addEventListener('install', e => {
@@ -7,7 +7,7 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== 'raiz-diag').map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
 // Primero la red (para recibir mejoras), y si no hay conexión, lo guardado.
@@ -24,12 +24,15 @@ self.addEventListener('fetch', e => {
 self.addEventListener('push', e => {
   let datos = {};
   try { datos = e.data ? e.data.json() : {}; } catch { datos = { cuerpo: e.data?.text() }; }
-  e.waitUntil(self.registration.showNotification(datos.titulo || 'Raíz', {
+  // Se anota cuándo llegó, para poder ver en Ajustes si los avisos llegan al celular.
+  const anotar = caches.open('raiz-diag').then(c => c.put('ultimo-push', new Response(new Date().toISOString())));
+  const mostrar = self.registration.showNotification(datos.titulo || 'Raíz', {
     body: datos.cuerpo || 'Tu árbol te espera.',
     icon: 'icons/icon-192.png',
-    badge: 'icons/icon-192.png',
+    tag: 'raiz-' + Date.now(),
     data: { url: datos.url || './' },
-  }));
+  });
+  e.waitUntil(Promise.all([mostrar, anotar.catch(() => {})]));
 });
 
 // Al tocar la notificación, abre la app (o la trae al frente si ya estaba abierta).

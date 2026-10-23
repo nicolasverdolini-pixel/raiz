@@ -7,7 +7,29 @@ const Avisos = (() => {
   const CLAVE = 'raiz:avisos';
   let p = { activo: false, manana: '08:30', noche: '21:00' };
   try { p = { ...p, ...JSON.parse(localStorage.getItem(CLAVE) || '{}') }; } catch { /* sin almacenamiento */ }
-  let ultimo = '', espera = null, ocupado = false;
+  let ultimo = '', espera = null, ocupado = false, ultimoRecibido = null;
+
+  // Cuándo llegó el último aviso del servidor (lo anota el service worker).
+  async function leerUltimoRecibido() {
+    try {
+      const r = await (await caches.open('raiz-diag')).match('ultimo-push');
+      ultimoRecibido = r ? await r.text() : null;
+    } catch { ultimoRecibido = null; }
+  }
+  leerUltimoRecibido();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) leerUltimoRecibido().then(() => { if (tab === 'ajustes') render(); }); });
+
+  // Muestra una notificación desde el propio celular, sin pasar por el servidor.
+  async function probarLocal() {
+    try {
+      if (Notification.permission !== 'granted') { toast('El iPhone no tiene permiso para notificaciones de Raíz. Revisalo en Ajustes del iPhone → Notificaciones → Raíz.'); return; }
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification('Raíz', { body: 'Prueba local: si ves esto, tu iPhone muestra las notificaciones de Raíz 🌱', icon: 'icons/icon-192.png', tag: 'raiz-local-' + Date.now() });
+      toast('Listo. Si no apareció arriba, revisá Concentración (modo No molestar).');
+    } catch (err) {
+      toast('No se pudo mostrar: ' + esc(String(err.message || err)));
+    }
+  }
 
   const guardarP = () => { try { localStorage.setItem(CLAVE, JSON.stringify(p)); } catch { /* sin almacenamiento */ } };
   const soportado = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -78,7 +100,7 @@ const Avisos = (() => {
     if (!p.endpoint) return;
     try {
       const r = await post('/probar', { endpoint: p.endpoint });
-      toast(r.ok ? 'Te mandé uno de prueba. Debería llegarte en unos segundos.' : r.error || 'No llegó. Desactivá y activá de nuevo.');
+      toast(r.ok ? 'Te mandé uno de prueba. Debería llegarte en unos segundos.' : r.error || `El servicio de avisos respondió ${r.codigo}. Desactivá y activá de nuevo.`);
     } catch {
       toast('No hay conexión. Probá de nuevo.');
     }
@@ -109,7 +131,9 @@ const Avisos = (() => {
       cuerpo = `
         <label class="item"><span class="t"><span>Aviso de la mañana</span><small>Tus raíces del día</small></span><input type="time" class="hora" data-avisos-hora="manana" value="${esc(p.manana || '')}"></label>
         <label class="item"><span class="t"><span>Aviso de la noche</span><small>Solo si te queda alguna raíz</small></span><input type="time" class="hora" data-avisos-hora="noche" value="${esc(p.noche || '')}"></label>
-        <button class="item" data-avisos="probar"><span class="t"><span>Mandarme uno de prueba</span></span><span class="xp">Probar</span></button>
+        <button class="item" data-avisos="probar"><span class="t"><span>Mandarme uno de prueba</span><small>Sale del servidor, como los avisos de verdad.</small></span><span class="xp">Probar</span></button>
+        <button class="item" data-avisos="local"><span class="t"><span>Probar en este celular</span><small>Lo muestra el celular solo, sin servidor.</small></span><span class="xp">Probar</span></button>
+        <div class="item"><span class="t"><span>Diagnóstico</span><small>Permiso: ${esc({ granted: 'concedido', denied: 'negado', default: 'sin responder' }[Notification.permission] || Notification.permission)} · Último aviso recibido: ${ultimoRecibido ? esc(new Date(ultimoRecibido).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) : 'ninguno todavía'}</small></span></div>
         <button class="item" data-avisos="desactivar"><span class="t"><span>Apagar recordatorios</span></span><span class="xp">Apagar</span></button>`;
     }
     return `<div class="section"><div class="eyebrow"><span>Recordatorios</span></div><div class="list">${cuerpo}</div></div>`;
@@ -121,7 +145,8 @@ const Avisos = (() => {
     const a = b.dataset.avisos;
     if (a === 'activar') activar();
     else if (a === 'desactivar') desactivar();
-    else if (a === 'probar') probar();
+    else if (a === 'probar') probar().then(() => setTimeout(() => leerUltimoRecibido().then(() => { if (tab === 'ajustes') render(); }), 6000));
+    else if (a === 'local') probarLocal();
   });
 
   document.addEventListener('change', e => {
