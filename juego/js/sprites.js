@@ -837,6 +837,12 @@ const SPR = (() => {
       const f = frame >= 10 ? frame - 10 : frame ? [0, 3, 7][frame] : 0;
       if (LPC.dibujar(c, vis, 'walk', FILA_LPC[vista] || 's', f, S / 2, S * 0.925, S / 66, { sinBrillo:false, t:0 })) { cache.set(kl, cv); return cv; }
     }
+    if (typeof LPC !== 'undefined' && LPC.esBestia(vis)) {
+      const kb = 'B' + vis.clase + vista + frame;
+      if (cache.has(kb)) return cache.get(kb);
+      const cv = lienzo(S, S), c = cv.getContext('2d'), dr = (CLASES[vis.clase] || {}).spr === 'dragon';
+      if (LPC.dibujarBestia(c, vis, 'walk', FILA_LPC[vista] || 's', frame * 140, 0, S / 2, S * (dr ? 0.8 : 0.9), S / 66 * (dr ? 0.55 : 1.15))) { cache.set(kb, cv); return cv; }
+    }
     if (frame >= 10) frame = 1 + frame % 2;
     const key = JSON.stringify([vis.clase, vis.look, vis.t, vis.arma, vista, vis.mascota, frame, vis.asp, expr]);
     if (cache.has(key)) return cache.get(key);

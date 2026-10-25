@@ -114,17 +114,18 @@ function pantallaTitulo() {
 // Los personajes usan arte LPC: la licencia pide nombrar a cada artista.
 function mostrarCreditos() {
   const cerrar = modal(`<h3>Créditos</h3><p class="sub centro">Cargando…</p><button data-x="cerrar" class="sec">Volver</button>`, {});
-  fetch('arte/lpc/creditos.json').then(r => r.json()).then(d => {
+  Promise.all(['arte/lpc/creditos.json', 'arte/monstruos/creditos.json'].map(u => fetch(u).then(r => r.json()))).then(([a, b]) => {
+    const d = Object.assign({}, a, b);
     const autores = new Map();
     Object.values(d).forEach(c => c.autores.forEach(a => { if (!autores.has(a)) autores.set(a, new Set()); autores.get(a).add(c.n); }));
     const lic = [...new Set(Object.values(d).flatMap(c => c.licencias))].sort();
     cerrar();
     modal(`<h3>Créditos</h3>
       <div class="creditos">
-        <p>Juego, historia, monstruos, mapas, música y efectos: hechos para este juego.</p>
-        <p><b>Personajes, ropa, armaduras y armas:</b> sprites del Liberated Pixel Cup (LPC) y del Universal LPC Spritesheet Character Generator, de estos artistas:</p>
+        <p>Juego, historia, mapas, música y efectos: hechos para este juego.</p>
+        <p><b>Personajes, monstruos, ropa, armaduras y armas:</b> sprites del Liberated Pixel Cup (LPC), del Universal LPC Spritesheet Character Generator y de OpenGameArt, de estos artistas:</p>
         <ul>${[...autores.keys()].sort((a, b) => a.localeCompare(b)).map(a => `<li>${esc(a)}</li>`).join('')}</ul>
-        <p class="sub">Licencias: ${lic.map(esc).join(', ')}. Detalle por archivo en <code>arte/lpc/creditos.json</code>. Más info: opengameart.org y github.com/LiberatedPixelCup.</p>
+        <p class="sub">Licencias: ${lic.map(esc).join(', ')}. Detalle en <code>arte/lpc/creditos.json</code> y <code>arte/monstruos/creditos.json</code>. Más info: opengameart.org y github.com/LiberatedPixelCup.</p>
         <p class="sub">Juego sin fines comerciales.</p>
       </div>
       <button data-x="cerrar" class="sec">Volver</button>`, {});

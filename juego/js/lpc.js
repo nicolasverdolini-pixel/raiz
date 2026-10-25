@@ -61,6 +61,114 @@ const LPC = (() => {
     return cv;
   }
 
+  // Teñido: cada píxel toma el tono de una rampa del color pedido según su luz (conserva el sombreado).
+  const tenidos = new Map();
+  function tenida(src, hex) {
+    const im = src;
+    if (!im) return im;
+    const clave = (im.src || im._id || (im._id = Math.random())) + '|' + hex;
+    if (tenidos.has(clave)) return tenidos.get(clave);
+    const r = [-0.86, -0.7, -0.52, -0.34, -0.16, 0, 0.18, 0.36, 0.55].map(f => hex2(SPR.luz(hex, f)));
+    const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height;
+    const c = cv.getContext('2d'); c.drawImage(im, 0, 0);
+    const id = c.getImageData(0, 0, cv.width, cv.height), p = id.data;
+    for (let i = 0; i < p.length; i += 4) {
+      if (!p[i + 3]) continue;
+      const l = (p[i] * 0.3 + p[i + 1] * 0.59 + p[i + 2] * 0.11) / 255;
+      const t = r[Math.min(r.length - 1, Math.floor(l * r.length * 1.05))];
+      p[i] = t[0]; p[i + 1] = t[1]; p[i + 2] = t[2];
+    }
+    c.putImageData(id, 0, 0);
+    tenidos.set(clave, cv);
+    return cv;
+  }
+
+  // ---------- Monstruos humanoides: se arman con piezas LPC ----------
+  // piel: color (rampa generada) o nombre de paleta; capas extra: [item, color de teñido o rampa de tela].
+  const MON = {
+    hueco:     { piel:'zombie', cabeza:'cabeza_zombi', capas:[['pantalon', '#3a3a44', 'cloth'], ['camisa', '#55536a', 'cloth'], ['capa_rota', '#2a2a34', 'cloth']] },
+    esqueleto: { cuerpo:'cuerpo_esqueleto', cabeza:'cabeza_calavera', capas:[['casco_nasal', 'iron', 'metal'], ['espada_hierro']] , arma:'espada_hierro' },
+    lich:      { cuerpo:'cuerpo_esqueleto', cabeza:'cabeza_calavera', capas:[['capa_rota', '#3a2a5a', 'cloth'], ['gorro_mago', '#4a2a7a', 'tinte'], ['vara_aro']], arma:'vara_aro' },
+    diablillo: { piel:'#c8402e', cabeza:'cabeza_goblin', capas:[['alas_murcielago', '#4a1414', 'tinte'], ['cola_lagarto', '#a8302a', 'tinte'], ['cuernos', '#3a2a2a', 'tinte'], ['daga']], arma:'daga', esc:0.85 },
+    demonio:   { piel:'#9a2430', cabeza:'cabeza_minotauro', capas:[['pantalon', '#1a1014', 'cloth'], ['alas_murcielago', '#2a0a10', 'tinte'], ['cola_lagarto', '#7a1a22', 'tinte'], ['hacha']], arma:'hacha' },
+    gargola:   { piel:'#7a7a86', cabeza:'cabeza_lagarto', capas:[['alas_lagarto', '#5a5a66', 'tinte'], ['cola_lagarto', '#6a6a76', 'tinte']] },
+    salamandra:{ piel:'#e06a2a', cabeza:'cabeza_lagarto', capas:[['cola_lagarto', '#c04a1a', 'tinte'], ['lanza']], arma:'lanza' },
+    golem:     { piel:'#8c8478', cabeza:'cabeza_troll', capas:[['guanteletes', 'iron', 'metal'], ['grebas', 'iron', 'metal']] },
+    grakk:     { piel:'#c8501a', cabeza:'cabeza_orco', capas:[['pantalon', '#2a1a10', 'cloth'], ['cuernos', '#2a1a14', 'tinte'], ['capa_rota', '#3a1a0a', 'cloth'], ['corona'], ['hacha']], arma:'hacha' },
+    vaelgor:   { piel:'#9a8ab0', cabeza:'cabeza_vampiro', capas:[['placas', 'iron', 'metal'], ['grebas', 'iron', 'metal'], ['escarpes', 'iron', 'metal'], ['alas_murcielago', '#24142e', 'tinte'], ['cuernos_atras', '#1a1020', 'tinte'], ['capa_rota', '#1a0a2a', 'cloth'], ['espada_luz_roja']], arma:'espada_luz_roja', brillo:'#b04aff' },
+  };
+  function recetaMonstruo(vis, C) {
+    const M = MON[vis.clase] || (C.spr && MON[C.spr]);
+    if (!M) return null;
+    const piel = !M.piel ? null : M.piel[0] === '#' ? rampaDe(M.piel) : D.paletas.body[M.piel];
+    const capas = [];
+    const pon = (item, mat, r, tinte) => { if (D.items[item]) capas.push({ item, mat, rampa:r, tinte }); };
+    const tp = M.piel && M.piel[0] === '#' ? M.piel : null; // piel de color: se tiñe cuerpo y cabeza igual
+    pon(M.cuerpo || 'cuerpo', !tp && piel ? 'body' : null, tp ? null : piel, tp);
+    pon(M.cabeza, !tp && piel ? 'body' : null, tp ? null : piel, tp);
+    for (const [item, col, tipo] of M.capas) {
+      if (tipo === 'tinte') pon(item, null, null, col);
+      else if (tipo === 'metal') pon(item, 'metal', D.paletas.metal[col]);
+      else if (tipo === 'cloth') pon(item, 'cloth', rampaDe(col));
+      else pon(item, null, null);
+    }
+    return { cuerpo:'m', capas, arma:M.arma || null, rarezaArma:0, rarezaArmadura:0, esc:M.esc || 1, brillo:M.brillo };
+  }
+
+  // ---------- Bestias: hojas propias (lobo, araña, murciélago, fantasma, dragón) ----------
+  const RM = 'arte/monstruos/';
+  const BESTIAS = {
+    lobo:      { src:'wolfsheet1_0.png', lado:true, fw:64, fh:32, x0:320, filas:{ w:{ walk:96, atk:64, ko:0 }, e:{ walk:288, atk:256, ko:192 } }, n:{ walk:5, atk:4, ko:4 }, pie:[34, 30], esc:1.1 },
+    arana:     { src:'spiders/LPC_Spiders__spider01.png', fw:64, fh:64, filas:{ n:0, w:1, s:2, e:3 }, walk:[4, 5, 6, 7, 8, 9], atk:[0, 1, 2, 3], ko:{ fila:4, f:[0, 1, 2, 3] }, pie:[32, 50], esc:1.25 },
+    murcielago:{ src:'monsters/lpc-monsters__bat.png', fw:64, fh:64, filas:{ n:0, w:1, s:2, e:3 }, walk:[1, 2, 3, 4], atk:[5, 6], pie:[32, 56], esc:1.7 },
+    espectro:  { src:'monsters/lpc-monsters__ghost.png', fw:64, fh:64, filas:{ n:0, w:1, s:2, e:3 }, walk:[0, 1, 2, 1], atk:[4, 5], ko:{ fila:2, f:[3] }, pie:[32, 58], esc:1.0 },
+    dragon:    { dir:{ e:'reddragonfly.png', s:'reddragonfly2.png', w:'reddragonfly3.png', n:'reddragonfly4.png' }, fw:205, fh:161, walk:[0, 1, 2, 3, 4, 5, 6, 7], atk:[12, 13, 14, 15], pie:[102, 132], esc:0.62, cols:4 },
+  };
+  const SPR_BESTIA = { lobo:'lobo', arana:'arana', murcielago:'murcielago', espectro:'espectro', dragon:'dragon', cancerbero:'lobo' };
+  const TINTE_BESTIA = { lobo:'#a8b0c4', bestia:'#4a4e68', sabueso:'#6a1a14', cancerbero:'#2a1418', arana:'#6a5a7a', espectro:'#c8d4f0', voz:'#7a5aa8',
+    wyvern:'#5a6a3a', thanatyr:'#2a2434', dragon_anciano:'#9a7a3a', vaelgor2:'#4a1a5a' };
+  function bestiaDe(vis) {
+    if (vis.mascota) return null;
+    const C = CLASES[vis.clase]; if (!C || !C.mon) return null;
+    const k = SPR_BESTIA[C.spr]; if (!k) return null;
+    return { def:BESTIAS[k], tinte:TINTE_BESTIA[vis.clase] || null, brasas:vis.clase === 'sabueso' || vis.clase === 'cancerbero' };
+  }
+  function imgBestia(src, tinte) {
+    const f = img('../monstruos/' + src);
+    if (!f) return f;
+    return tinte ? tenida(f, tinte) : f;
+  }
+  // accion: 'walk' (también quieto), 'atk', 'ko'. Devuelve false si no cargó.
+  function dibujarBestia(ctx, vis, accion, fila, t, prog, x, y, esc) {
+    const B = bestiaDe(vis); if (!B) return false;
+    const d = B.def;
+    let im, sx, sy;
+    if (d.lado) {
+      const lado = fila === 'e' || fila === 'n' ? 'e' : 'w';
+      im = imgBestia(d.src, B.tinte); if (!im) return false;
+      const n = d.n[accion] || d.n.walk;
+      const fr = accion === 'walk' ? Math.floor(t / 130) % n : Math.min(n - 1, Math.floor(prog * n));
+      sx = d.x0 + fr * d.fw; sy = d.filas[lado][accion] ?? d.filas[lado].walk;
+    } else {
+      const lista = accion === 'atk' ? d.atk : accion === 'ko' && d.ko ? d.ko.f : d.walk;
+      const fr = accion === 'walk' ? lista[Math.floor(t / 140) % lista.length] : lista[Math.min(lista.length - 1, Math.floor(prog * lista.length))];
+      if (d.dir) {
+        im = imgBestia(d.dir[fila] || d.dir.s, B.tinte); if (!im) return false;
+        sx = (fr % d.cols) * d.fw; sy = Math.floor(fr / d.cols) * d.fh;
+      } else {
+        im = imgBestia(d.src, B.tinte); if (!im) return false;
+        const r = accion === 'ko' && d.ko ? d.ko.fila : d.filas[fila] ?? 2;
+        sx = fr * d.fw; sy = r * d.fh;
+      }
+    }
+    const e = esc * d.esc;
+    ctx.save(); ctx.imageSmoothingEnabled = d.dir ? true : false;
+    if (B.brasas) { ctx.shadowColor = 'rgba(255,90,30,.8)'; ctx.shadowBlur = 6 * esc * (0.7 + Math.sin(t / 200) * 0.3); }
+    ctx.drawImage(im, sx, sy, d.fw, d.fh, x - d.pie[0] * e, y - d.pie[1] * e, d.fw * e, d.fh * e);
+    ctx.restore();
+    return true;
+  }
+
   // ---------- Receta: qué capas lleva cada personaje ----------
   const FEM = new Set(['mara', 'nela', 'ysolde', 'saal', 'kaela', 'ilse', 'merla', 'berta']);
   const PELO_PJ = { lior:'pelo_revuelto', mara:'pelo_cola', tobias:'pelo_corto', nela:'pelo_trenza', brann:'pelo_liso', ysolde:'pelo_largo', fenn:'pelo_desalinado',
@@ -96,11 +204,12 @@ const LPC = (() => {
   function receta(vis) {
     if (vis.mascota) return null;
     const C = CLASES[vis.clase] || CLASES.recluta;
+    if (C.mon && (MON[vis.clase] || MON[C.spr])) return recetaMonstruo(vis, C);
     if (C.spr && C.spr !== 'humano') return null;
     const asp = Object.assign({}, C.asp, vis.t ? SPR.TINTES[vis.t] : null, vis.asp);
     const look = vis.look || {}, cara = look.cara || {};
     const sx = sexo(vis), viejo = !!cara.arrugas;
-    const piel = vis.clase === 'hueco' ? D.paletas.body.zombie : rampa('body', look.piel || '#f2c9a0');
+    const piel = vis.clase === 'vesper' ? rampaDe('#d8cce0') : rampa('body', look.piel || '#f2c9a0');
     const pelo = rampa('hair', look.pelo || '#3a2a1e');
     const tela = rampa('cloth', asp.C), tela2 = rampa('cloth', asp.D || SPR.luz(asp.C, -0.3)), acento = rampa('cloth', asp.A || '#e8c86a');
     const eqv = vis.eqv || {};
@@ -111,7 +220,7 @@ const LPC = (() => {
     const capas = [];
     const pon = (item, mat, r) => { if (D.items[item]) capas.push({ item, mat, rampa:r }); };
     pon('cuerpo', 'body', piel);
-    pon(viejo ? (sx === 'f' ? 'cabeza_mv' : 'cabeza_hv') : (sx === 'f' ? 'cabeza_m' : 'cabeza_h'), 'body', piel);
+    pon(vis.clase === 'vesper' ? 'cabeza_vampiro' : viejo ? (sx === 'f' ? 'cabeza_mv' : 'cabeza_hv') : (sx === 'f' ? 'cabeza_m' : 'cabeza_h'), 'body', piel);
     const lp = sx === 'f' ? PELOS_M : PELOS_H;
     const estiloPelo = PELO_PJ[vis.unico] || lp[h(look.semilla || (look.pelo + look.piel + (look.estilo ?? ''))) % lp.length];
     pon(sx === 'f' && !PELOS_M.includes(estiloPelo) && !PELO_PJ[vis.unico] ? lp[0] : estiloPelo, 'hair', pelo);
@@ -158,7 +267,7 @@ const LPC = (() => {
         const a = l.a[anim] || (anim === 'hurt' ? null : null);
         if (!a) continue;
         const f = a[rec.cuerpo] || a.m || a.f;
-        const im = recoloreada(f, c.mat || it.mat, c.rampa);
+        const im = c.tinte ? tenida(img(f), c.tinte) : recoloreada(f, c.rampa ? (c.mat || it.mat) : null, c.rampa);
         if (im === undefined) { falta = true; continue; }
         if (!im) continue;
         out.push({ z:l.z, im, s:a.s, arma:c.item === rec.arma });
@@ -190,7 +299,8 @@ const LPC = (() => {
       const col = RAREZAS[rar].c, pulso = rar >= 4 ? 0.65 + Math.sin(t / 180) * 0.35 : rar === 3 ? 0.75 + Math.sin(t / 400) * 0.2 : 0.55;
       return { col, blur: (rar >= 4 ? 7 : rar === 3 ? 5 : 3) * esc * pulso, capa };
     };
-    const bArma = brillo(rec.rarezaArma, true), bTodo = brillo(rec.rarezaArmadura, false);
+    esc *= rec.esc || 1;
+    const bArma = brillo(rec.rarezaArma, true), bTodo = rec.brillo ? { col:rec.brillo } : brillo(rec.rarezaArmadura, false);
     const pinta = (l, sombra) => {
       const s = l.s, sx = frame * s, sy = r * s;
       if (sx + s > l.im.width || sy + s > l.im.height) return;
@@ -233,5 +343,5 @@ const LPC = (() => {
   // Precarga la caminata de una lista de vis (para que los menús ya la tengan).
   function precargar(lista) { lista.forEach(v => { const r = recetaDe(v); if (r) capasListas(r, 'walk'); }); }
   function alCargar(fn) { avisar = fn; }
-  return { dibujar, animDe, recetaDe, frames, esHumano, precargar, alCargar, receta, sexo };
+  return { dibujar, animDe, recetaDe, frames, esHumano, precargar, alCargar, receta, sexo, dibujarBestia, esBestia:v => !!bestiaDe(v) };
 })();

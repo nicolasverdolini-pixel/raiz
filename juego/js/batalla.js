@@ -1236,7 +1236,7 @@ const Batalla = (() => {
   }
 
   // ---------- Animaciones ----------
-  function animar(u, accion, dur) { const rec = LPC.recetaDe(u.vis); if (rec) u.anim = { n:LPC.animDe(rec, accion), t0:performance.now(), dur }; }
+  function animar(u, accion, dur) { const rec = LPC.recetaDe(u.vis); if (rec) u.anim = { n:LPC.animDe(rec, accion), t0:performance.now(), dur }; else if (LPC.esBestia(u.vis)) u.anim = { n:'atk', t0:performance.now(), dur }; }
   async function animEmbestida(u, x, y) {
     animar(u, 'golpe', 360);
     const [dx, dy] = dirPantalla(u.x, u.y, x, y), d = L.T * 0.28;
@@ -1458,6 +1458,14 @@ const Batalla = (() => {
     const fila = FILA_VISTA[vd];
     const C = CLASES[v.vis.clase] || {};
     const flota = C.vuela ? Math.sin(t / 250 + v.rx) * 2 * L.k - 4 * L.k : 0;
+    if (LPC.esBestia(v.vis)) {
+      const dur = v.anim ? v.anim.dur / Math.max(1, Math.min(3, B.vel)) : 1;
+      const enAtk = v.anim && ahora - v.anim.t0 < dur;
+      const acc = v.ko ? 'ko' : enAtk ? 'atk' : 'walk', prog = v.ko ? 1 : enAtk ? (ahora - v.anim.t0) / dur : 0;
+      if (!LPC.dibujarBestia(ctx, v.vis, acc, fila, t + v.rx * 97, prog, cx, fy + flota, esc)) return false;
+      if (v.flash > 0.05) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = v.flash * 0.7; LPC.dibujarBestia(ctx, v.vis, acc, fila, t + v.rx * 97, prog, cx, fy + flota, esc); ctx.restore(); }
+      return true;
+    }
     if (!LPC.dibujar(ctx, v.vis, anim, fila, f, cx, fy + flota, esc, { t })) return false;
     if (v.flash > 0.05) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = v.flash * 0.7;
@@ -1497,7 +1505,7 @@ const Batalla = (() => {
     // Gestos: parpadea cada tanto, hace mueca al recibir un golpe y cierra los ojos al caer.
     const semilla = (v.id.charCodeAt(0) * 37 + v.id.charCodeAt(1) * 11) % 3000;
     const expr = v.ko ? 'parpadeo' : (v.dolor > t ? 'dolor' : v.cargando ? 'enojo' : ((t + semilla) % 3600) < 140 ? 'parpadeo' : '');
-    if (LPC.esHumano(v.vis) && dibujarLPC(v, t, cx, fy + respira, k, vd)) { ctx.globalAlpha = v.alpha; }
+    if ((LPC.esHumano(v.vis) || LPC.esBestia(v.vis)) && dibujarLPC(v, t, cx, fy + respira, k, vd)) { ctx.globalAlpha = v.alpha; }
     else {
     const img = SPR.personaje(v.vis, vista, frame, expr);
     const w = 20 * k, h = 20 * k;

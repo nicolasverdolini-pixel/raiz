@@ -1058,6 +1058,272 @@
    "https://opengameart.org/content/lpc-crown"
   ]
  },
+ "body/bodies/skeleton": {
+  "n": "Skeleton",
+  "autores": [
+   "bluecarrot16",
+   "Napsio",
+   "JaidynReiman",
+   "Johannes Sjölund (wulax)",
+   "Stephen Challener (Redshrike)"
+  ],
+  "licencias": [
+   "OGA-BY 3.0",
+   "CC-BY-SA 3.0",
+   "GPL 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+   "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites"
+  ]
+ },
+ "body/bodies/zombie": {
+  "n": "Zombie",
+  "autores": [
+   "Stephen Challener (Redshrike)",
+   "Johannes Sjölund (wulax)",
+   "Sander Frenken (castelonia)",
+   "Benjamin K. Smith (BenCreating)",
+   "bluecarrot16"
+  ],
+  "licencias": [
+   "OGA-BY 3.0",
+   "CC-BY-SA 3.0",
+   "GPL 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+   "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites"
+  ]
+ },
+ "head/heads/skeleton": {
+  "n": "Skeleton",
+  "autores": [
+   "bluecarrot16",
+   "Napsio",
+   "JaidynReiman",
+   "Johannes Sjölund (wulax)",
+   "Stephen Challener (Redshrike)"
+  ],
+  "licencias": [
+   "OGA-BY 3.0",
+   "CC-BY-SA 3.0",
+   "GPL 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+   "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites"
+  ]
+ },
+ "head/heads/zombie": {
+  "n": "Zombie",
+  "autores": [
+   "bluecarrot16",
+   "Benjamin K. Smith (BenCreating)",
+   "Sander Frenken (castelonia)",
+   "Stephen Challener (Redshrike)"
+  ],
+  "licencias": [
+   "CC-BY-SA 3.0",
+   "GPL 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+   "https://opengameart.org/content/lpc-zombie"
+  ]
+ },
+ "head/heads/vampire": {
+  "n": "Vampire",
+  "autores": [
+   "Stephen Challener (Redshrike)",
+   "bluecarrot16"
+  ],
+  "licencias": [
+   "OGA-BY 3.0",
+   "CC-BY-SA 3.0",
+   "GPL 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+   "https://opengameart.org/content/lpc-folk"
+  ]
+ },
+ "head/heads/orc/male": {
+  "n": "Orc male",
+  "autores": [
+   "bluecarrot16",
+   "Matthew Krohn (makrohn)",
+   "Stephen Challener (Redshrike)",
+   "Zi Ye"
+  ],
+  "licencias": [
+   "OGA-BY 3.0",
+   "CC-BY-SA 3.0",
+   "GPL 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/four-characters-my-lpc-entries",
+   "https://opengameart.org/content/sinbad-the-ogre"
+  ]
+ },
+ "head/heads/goblin": {
+  "n": "Goblin",
+  "autores": [
+   "bluecarrot16",
+   "Stephen Challener (Redshrike)",
+   "William.Thomsponj"
+  ],
+  "licencias": [
+   "OGA-BY 3.0",
+   "CC-BY 4.0",
+   "GPL 2.0",
+   "GPL 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/lpc-goblin",
+   "https://opengameart.org/content/lpc-folk"
+  ]
+ },
+ "head/heads/troll": {
+  "n": "Troll",
+  "autores": [
+   "bluecarrot16",
+   "AntumDeluge",
+   "Tuomo Untinen (reemax)"
+  ],
+  "licencias": [
+   "CC-BY 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/musclemanogreminotaur",
+   "https://opengameart.org/content/trolls-0"
+  ]
+ },
+ "head/heads/lizard/male": {
+  "n": "Lizard male",
+  "autores": [
+   "bluecarrot16",
+   "Benjamin K. Smith (BenCreating)",
+   "Nila122"
+  ],
+  "licencias": [
+   "OGA-BY 3.0",
+   "CC-BY-SA 3.0",
+   "GPL 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/drakes-and-lizardfolk",
+   "https://opengameart.org/content/lpc-character-bases"
+  ]
+ },
+ "head/heads/minotaur": {
+  "n": "Minotaur",
+  "autores": [
+   "Evert",
+   "Nila122",
+   "Daniel Eddeland (daneeklu)"
+  ],
+  "licencias": [
+   "CC-BY-SA 3.0",
+   "GPL 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/lpc-style-farm-animals",
+   "https://opengameart.org/content/lpc-lizard-headgear"
+  ]
+ },
+ "head/heads/wolf/male": {
+  "n": "Wolf male",
+  "autores": [
+   "bluecarrot16",
+   "Sander Frenken (castelonia)",
+   "Benjamin K. Smith (BenCreating)",
+   "William.Thompsonj",
+   "Stephen Challener (Redshrike)"
+  ],
+  "licencias": [
+   "CC-BY-SA 3.0",
+   "GPL 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+   "https://opengameart.org/content/lpc-wolf-animation"
+  ]
+ },
+ "body/wings/bat": {
+  "n": "Bat Wings",
+  "autores": [
+   "ElizaWy",
+   "JaidynReiman"
+  ],
+  "licencias": [
+   "OGA-BY 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/lpc-wings-new-animations"
+  ]
+ },
+ "body/wings/lizard": {
+  "n": "Lizard Wings (Alt Colors)",
+  "autores": [
+   "JaidynReiman",
+   "Nila122",
+   "bluecarrot16"
+  ],
+  "licencias": [
+   "OGA-BY 3.0",
+   "CC-BY-SA 3.0",
+   "GPL 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/drakes-and-lizardfolk",
+   "https://opengameart.org/content/lpc-wings-new-animations"
+  ]
+ },
+ "body/tail/lizard": {
+  "n": "Lizard Tail (Alt Colors)",
+  "autores": [
+   "Nila122",
+   "bluecarrot16",
+   "JaidynReiman"
+  ],
+  "licencias": [
+   "OGA-BY 3.0",
+   "CC-BY-SA 3.0",
+   "GPL 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/drakes-and-lizardfolk"
+  ]
+ },
+ "head/horns/curled": {
+  "n": "Curled Horns",
+  "autores": [
+   "Nila122"
+  ],
+  "licencias": [
+   "OGA-BY 3.0",
+   "GPL 3.0",
+   "CC-BY-SA 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/lpc-lizard-headgear"
+  ]
+ },
+ "head/horns/backwards": {
+  "n": "Backwards Horns",
+  "autores": [
+   "Nila122"
+  ],
+  "licencias": [
+   "OGA-BY 3.0",
+   "GPL 3.0",
+   "CC-BY-SA 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/lpc-lizard-headgear"
+  ]
+ },
  "weapon/sword/arming": {
   "n": "Arming Sword",
   "autores": [
