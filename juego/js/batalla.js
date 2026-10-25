@@ -44,7 +44,7 @@ const Batalla = (() => {
     const m = eq === 'A' && u.mascota ? mascota(u.mascota) : null;
     const bu = { id:uid(), u, eq, nombre:u.nombre, st, hp:st.hpMax, mp:st.mpMax, x, y, dir: eq === 'A' ? 2 : 0,
       ct: azar(0, 25) + st.spd * 3, est:{}, ko:false, rx:x, ry:y, rh:0, off:{ x:0, y:0, z:0 }, alpha:1, flash:0,
-      mascota:m, jefe:!!u.jefe, revivio:false, vis:{ clase:u.clase, look:u.look, t:u.t, arma: ARMAS_DIBUJABLES.includes(st.armaTipo) ? st.armaTipo : null } };
+      mascota:m, jefe:!!u.jefe, revivio:false, vis:{ clase:u.clase, look:u.look, t:u.t, unico:u.unico, eqv:eqVisual(u), arma: ARMAS_DIBUJABLES.includes(st.armaTipo) ? st.armaTipo : null } };
     bu.rh = alt(x, y);
     if (st.pasiva === 'prisa_ini' || st.rasgos.has('prisa_ini')) bu.est.prisa = 4;
     if (st.rasgos.has('escudo')) bu.est.protegido = 3;
@@ -61,7 +61,7 @@ const Batalla = (() => {
   // opts: { def, ids: [ids de personajes], onFin(resultado) }
   function iniciar(opts) {
     const def = opts.def;
-    B = { escena:opts.escena || null, def, mapa:parsearMapa(def.mapa), us:[], fin:null, onFin:opts.onFin, ui:{ modo:'espera' }, activo:null, vel:1, cargas:[], ganado:{ oro:0, mat:{}, obj:{}, gemas:{}, equipo:[] }, log:[] };
+    B = { escena:opts.escena || null, def, mapa:parsearMapa(def.mapa), us:[], fin:null, onFin:opts.onFin, ui:{ modo:'espera' }, activo:null, vel:1, rot:0, cargas:[], ganado:{ oro:0, mat:{}, obj:{}, gemas:{}, equipo:[] }, log:[] };
     try { B.vel = +(localStorage.getItem('cb:vel') || 1); } catch (e) {}
     opts.ids.forEach((id, i) => {
       const u = G.unidades.find(v => v.id === id);
@@ -91,6 +91,7 @@ const Batalla = (() => {
           <button id="bt-auto" class="mini">🤖</button>
           <button id="bt-vel" class="mini">⏩ x${B.vel}</button>
           <button id="bt-zoom" class="mini">🔍</button>
+          <button id="bt-rot" class="mini" title="Girar cámara">⟳</button>
           <button id="bt-pausa" class="mini">☰</button>
         </div>
         <div id="bt-obj">${esc(B.def.objetivo || 'Derrotá a todos los enemigos')}</div>
@@ -107,6 +108,7 @@ const Batalla = (() => {
     $('#bt-vel').onclick = () => { B.vel = B.vel === 1 ? 2 : B.vel === 2 ? 3 : 1; try { localStorage.setItem('cb:vel', B.vel); } catch (e) {} $('#bt-vel').innerHTML = `${ICO.html('velocidad', 18)} x${B.vel}`; Sonido.fx('sel'); };
     $('#bt-pausa').onclick = menuPausa;
     $('#bt-zoom').onclick = () => { const z = [1, 1.5, 2.2]; const i = z.findIndex(v => Math.abs(v - B.zoom) < 0.05); B.zoom = z[(i + 1) % z.length]; B.seguir = true; medir(); Sonido.fx('sel'); };
+    $('#bt-rot').onclick = () => girarCamara(1);
     $('#bt-auto').onclick = () => {
       B.auto = !B.auto; $('#bt-auto').classList.toggle('on', B.auto); Sonido.fx('sel');
       if (B.auto && finJugador && B.ui.modo !== 'animando') { const f = finJugador; finJugador = null; B.ui = { modo:'espera' }; turnoIA(B.activo).then(f); }
@@ -126,7 +128,7 @@ const Batalla = (() => {
     L.HS = L.T * 0.24;            // alto de cada escalón
     L.k = L.T / 21;               // escala de los personajes
     L.TW = L.T * 0.6; L.TD = L.T * 0.3;
-    L.ox0 = m.h * L.T / 2 + L.T * 0.2;
+    L.ox0 = (B.rot % 2 ? m.w : m.h) * L.T / 2 + L.T * 0.2;
     L.oy0 = m.maxH * L.HS + L.T * 1.2;
     L.mundoW = n * L.T / 2 + L.T * 0.4;
     L.mundoH = n * L.T / 4 + m.maxH * L.HS + L.T * 1.7;
@@ -134,7 +136,26 @@ const Batalla = (() => {
     fijarCamara();
   }
   // Coordenadas del mundo (sin cámara) del centro de una casilla.
-  function mundoDe(x, y, h) { return { x:L.ox0 + (x - y) * L.T / 2, y:L.oy0 + (x + y) * L.T / 4 - h * L.HS }; }
+  // Rotación de cámara (0-3, de a 90°): las cuentas de juego usan la grilla real (x, y);
+  // solo el dibujo y los toques pasan por la grilla "vista" (vx, vy).
+  function rotP(x, y) {
+    const m = B.mapa;
+    switch (B.rot) { case 1: return [m.h - y, x]; case 2: return [m.w - x, m.h - y]; case 3: return [y, m.w - x]; default: return [x, y]; }
+  }
+  function dimsVista() { return B.rot % 2 ? [B.mapa.h, B.mapa.w] : [B.mapa.w, B.mapa.h]; }
+  // Casilla de la grilla real que se ve en la casilla (vx, vy) de la vista.
+  function tileDeVista(vx, vy) {
+    const m = B.mapa;
+    switch (B.rot) { case 1: return [vy, m.h - 1 - vx]; case 2: return [m.w - 1 - vx, m.h - 1 - vy]; case 3: return [m.w - 1 - vy, vx]; default: return [vx, vy]; }
+  }
+  function dirVista(d) { return (d + 4 * 4 - B.rot) % 4; }
+  function profVista(x, y) { const [a, b] = rotP(x, y); return a + b; }
+  function mundoDe(x, y, h) { [x, y] = rotP(x, y); return { x:L.ox0 + (x - y) * L.T / 2, y:L.oy0 + (x + y) * L.T / 4 - h * L.HS }; }
+  function girarCamara(paso) {
+    B.rot = ((B.rot || 0) + paso + 4) % 4;
+    B.cam = null; medir(); B.seguir = true;
+    Sonido.fx('sel');
+  }
   function limitarCamara() {
     const mx = L.W / 2, my = L.H / 2;
     B.cam.x = L.mundoW <= L.W ? L.mundoW / 2 : clamp(B.cam.x, mx, L.mundoW - mx);
@@ -927,8 +948,9 @@ const Batalla = (() => {
   // Casilla bajo un punto de la pantalla (primero las de adelante).
   function tileEn(px, py, soloTapa = false) {
     const m = B.mapa;
-    for (let sm = m.w + m.h - 2; sm >= 0; sm--) for (let x = Math.min(m.w - 1, sm); x >= Math.max(0, sm - m.h + 1); x--) {
-      const y = sm - x, t = tile(x, y); if (!t || terreno(t).vacio) continue;
+    const [VW, VH] = dimsVista();
+    for (let sm = VW + VH - 2; sm >= 0; sm--) for (let vx = Math.min(VW - 1, sm); vx >= Math.max(0, sm - VH + 1); vx--) {
+      const [x, y] = tileDeVista(vx, sm - vx), t = tile(x, y); if (!t || terreno(t).vacio) continue;
       const c = centroPx(x, y, t.h), dx = px - c.x, dy = py - c.y;
       if (Math.abs(dx) / (L.T / 2) + Math.abs(dy) / (L.T / 4) <= 1) return [x, y];
       if (!soloTapa && Math.abs(dx) <= L.T / 2) { const yb = L.T / 4 - Math.abs(dx) / 2; if (dy >= yb && dy <= yb + (t.h + 0.6) * L.HS) return [x, y]; }
@@ -941,7 +963,7 @@ const Batalla = (() => {
     const r = cv.getBoundingClientRect();
     const px = ev.clientX - r.left, py = ev.clientY - r.top;
     const ui = B.ui, u = B.activo;
-    const delante = B.us.filter(v => !v.oculto).sort((a, b) => (b.rx + b.ry) - (a.rx + a.ry));
+    const delante = B.us.filter(v => !v.oculto).sort((a, b) => profVista(b.rx, b.ry) - profVista(a.rx, a.ry));
     if (ui.modo === 'mover') {
       const t = tileEn(px, py, true) || tileEn(px, py);
       if (t && ui.alc.destinos.has(t[0] + ',' + t[1])) {
@@ -1213,7 +1235,9 @@ const Batalla = (() => {
   }
 
   // ---------- Animaciones ----------
+  function animar(u, accion, dur) { const rec = LPC.recetaDe(u.vis); if (rec) u.anim = { n:LPC.animDe(rec, accion), t0:performance.now(), dur }; }
   async function animEmbestida(u, x, y) {
+    animar(u, 'golpe', 360);
     const [dx, dy] = dirPantalla(u.x, u.y, x, y), d = L.T * 0.28;
     await tween(110, p => { u.off.x = dx * d * p; u.off.y = dy * d * p; });
     await tween(130, p => { u.off.x = dx * d * (1 - p); u.off.y = dy * d * (1 - p); });
@@ -1231,12 +1255,15 @@ const Batalla = (() => {
   }
   async function animConjuro(u, H) {
     const col = H.el ? ELEMENTOS[H.el].c : H.tipo === 'cura' || H.tipo === 'revivir' ? '#8f8' : H.fx === 'bruma' ? '#b8f' : '#fff6a0';
+    animar(u, 'magia', 420);
     u.flash = 1;
     for (let i = 0; i < 3; i++) { anillo(u, col); await esperar(110); }
     chispas(u, col, 10);
     u.flash = 0;
   }
   async function animProyectil(u, x, y, tipo) {
+    animar(u, tipo === 'flecha' ? 'tiro' : tipo === 'onda' ? 'magia' : 'golpe', tipo === 'flecha' ? 520 : 320);
+    if (tipo === 'flecha') await esperar(Math.min(300, 260 / Math.max(1, B.vel)));
     const a = centroPx(u.x, u.y, alt(u.x, u.y)), b = centroPx(x, y, alt(x, y));
     if (tipo === 'flecha') Sonido.fx('flecha'); else if (tipo === 'piedra') Sonido.fx('piedra'); else if (tipo === 'onda') Sonido.fx('onda');
     const p = { tipo:'proy', x:a.x, y:a.y - L.TW * 0.5, sub:tipo, vida:1, ang:0 };
@@ -1267,9 +1294,10 @@ const Batalla = (() => {
   }
 
   // ---------- Partículas y efectos ----------
-  function iso(x, y, h) { return { x:L.ox + L.ox0 + (x - y) * L.T / 2, y:L.oy + L.oy0 + (x + y) * L.T / 4 - h * L.HS }; }
+  function isoV(x, y, h) { return { x:L.ox + L.ox0 + (x - y) * L.T / 2, y:L.oy + L.oy0 + (x + y) * L.T / 4 - h * L.HS }; }
+  function iso(x, y, h) { const [a, b] = rotP(x, y); return isoV(a, b, h); }
   function centroPx(x, y, h) { return iso(x + 0.5, y + 0.5, h); }
-  function dirPantalla(ax, ay, bx, by) { const dx = (bx - ax) - (by - ay), dy = ((bx - ax) + (by - ay)) / 2, n = Math.hypot(dx, dy) || 1; return [dx / n, dy / n]; }
+  function dirPantalla(ax, ay, bx, by) { [ax, ay] = rotP(ax, ay); [bx, by] = rotP(bx, by); const dx = (bx - ax) - (by - ay), dy = ((bx - ax) + (by - ay)) / 2, n = Math.hypot(dx, dy) || 1; return [dx / n, dy / n]; }
   function pantallaUnidad(u) {
     const c = iso(u.rx + 0.5, u.ry + 0.5, u.rh);
     return { cx:c.x + u.off.x, fy:c.y + L.T * 0.06 + u.off.y + u.off.z };
@@ -1365,11 +1393,12 @@ const Batalla = (() => {
       ctx.restore();
       ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.lineWidth = 1; ctx.stroke();
     };
-    for (let sm = 0; sm <= m.w + m.h - 2; sm++) {
-      for (let x = Math.max(0, sm - m.h + 1); x <= Math.min(m.w - 1, sm); x++) {
-        const y = sm - x, c = tile(x, y), tr = terreno(c);
+    const [VW, VH] = dimsVista();
+    for (let sm = 0; sm <= VW + VH - 2; sm++) {
+      for (let vx = Math.max(0, sm - VH + 1); vx <= Math.min(VW - 1, sm); vx++) {
+        const vy = sm - vx, [x, y] = tileDeVista(vx, vy), c = tile(x, y), tr = terreno(c);
         if (!c || tr.vacio) { (enCasilla.get(x + ',' + y) || []).forEach(v => dibujarUnidad(v, t, v === u)); continue; }
-        const top = iso(x, y, c.h), der = iso(x + 1, y, c.h), aba = iso(x + 1, y + 1, c.h), izq = iso(x, y + 1, c.h), cen = centroPx(x, y, c.h);
+        const top = isoV(vx, vy, c.h), der = isoV(vx + 1, vy, c.h), aba = isoV(vx + 1, vy + 1, c.h), izq = isoV(vx, vy + 1, c.h), cen = isoV(vx + 0.5, vy + 0.5, c.h);
         const prof = (c.h + 0.7) * L.HS;
         const lado = SPR.texturaLado(c.t);
         cara(izq, aba, prof, lado, 0.42);
@@ -1387,7 +1416,7 @@ const Batalla = (() => {
         ctx.beginPath(); ctx.moveTo(izq.x, izq.y); ctx.lineTo(top.x, top.y); ctx.lineTo(der.x, der.y); ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1; ctx.stroke();
         ctx.beginPath(); ctx.moveTo(izq.x, izq.y); ctx.lineTo(aba.x, aba.y); ctx.lineTo(der.x, der.y); ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.stroke();
         // Sombra si la casilla de atrás es más alta
-        const atrasA = tile(x - 1, y), atrasB = tile(x, y - 1);
+        const atrasA = vx > 0 ? tile(...tileDeVista(vx - 1, vy)) : null, atrasB = vy > 0 ? tile(...tileDeVista(vx, vy - 1)) : null;
         if ((atrasA && !terreno(atrasA).vacio && atrasA.h > c.h) || (atrasB && !terreno(atrasB).vacio && atrasB.h > c.h)) { rombo(cen); ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fill(); }
         const mk = marcas.get(x + ',' + y);
         if (mk) { rombo(cen, 0.86); ctx.fillStyle = mk + pulso + ')'; ctx.fill(); ctx.strokeStyle = mk + '0.95)'; ctx.lineWidth = 1.6; ctx.stroke(); }
@@ -1413,6 +1442,29 @@ const Batalla = (() => {
   function redondo(x, y, w, h, r) {
     ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
   }
+  // Fila del sprite LPC según hacia dónde mira en la vista: 0 abajo-izq, 1 abajo-der, 2 arriba-der, 3 arriba-izq.
+  const FILA_VISTA = ['s', 'e', 'n', 'w'];
+  function dibujarLPC(v, t, cx, fy, k, vd) {
+    const esc = k * 0.3;
+    let anim = 'walk', f = 0;
+    const ahora = performance.now();
+    if (v.ko) { anim = 'hurt'; f = 5; }
+    else if (v.anim && ahora - v.anim.t0 < v.anim.dur / Math.max(1, Math.min(3, B.vel))) {
+      anim = v.anim.n; const n = LPC.frames(anim);
+      f = Math.floor((ahora - v.anim.t0) / (v.anim.dur / Math.max(1, Math.min(3, B.vel))) * n);
+    } else if (v.cargando) { anim = 'spellcast'; f = 2 + Math.floor(t / 200) % 3; }
+    else if (v.caminando) f = 1 + Math.floor(t / 80) % 8;
+    const fila = FILA_VISTA[vd];
+    const C = CLASES[v.vis.clase] || {};
+    const flota = C.vuela ? Math.sin(t / 250 + v.rx) * 2 * L.k - 4 * L.k : 0;
+    if (!LPC.dibujar(ctx, v.vis, anim, fila, f, cx, fy + flota, esc, { t })) return false;
+    if (v.flash > 0.05) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = v.flash * 0.7;
+      LPC.dibujar(ctx, v.vis, anim, fila, f, cx, fy + flota, esc, { t, sinBrillo:true });
+      ctx.restore();
+    }
+    return true;
+  }
   function dibujarUnidad(v, t, activo) {
     const { cx, fy } = pantallaUnidad(v);
     const C = CLASES[v.vis.clase] || {};
@@ -1437,12 +1489,15 @@ const Batalla = (() => {
     }
     const humano = !C.spr || C.spr === 'humano';
     // En isométrico: 0 abajo-izq, 1 abajo-der, 2 arriba-der, 3 arriba-izq.
-    const vista = humano && (v.dir === 2 || v.dir === 3) ? 'b' : 'f';
-    const espejo = humano ? (v.dir === 0 || v.dir === 3) : (v.dir === 0 || v.dir === 3);
+    const vd = dirVista(v.dir);
+    const vista = humano && (vd === 2 || vd === 3) ? 'b' : 'f';
+    const espejo = vd === 0 || vd === 3;
     const frame = v.caminando ? 1 + Math.floor(t / 120) % 2 : 0;
     // Gestos: parpadea cada tanto, hace mueca al recibir un golpe y cierra los ojos al caer.
     const semilla = (v.id.charCodeAt(0) * 37 + v.id.charCodeAt(1) * 11) % 3000;
     const expr = v.ko ? 'parpadeo' : (v.dolor > t ? 'dolor' : v.cargando ? 'enojo' : ((t + semilla) % 3600) < 140 ? 'parpadeo' : '');
+    if (LPC.esHumano(v.vis) && dibujarLPC(v, t, cx, fy + respira, k, vd)) { ctx.globalAlpha = v.alpha; }
+    else {
     const img = SPR.personaje(v.vis, vista, frame, expr);
     const w = 20 * k, h = 20 * k;
     ctx.save();
@@ -1457,6 +1512,7 @@ const Batalla = (() => {
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.restore();
+    }
     ctx.globalAlpha = v.alpha;
     // Mascota al lado
     if (v.mascota && !v.ko) {
@@ -1465,7 +1521,7 @@ const Batalla = (() => {
       ctx.save();
       ctx.translate(cx - 8 * L.k * (espejo ? -1 : 1), fy + 1 * L.k - salto);
       if (espejo !== (v.dir === 3)) {} // la mascota mira para el mismo lado que su dueño
-      if (v.dir === 3) ctx.scale(-1, 1);
+      if (vd === 3) ctx.scale(-1, 1);
       ctx.drawImage(pm, -10 * kk, -18 * kk, 20 * kk, 20 * kk);
       ctx.restore();
     }

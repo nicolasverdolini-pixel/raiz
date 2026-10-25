@@ -48,7 +48,7 @@ function spriteHTML(vis, px = 48, vista = 'f') {
 function visDe(u) {
   const a = item(u.eq.arma);
   const tipo = a ? EQ[a.id].tipo : null;
-  return { clase:u.clase, look:u.look, arma: ['espada', 'hacha', 'daga', 'arco', 'vara', 'maza', 'lanza'].includes(tipo) ? tipo : null };
+  return { clase:u.clase, look:u.look, unico:u.unico, eqv:eqVisual(u), arma: ['espada', 'hacha', 'daga', 'arco', 'vara', 'maza', 'lanza'].includes(tipo) ? tipo : null };
 }
 function cabecera(titulo, volver = true) {
   return `<header class="cab">${volver ? '<button data-x="volver" class="mini">←</button>' : '<span></span>'}<h2>${esc(titulo)}</h2><span class="oro">💰 ${G.oro}</span></header>`;
@@ -101,13 +101,34 @@ function pantallaTitulo() {
       <div class="tit-botones">
         <button data-x="jugar" class="ok grande">Jugar</button>
         <button data-x="ayuda" class="sec">Cómo se juega</button>
+        <button data-x="creditos" class="sec">Créditos</button>
       </div>
       <div class="tit-pie">Tocá para activar el sonido</div>
     </div>`, {
     jugar: elegirRanura,
     ayuda: mostrarAyuda,
+    creditos: mostrarCreditos,
   });
   animarTitulo();
+}
+// Los personajes usan arte LPC: la licencia pide nombrar a cada artista.
+function mostrarCreditos() {
+  const cerrar = modal(`<h3>Créditos</h3><p class="sub centro">Cargando…</p><button data-x="cerrar" class="sec">Volver</button>`, {});
+  fetch('arte/lpc/creditos.json').then(r => r.json()).then(d => {
+    const autores = new Map();
+    Object.values(d).forEach(c => c.autores.forEach(a => { if (!autores.has(a)) autores.set(a, new Set()); autores.get(a).add(c.n); }));
+    const lic = [...new Set(Object.values(d).flatMap(c => c.licencias))].sort();
+    cerrar();
+    modal(`<h3>Créditos</h3>
+      <div class="creditos">
+        <p>Juego, historia, monstruos, mapas, música y efectos: hechos para este juego.</p>
+        <p><b>Personajes, ropa, armaduras y armas:</b> sprites del Liberated Pixel Cup (LPC) y del Universal LPC Spritesheet Character Generator, de estos artistas:</p>
+        <ul>${[...autores.keys()].sort((a, b) => a.localeCompare(b)).map(a => `<li>${esc(a)}</li>`).join('')}</ul>
+        <p class="sub">Licencias: ${lic.map(esc).join(', ')}. Detalle por archivo en <code>arte/lpc/creditos.json</code>. Más info: opengameart.org y github.com/LiberatedPixelCup.</p>
+        <p class="sub">Juego sin fines comerciales.</p>
+      </div>
+      <button data-x="cerrar" class="sec">Volver</button>`, {});
+  }).catch(() => {});
 }
 // Tres partidas guardadas por celular: cada uno juega la suya sin pisar las otras.
 function elegirRanura() {
@@ -505,7 +526,8 @@ function dialogo(lineas, cb, opts = {}) {
   const mostrar = () => {
     const [quien, txt] = lineas[i];
     const pj = !quien ? null : typeof quien === 'string' ? PJ[quien] : quien;
-    const vis = pj ? (pj.vis || { clase:pj.clase, look:pj.look, t:pj.t }) : null;
+    const enGrupo = typeof quien === 'string' && G && G.unidades ? G.unidades.find(u => u.unico === quien) : null;
+    const vis = pj ? (pj.vis || (enGrupo ? visDe(enGrupo) : { clase:pj.clase, look:pj.look, t:pj.t, unico: typeof quien === 'string' ? quien : null })) : null;
     caja.querySelector('.dlg-nombre').textContent = pj ? pj.n : '';
     // Retrato que habla, parpadea y pone cara según lo que dice.
     const base = lineas[i][2] || gestoDe(quien, txt);

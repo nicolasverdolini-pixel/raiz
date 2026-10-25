@@ -1,7 +1,7 @@
 // Guarda el juego para que abra rápido y funcione sin conexión.
-const CACHE = 'campanas-v6';
+const CACHE = 'campanas-v7';
 const ARCHIVOS = ['./', 'index.html', 'estilos.css', 'manifest.webmanifest', 'icono.png',
-  'js/datos.js', 'js/historia.js', 'js/mundo.js', 'js/sprites.js', 'js/iconos.js', 'js/acto2.js', 'js/oficios.js', 'js/pueblo.js', 'js/audio.js', 'js/reglas.js', 'js/batalla.js', 'js/menus.js', 'js/interfaz.js', 'js/main.js'];
+  'js/datos.js', 'js/historia.js', 'js/mundo.js', 'js/sprites.js', 'js/iconos.js', 'js/acto2.js', 'js/oficios.js', 'js/lpc_datos.js', 'js/lpc.js', 'js/pueblo.js', 'js/audio.js', 'js/reglas.js', 'js/batalla.js', 'js/menus.js', 'js/interfaz.js', 'js/main.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS)).then(() => self.skipWaiting()));

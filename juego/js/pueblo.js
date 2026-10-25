@@ -349,8 +349,9 @@ const Pueblo = (() => {
 
   function persona(p, vis, ox, oy, t, esPnj) {
     const cx = ox + p.x * TS, fy = oy + p.y * TS + TS * 0.28;
-    const vista = p.dir === 2 ? 'b' : 'f', espejo = p.dir === 3;
-    const frame = p.mov ? 1 + Math.floor(t / 140) % 2 : 0;
+    const lpc = LPC.esHumano(vis);
+    const vista = lpc ? ['s', 'e', 'n', 'w'][p.dir] : p.dir === 2 ? 'b' : 'f', espejo = !lpc && p.dir === 3;
+    const frame = p.mov ? (lpc ? 11 + Math.floor(t / 90) % 8 : 1 + Math.floor(t / 140) % 2) : 0;
     const semilla = ((p.id || 'yo').charCodeAt(0) * 53) % 3000;
     const img = SPR.personaje(vis, vista, frame, p.hablando ? (Math.floor(t / 160) % 2 ? 'habla' : '') : ((t + semilla) % 3400) < 140 ? 'parpadeo' : '');
     const w = TS * 1.5;

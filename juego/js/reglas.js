@@ -32,12 +32,17 @@ function nuevaPartida() {
 }
 function guardar() { try { localStorage.setItem(claveSlot(SLOT), JSON.stringify(G)); } catch (e) {} }
 function cargar() {
-  try { const s = localStorage.getItem(claveSlot(SLOT)); if (s) { G = JSON.parse(s); return true; } } catch (e) {}
+  try { const s = localStorage.getItem(claveSlot(SLOT)); if (s) { G = JSON.parse(s); setTimeout(() => { try { LPC.precargar(G.unidades.map(visDe)); } catch (e) {} }, 0); return true; } } catch (e) {}
   return false;
 }
 function hayPartida(i = SLOT) { try { return !!localStorage.getItem(claveSlot(i)); } catch (e) { return false; } }
 function borrarSlot(i) { try { localStorage.removeItem(claveSlot(i)); } catch (e) {} }
 
+// Lo que se ve del equipo en el sprite: id y rareza del arma y la armadura.
+function eqVisual(u) {
+  const g = s => { const v = u._eq ? u._eq[s] : (u.eq && u.eq[s] ? item(u.eq[s]) : null); return v && EQ[v.id] ? { id:v.id, r:v.rareza || 0 } : null; };
+  return { arma:g('arma'), armadura:g('armadura') };
+}
 function nuevoItem(id, mejora = 0, rareza = 0) {
   const def = EQ[id], R = RAREZAS[rareza];
   const it = { uid:uid(), id, mejora, rareza, bonos:{}, gemas: Array(Math.min(3, (def.gemas || 0) + R.gemas)).fill(null) };

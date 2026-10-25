@@ -449,3 +449,9 @@ button.peligro { background: linear-gradient(180deg, #6a1a14, #2a0806) !importan
 .nodo-n { font-size: .62rem !important; padding: 1px 5px !important; }
 .dialogo.en-escena .dlg-fondo { background: linear-gradient(0deg, rgba(5,4,2,.7), rgba(5,4,2,0) 45%) !important; }
 .dialogo.en-escena { pointer-events: auto; }
+
+.creditos { max-height:60vh; overflow-y:auto; text-align:left; font-size:.9rem; }
+.creditos ul { columns:2; padding-left:18px; margin:6px 0; }
+.creditos li { break-inside:avoid; }
+/* Sprites en pixel art: nítidos al agrandarlos */
+img.spr, .avatar img, .heroe-img img, .pedestal img, .dlg-retrato img, .dlg-retrato canvas, .uc-m, .masc-img { image-rendering: pixelated; }

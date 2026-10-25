@@ -827,7 +827,17 @@ const SPR = (() => {
   }
   const cache = new Map();
   // vis: { clase, look:{pelo,piel,barba,estilo}, t: tinte, arma, mascota }. vista: 'f' frente | 'b' espalda. frame: 0 quieto, 1-2 caminando.
+  // Con LPC: vista puede ser 'f'/'b' o una fila 's','n','e','w'; frame ≥ 10 = cuadro de caminata (frame - 10).
+  const FILA_LPC = { f:'s', b:'n', s:'s', n:'n', e:'e', w:'w' };
   function personaje(vis, vista = 'f', frame = 0, expr = '') {
+    if (typeof LPC !== 'undefined' && LPC.esHumano(vis)) {
+      const kl = 'L' + JSON.stringify([vis.clase, vis.look, vis.t, vis.unico, vis.eqv, vis.arma, vis.asp, vista, frame]);
+      if (cache.has(kl)) return cache.get(kl);
+      const cv = lienzo(S, S), c = cv.getContext('2d');
+      const f = frame >= 10 ? frame - 10 : frame ? [0, 3, 7][frame] : 0;
+      if (LPC.dibujar(c, vis, 'walk', FILA_LPC[vista] || 's', f, S / 2, S * 0.925, S / 66, { sinBrillo:false, t:0 })) { cache.set(kl, cv); return cv; }
+    }
+    if (frame >= 10) frame = 1 + frame % 2;
     const key = JSON.stringify([vis.clase, vis.look, vis.t, vis.arma, vista, vis.mascota, frame, vis.asp, expr]);
     if (cache.has(key)) return cache.get(key);
     const { C, P } = paleta(vis);
@@ -859,6 +869,14 @@ const SPR = (() => {
     }
   }
   function retrato(vis, expr = '') {
+    if (typeof LPC !== 'undefined' && LPC.esHumano(vis)) {
+      // Busto en pixel art: cabeza y hombros del sprite, sin arma, con casco abierto.
+      const kl = 'R' + JSON.stringify([vis.clase, vis.look, vis.t, vis.unico, vis.eqv?.armadura, vis.asp]);
+      if (cache.has(kl)) return cache.get(kl);
+      const cv = lienzo(S, S), c = cv.getContext("2d"), esc = S / 40;
+      const v2 = Object.assign({}, vis, { arma:null, eqv:{ armadura:vis.eqv?.armadura || null }, retrato:true });
+      if (LPC.dibujar(c, v2, 'walk', 's', 0, S / 2, S / 2 + 33 * esc, esc, { sinBrillo:true })) { cache.set(kl, cv); return cv; }
+    }
     const key = 'r' + JSON.stringify(vis) + expr;
     if (cache.has(key)) return cache.get(key);
     const cv = lienzo(S, S), ctx = cv.getContext('2d');
