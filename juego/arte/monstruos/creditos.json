@@ -1,6 +1,152 @@
 {
- "lobo": {"n": "[LPC] Wolf Animation", "autores": ["Stephen \"Redshrike\" Challener", "William.Thompsonj"], "licencias": ["CC-BY 3.0", "OGA-BY 3.0"], "urls": ["https://opengameart.org/content/lpc-wolf-animation"]},
- "arana": {"n": "[LPC] Spider", "autores": ["Stephen \"Redshrike\" Challener", "William.Thompsonj"], "licencias": ["CC-BY 3.0", "OGA-BY 3.0"], "urls": ["https://opengameart.org/content/lpc-spider"]},
- "monstruos": {"n": "[LPC] Monsters (murciélago, fantasma)", "autores": ["Charles Sanchez (CharlesGabriel)", "bagzie", "bluecarrot16"], "licencias": ["CC-BY-SA 3.0"], "urls": ["https://opengameart.org/node/133276"]},
- "dragon": {"n": "Red Dragon", "autores": ["ZaPaper"], "licencias": ["CC-BY 3.0"], "urls": ["https://opengameart.org/content/red-dragon"]}
+ "lobo": {
+  "n": "[LPC] Wolf Animation",
+  "autores": [
+   "Stephen \"Redshrike\" Challener",
+   "William.Thompsonj"
+  ],
+  "licencias": [
+   "CC-BY 3.0",
+   "OGA-BY 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/lpc-wolf-animation"
+  ]
+ },
+ "arana": {
+  "n": "[LPC] Spider",
+  "autores": [
+   "Stephen \"Redshrike\" Challener",
+   "William.Thompsonj"
+  ],
+  "licencias": [
+   "CC-BY 3.0",
+   "OGA-BY 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/lpc-spider"
+  ]
+ },
+ "monstruos": {
+  "n": "[LPC] Monsters (murciélago, fantasma)",
+  "autores": [
+   "Charles Sanchez (CharlesGabriel)",
+   "bagzie",
+   "bluecarrot16"
+  ],
+  "licencias": [
+   "CC-BY-SA 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/node/133276"
+  ]
+ },
+ "dragon": {
+  "n": "Red Dragon",
+  "autores": [
+   "ZaPaper"
+  ],
+  "licencias": [
+   "CC-BY 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/red-dragon"
+  ]
+ },
+ "terreno": {
+  "n": "[LPC] Terrains (suelos)",
+  "autores": [
+   "bluecarrot16",
+   "Lanea Zimmerman (Sharm)",
+   "Daniel Eddeland (Daneeklu)",
+   "Richard Kettering (Jetrel)",
+   "Zachariah Husiar (Zabin)",
+   "Hyptosis",
+   "Casper Nilsson",
+   "Buko Studios",
+   "Nushio",
+   "ZaPaper",
+   "billknye",
+   "William Thompson",
+   "caeles",
+   "Redshrike",
+   "Bertram",
+   "Rayane Félix (RayaneFLX)"
+  ],
+  "licencias": [
+   "CC-BY-SA 4.0",
+   "CC-BY-SA 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/lpc-terrains"
+  ]
+ },
+ "base": {
+  "n": "LPC Base Assets (casas, árboles, rocas)",
+  "autores": [
+   "Lanea Zimmerman (Sharm)",
+   "Stephen \"Redshrike\" Challener"
+  ],
+  "licencias": [
+   "CC-BY-SA 3.0",
+   "GPL 3.0",
+   "OGA-BY 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles"
+  ]
+ },
+ "gatos_perros": {
+  "n": "[LPC] Cats and Dogs",
+  "autores": [
+   "bluecarrot16"
+  ],
+  "licencias": [
+   "CC-BY 3.0",
+   "OGA-BY 3.0"
+  ],
+  "urls": [
+   "http://opengameart.org/content/lpc-cats-and-dogs"
+  ]
+ },
+ "aves": {
+  "n": "[LPC] Birds (halcón, búho)",
+  "autores": [
+   "bluecarrot16"
+  ],
+  "licencias": [
+   "CC-BY 4.0",
+   "CC-BY-SA 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/lpc-birds"
+  ]
+ },
+ "conejo": {
+  "n": "LPC Rabbit (reorganizado)",
+  "autores": [
+   "Stephen \"Redshrike\" Challener",
+   "Evert"
+  ],
+  "licencias": [
+   "CC-BY 3.0",
+   "OGA-BY 3.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/reorganised-lpc-rabbit"
+  ]
+ },
+ "animales": {
+  "n": "[LPC] bears, deer, lions and more (zorro, hurón)",
+  "autores": [
+   "tapatilorenzo",
+   "Sevarihk"
+  ],
+  "licencias": [
+   "CC-BY 4.0"
+  ],
+  "urls": [
+   "https://opengameart.org/content/lpc-bears-deer-lions-and-more"
+  ]
+ }
 }

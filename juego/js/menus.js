@@ -122,8 +122,8 @@ function mostrarCreditos() {
     cerrar();
     modal(`<h3>Créditos</h3>
       <div class="creditos">
-        <p>Juego, historia, mapas, música y efectos: hechos para este juego.</p>
-        <p><b>Personajes, monstruos, ropa, armaduras y armas:</b> sprites del Liberated Pixel Cup (LPC), del Universal LPC Spritesheet Character Generator y de OpenGameArt, de estos artistas:</p>
+        <p>Juego, historia, mapa del mundo, música y efectos: hechos para este juego.</p>
+        <p><b>Personajes, monstruos, mascotas, suelos, casas, árboles, ropa, armaduras y armas:</b> sprites del Liberated Pixel Cup (LPC), del Universal LPC Spritesheet Character Generator y de OpenGameArt, de estos artistas:</p>
         <ul>${[...autores.keys()].sort((a, b) => a.localeCompare(b)).map(a => `<li>${esc(a)}</li>`).join('')}</ul>
         <p class="sub">Licencias: ${lic.map(esc).join(', ')}. Detalle en <code>arte/lpc/creditos.json</code> y <code>arte/monstruos/creditos.json</code>. Más info: opengameart.org y github.com/LiberatedPixelCup.</p>
         <p class="sub">Juego sin fines comerciales.</p>

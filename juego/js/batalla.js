@@ -1382,12 +1382,12 @@ const Batalla = (() => {
     // Unidades agrupadas por la casilla donde están (para dibujarlas en el orden correcto)
     const enCasilla = new Map();
     B.us.forEach(v => { if (!v.oculto || v.alpha > 0.02) { const k = clamp(Math.round(v.rx), 0, m.w - 1) + ',' + clamp(Math.round(v.ry), 0, m.h - 1); (enCasilla.get(k) || enCasilla.set(k, []).get(k)).push(v); } });
-    const TX = 96, TY = 72;
+    const TX = 128, TY = 128;
     const rombo = (c, f = 1) => { ctx.beginPath(); ctx.moveTo(c.x, c.y - L.T / 4 * f); ctx.lineTo(c.x + L.T / 2 * f, c.y); ctx.lineTo(c.x, c.y + L.T / 4 * f); ctx.lineTo(c.x - L.T / 2 * f, c.y); ctx.closePath(); };
     const cara = (p1, p2, prof, tex, sombra) => {
       ctx.save();
       ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p2.x, p2.y + prof); ctx.lineTo(p1.x, p1.y + prof); ctx.closePath(); ctx.clip();
-      for (let i = 0; i * L.HS < prof; i++) { ctx.save(); ctx.transform((p2.x - p1.x) / TX, (p2.y - p1.y) / TX, 0, L.HS / 30, p1.x, p1.y + i * L.HS); ctx.drawImage(tex, 0, 0); ctx.restore(); }
+      for (let i = 0; i * L.HS < prof; i++) { ctx.save(); ctx.transform((p2.x - p1.x) / TX, (p2.y - p1.y) / TX, 0, L.HS / 32, p1.x, p1.y + i * L.HS); ctx.drawImage(tex, 0, 0); ctx.restore(); }
       const g = ctx.createLinearGradient(0, Math.min(p1.y, p2.y), 0, Math.max(p1.y, p2.y) + prof);
       g.addColorStop(0, `rgba(0,0,0,${sombra})`); g.addColorStop(1, `rgba(0,0,0,${sombra + 0.35})`);
       ctx.fillStyle = g; ctx.fillRect(Math.min(p1.x, p2.x), Math.min(p1.y, p2.y), Math.abs(p2.x - p1.x) + 1, Math.abs(p2.y - p1.y) + prof + 1);
@@ -1407,7 +1407,9 @@ const Batalla = (() => {
         // Tapa con la textura deformada al rombo
         ctx.save();
         ctx.transform((der.x - top.x) / TX, (der.y - top.y) / TX, (izq.x - top.x) / TY, (izq.y - top.y) / TY, top.x, top.y);
-        ctx.drawImage(SPR.texturaTop(c.t, (x * 7 + y * 3) % 2), -0.6, -0.6, TX + 1.2, TY + 1.2);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(SPR.texturaTop(c.t, (x * 7 + y * 3) % 4), -0.6, -0.6, TX + 1.2, TY + 1.2);
+        ctx.imageSmoothingEnabled = true;
         ctx.restore();
         if (tr.agua || tr.lava) {
           rombo(cen); ctx.fillStyle = tr.lava ? `rgba(255,200,80,${0.12 + Math.sin(t / 400 + x + y * 1.3) * 0.1})` : `rgba(255,255,255,${0.06 + Math.sin(t / 500 + x * 0.9 + y * 1.7) * 0.06})`; ctx.fill();
@@ -1423,7 +1425,7 @@ const Batalla = (() => {
         if (mk) { rombo(cen, 0.86); ctx.fillStyle = mk + pulso + ')'; ctx.fill(); ctx.strokeStyle = mk + '0.95)'; ctx.lineWidth = 1.6; ctx.stroke(); }
         if (ui.modo === 'confirmar' && ui.cx === x && ui.cy === y) { rombo(cen, 0.92); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.4; ctx.stroke(); }
         if (tr.deco) {
-          const img = SPR.deco(tr.deco), w = L.T * (tr.deco === 'arbol' ? 1.0 : 0.8), h = w * 22 / 16;
+          const img = SPR.deco(tr.deco, (x * 3 + y * 5) % 4), w = L.T * (tr.deco === 'arbol' ? 1.0 : 0.8), h = w * 22 / 16;
           ctx.drawImage(img, cen.x - w / 2, cen.y + L.T * 0.12 - h, w, h);
         }
         (enCasilla.get(x + ',' + y) || []).forEach(v => dibujarUnidad(v, t, v === u));
@@ -1525,14 +1527,14 @@ const Batalla = (() => {
     ctx.globalAlpha = v.alpha;
     // Mascota al lado
     if (v.mascota && !v.ko) {
-      const pm = SPR.personaje({ mascota:v.mascota.id }, 'f', Math.floor(t / 260) % 2), kk = L.k * 0.6;
-      const salto = Math.abs(Math.sin(t / 220 + v.rx)) * 2 * L.k;
-      ctx.save();
-      ctx.translate(cx - 8 * L.k * (espejo ? -1 : 1), fy + 1 * L.k - salto);
-      if (espejo !== (v.dir === 3)) {} // la mascota mira para el mismo lado que su dueño
-      if (vd === 3) ctx.scale(-1, 1);
-      ctx.drawImage(pm, -10 * kk, -18 * kk, 20 * kk, 20 * kk);
-      ctx.restore();
+      const lado = vd === 1 || vd === 2 ? 1 : -1; // va al costado de su dueño, mirando para el mismo lado
+      const px = cx - 8 * L.k * lado, py = fy + 1.5 * L.k;
+      if (!LPC.esMascota(v.mascota.id) || !LPC.dibujarMascota(ctx, v.mascota.id, FILA_VISTA[vd], t + v.rx * 61, px, py, L.k * 1.3 * 0.3)) {
+        const pm = SPR.personaje({ mascota:v.mascota.id }, 'f', Math.floor(t / 260) % 2), kk = L.k * 0.6;
+        const salto = Math.abs(Math.sin(t / 220 + v.rx)) * 2 * L.k;
+        ctx.save(); ctx.translate(px, fy + 1 * L.k - salto); if (vd === 3) ctx.scale(-1, 1);
+        ctx.drawImage(pm, -10 * kk, -18 * kk, 20 * kk, 20 * kk); ctx.restore();
+      }
     }
     // Barra de vida
     if (!v.ko && !v.oculto) {

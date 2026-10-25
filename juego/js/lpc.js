@@ -169,6 +169,53 @@ const LPC = (() => {
     return true;
   }
 
+  // ---------- Mascotas ----------
+  const RMA = '../mascotas/';
+  const MASC = {
+    zorrito:   { src:'fox_woods.png', fw:64, fh:64, filas:{ s:0, w:1, e:2, n:3 }, walk:[0, 1, 2, 3], pie:[32, 58], esc:0.62 },
+    perro:     { src:'dog_2.png', fw:32, fh:32, col0:4, filas:{ w:0, n:1, s:2, e:'w' }, walk:[0, 1, 2], pie:[16, 30], esc:1.05 },
+    gatito:    { src:'cat_0.png', fw:32, fh:32, col0:4, filas:{ w:0, n:1, s:2, e:'w' }, walk:[0, 1, 2], pie:[16, 30], esc:0.95 },
+    conejo:    { src:'rabbit_2.png', fw:72, fh:72, filas:{ n:0, w:1, s:2, e:3 }, walk:[0, 1, 2, 3], pie:[36, 58], esc:0.75 },
+    halcon:    { src:'bird_2_eagle.png', fw:32, fh:32, filas:{ n:0, w:1, s:2, e:3 }, walk:[0, 1, 2], pie:[16, 30], esc:1.0, vuela:true },
+    buho:      { src:'bird_2_brown_1.png', tinte:'#8a7ac8', fw:32, fh:32, filas:{ n:0, w:1, s:2, e:3 }, walk:[0, 1, 2], pie:[16, 30], esc:1.0, vuela:true },
+    huron:     { src:'giant_rat_Sevarihk.png', tinte:'#c8a07a', fw:80, fh:64, filas:{ n:0, e:1, w:2, s:3 }, walk:[0, 1, 2, 3], pie:[40, 54], esc:0.42 },
+    dragoncito:{ dragon:true, tinte:'#7a9ae0', esc:0.17 },
+    tortuga:   { pixel:true, esc:1.1 },
+  };
+  // Tortuga en pixel art propio (no hay una LPC): mapa de píxeles, dos pasos.
+  const TORTUGA = [['....oooooo.....', '...oGgGGgGo....', '..oGgGggGgGoooo', '..ogGgGGgGgosseo', '.ooooooooooosso', '.osso..osso....'],
+                   ['....oooooo.....', '...oGgGGgGo....', '..oGgGggGgGoooo', '..ogGgGGgGgosseo', '.ooooooooooosso', '..oss..oss.....']];
+  const COL_T = { o:'#1a2414', G:'#7aaa4c', g:'#4a7430', s:'#c8c070', e:'#000000' };
+  function dibujarMascota(ctx, id, fila, t, x, y, esc) {
+    const d = MASC[id]; if (!d) return false;
+    const e = esc * d.esc;
+    ctx.save(); ctx.imageSmoothingEnabled = false;
+    if (d.pixel) {
+      const fr = TORTUGA[Math.floor(t / 220) % 2], espejo = fila === 'w' || fila === 'n';
+      ctx.translate(x, y); if (espejo) ctx.scale(-1, 1);
+      fr.forEach((row, j) => [...row].forEach((ch, i) => { if (COL_T[ch]) { ctx.fillStyle = COL_T[ch]; ctx.fillRect((i - 8) * e, (j - fr.length) * e, e + 0.3, e + 0.3); } }));
+      ctx.restore(); return true;
+    }
+    if (d.dragon) {
+      const b = BESTIAS.dragon, im = imgBestia(b.dir[fila] || b.dir.s, d.tinte); if (!im) { ctx.restore(); return false; }
+      const fr = b.walk[Math.floor(t / 120) % b.walk.length];
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(im, (fr % b.cols) * b.fw, Math.floor(fr / b.cols) * b.fh, b.fw, b.fh, x - b.pie[0] * e, y - b.pie[1] * e - 6 * esc, b.fw * e, b.fh * e);
+      ctx.restore(); return true;
+    }
+    const f = img(RMA + d.src); if (!f) { ctx.restore(); return false; }
+    const im = d.tinte ? tenida(f, d.tinte) : f;
+    const fr = d.walk[Math.floor(t / 150) % d.walk.length];
+    let r = d.filas[fila] ?? d.filas.s, espejo = false;
+    if (typeof r === 'string') { r = d.filas[r]; espejo = true; } // fila espejada del otro costado
+    const sx = ((d.col0 || 0) + fr) * d.fw, sy = r * d.fh;
+    const sube = d.vuela ? 10 * esc + Math.sin(t / 200) * 2 * esc : 0;
+    if (espejo) { ctx.translate(x, 0); ctx.scale(-1, 1); x = 0; }
+    ctx.drawImage(im, sx, sy, d.fw, d.fh, x - d.pie[0] * e, y - d.pie[1] * e - sube, d.fw * e, d.fh * e);
+    ctx.restore();
+    return true;
+  }
+
   // ---------- Receta: qué capas lleva cada personaje ----------
   const FEM = new Set(['mara', 'nela', 'ysolde', 'saal', 'kaela', 'ilse', 'merla', 'berta']);
   const PELO_PJ = { lior:'pelo_revuelto', mara:'pelo_cola', tobias:'pelo_corto', nela:'pelo_trenza', brann:'pelo_liso', ysolde:'pelo_largo', fenn:'pelo_desalinado',
@@ -343,5 +390,5 @@ const LPC = (() => {
   // Precarga la caminata de una lista de vis (para que los menús ya la tengan).
   function precargar(lista) { lista.forEach(v => { const r = recetaDe(v); if (r) capasListas(r, 'walk'); }); }
   function alCargar(fn) { avisar = fn; }
-  return { dibujar, animDe, recetaDe, frames, esHumano, precargar, alCargar, receta, sexo, dibujarBestia, esBestia:v => !!bestiaDe(v) };
+  return { dibujar, animDe, recetaDe, frames, esHumano, precargar, alCargar, receta, sexo, dibujarBestia, esBestia:v => !!bestiaDe(v), dibujarMascota, esMascota:id => !!MASC[id], tenida };
 })();

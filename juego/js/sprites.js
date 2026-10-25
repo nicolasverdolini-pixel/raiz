@@ -837,6 +837,12 @@ const SPR = (() => {
       const f = frame >= 10 ? frame - 10 : frame ? [0, 3, 7][frame] : 0;
       if (LPC.dibujar(c, vis, 'walk', FILA_LPC[vista] || 's', f, S / 2, S * 0.925, S / 66, { sinBrillo:false, t:0 })) { cache.set(kl, cv); return cv; }
     }
+    if (typeof LPC !== 'undefined' && vis.mascota && LPC.esMascota(vis.mascota)) {
+      const km = 'M' + vis.mascota + vista + frame;
+      if (cache.has(km)) return cache.get(km);
+      const cv = lienzo(S, S), c = cv.getContext('2d');
+      if (LPC.dibujarMascota(c, vis.mascota, FILA_LPC[vista] || 's', frame * 150, S / 2, S * 0.85, S / 30)) { cache.set(km, cv); return cv; }
+    }
     if (typeof LPC !== 'undefined' && LPC.esBestia(vis)) {
       const kb = 'B' + vis.clase + vista + frame;
       if (cache.has(kb)) return cache.get(kb);
@@ -918,9 +924,35 @@ const SPR = (() => {
     x: { pasa:false, vacio:true },
   };
   function rnd(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
-  const TX = 96, TY = 72;
+  const TX = 128, TY = 128;
+  // Suelos en pixel art (LPC Terrains): número de baldosa "llena" de cada terreno en arte/terreno/suelos.png.
+  const SUELO_IMG = new Image(); let sueloListo = false;
+  SUELO_IMG.onload = () => { sueloListo = true; }; SUELO_IMG.src = 'arte/terreno/suelos.png';
+  const SUELO = { g:321, f:324, d:100, c:790, s:109, k:793, p:[787, '#7a5a9a'], a:336, n:339, w:548, W:551, t:327, r:321, h:345, o:[115, '#5a4a6a'], l:560, u:787 };
+  const SUELO_LADO = { s:112, c:112, k:112, u:106, n:106, w:551, W:551, l:115, h:112, o:115, p:115, a:100 };
+  function baldosa(ctx, idx, dx, dy, sz, v, alto = 32) {
+    // Variedad sin baldosas a medias: la misma baldosa, espejada en x o en y.
+    const rr = Math.floor(idx / 32), cc = idx % 32, fx = v & 1 ? -1 : 1, fy = v & 2 && alto === 32 ? -1 : 1;
+    ctx.save(); ctx.translate(dx + (fx < 0 ? sz : 0), dy + (fy < 0 ? sz : 0)); ctx.scale(fx, fy);
+    ctx.drawImage(SUELO_IMG, cc * 32, rr * 32, 32, alto, 0, 0, sz, sz * alto / 32);
+    ctx.restore();
+  }
+  function sueloLPC(letra, variante, una) {
+    const def = SUELO[letra]; if (!sueloListo || def === undefined) return null;
+    const key = 'L' + letra + variante + (una ? '1' : '');
+    if (cache.has(key)) return cache.get(key);
+    const [idx, tinte] = Array.isArray(def) ? def : [def];
+    let cv = lienzo(TX, TY); const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
+    const r = rnd(letra.charCodeAt(0) * 53 + variante * 7);
+    if (una) baldosa(ctx, idx, 0, 0, TX, Math.floor(r() * 4));
+    else for (let i = 0; i < 4; i++) baldosa(ctx, idx, (i % 2) * 64, Math.floor(i / 2) * 64, 64, Math.floor(r() * 4));
+    if (tinte && typeof LPC !== 'undefined') cv = LPC.tenida(cv, tinte);
+    cache.set(key, cv);
+    return cv;
+  }
 
-  function texturaTop(letra, variante) {
+  function texturaTop(letra, variante, una = false) {
+    const lpc = sueloLPC(letra, variante, una); if (lpc) return lpc;
     const key = 't' + letra + variante;
     if (cache.has(key)) return cache.get(key);
     const tr = TERRENO[letra], cv = lienzo(TX, TY), ctx = cv.getContext('2d'), r = rnd(letra.charCodeAt(0) * 97 + variante * 13 + 7);
@@ -991,9 +1023,18 @@ const SPR = (() => {
     return cv;
   }
   function texturaLado(letra) {
+    if (sueloListo && !TERRENO[letra]?.techo && letra !== 'b') {
+      const kl = 'S' + letra;
+      if (cache.has(kl)) return cache.get(kl);
+      const cv = lienzo(TX, 32), c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
+      const idx = SUELO_LADO[letra] ?? 103;
+      baldosa(c, idx, 0, 0, 64, 0, 16); baldosa(c, idx, 64, 0, 64, 2, 16);
+      cache.set(kl, cv);
+      return cv;
+    }
     const key = 's' + letra;
     if (cache.has(key)) return cache.get(key);
-    const tr = TERRENO[letra], cv = lienzo(TX, 30), ctx = cv.getContext('2d'), r = rnd(letra.charCodeAt(0) * 31);
+    const tr = TERRENO[letra], cv = lienzo(TX, 32), ctx = cv.getContext('2d'), r = rnd(letra.charCodeAt(0) * 31);
     ctx.fillStyle = grad(ctx, 0, 30, tr.side[0], luz(tr.side[1], -0.1)); ctx.fillRect(0, 0, TX, 30);
     if (tr.techo) {
       // Pared con ventana y viga
@@ -1019,7 +1060,23 @@ const SPR = (() => {
     cache.set(key, cv);
     return cv;
   }
-  function deco(tipo) {
+  // Árboles y rocas LPC (arte/props): copa + tronco, o roca grande.
+  const COPA = new Image(), TRONCO = new Image(), ROCA = new Image();
+  COPA.src = 'arte/props/treetop.png'; TRONCO.src = 'arte/props/trunk.png'; ROCA.src = 'arte/props/rock.png';
+  const listo = im => im.complete && im.naturalWidth > 0;
+  function deco(tipo, v = 0) {
+    if (tipo === 'arbol' && listo(COPA) && listo(TRONCO) || tipo === 'roca' && listo(ROCA)) {
+      const kl = 'dL' + tipo + v;
+      if (cache.has(kl)) return cache.get(kl);
+      const cv = lienzo(160, 220), c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
+      if (tipo === 'arbol') {
+        const pino = v >= 2, col = v % 2, s = 1.29, ox = (160 - 96 * s) / 2;
+        c.drawImage(TRONCO, col * 96, 0, 96, 96, ox, 220 - 96 * s, 96 * s, 96 * s);
+        c.drawImage(COPA, col * 96, pino ? 112 : 0, 96, 112, ox, 220 - 170 * s, 96 * s, 112 * s);
+      } else c.drawImage(ROCA, 0, 0, 32, 32, 24, 220 - 112, 112, 112);
+      cache.set(kl, cv);
+      return cv;
+    }
     const key = 'd' + tipo;
     if (cache.has(key)) return cache.get(key);
     const cv = lienzo(160, 220), ctx = cv.getContext('2d');
