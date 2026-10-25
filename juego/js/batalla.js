@@ -611,6 +611,8 @@ const Batalla = (() => {
     if (H.tipo === 'revivir') return { tipo:'revive', prob:H.prob || 100 };
     if (H.tipo === 'apoyo') return { tipo:'estado', prob:Math.min(...H.est.map(e => probEstado(u, t, e))) };
     if (H.esp === 'gravedad') return { tipo:'danio', d: t.jefe ? 0 : Math.max(1, Math.round(t.hp * 0.25)), prob: t.jefe ? 0 : 90 };
+    if (H.esp === 'muerte') return { tipo:'danio', d: t.jefe ? 0 : t.hp, prob: t.jefe ? 0 : 35 };
+    if (H.esp === 'desesperado') return { tipo:'danio', d: Math.round(u.st.atk * 1.5 + (u.st.hpMax - u.hp)), prob:100 };
     if (H.esp === 'robar_oro' || H.esp === 'robar_obj') { const ang = angulo(ax, ay, t); return { tipo:'robo', prob: ang === 'espalda' ? 90 : ang === 'lado' ? 75 : 55 }; }
     return { tipo:'especial' };
   }
@@ -641,10 +643,10 @@ const Batalla = (() => {
     if (acc.tipo !== 'atacar') await mostrarBanner(H.n, 750);
     // Animación del que actúa
     const melee = (H.tipo === 'fis' && rangoDe(u, H)[1] <= 2 && !['flecha', 'piedra', 'onda', 'salto'].includes(H.fx) && u.st.armaTipo !== 'arco') || H.esp === 'robar_oro' || H.esp === 'robar_obj';
-    const proyectil = H.fx === 'flecha' || H.fx === 'piedra' || H.fx === 'onda' || (acc.tipo === 'atacar' && u.st.armaTipo === 'arco') || (H.obj && H.uso.danio);
+    const proyectil = H.fx === 'flecha' || H.fx === 'piedra' || H.fx === 'onda' || (acc.tipo === 'atacar' && (u.st.armaTipo === 'arco' || u.st.armaTipo === 'instrumento')) || (H.obj && H.uso.danio);
     if (H.fx === 'salto') await animSalto(u, cx, cy);
     else if (melee) await animEmbestida(u, cx, cy);
-    else if (proyectil) await animProyectil(u, cx, cy, H.fx === 'piedra' ? 'piedra' : H.fx === 'onda' ? 'onda' : H.obj ? 'bomba' : 'flecha');
+    else if (proyectil) await animProyectil(u, cx, cy, H.fx === 'piedra' ? 'piedra' : (H.fx === 'onda' || u.st.armaTipo === 'instrumento') ? 'onda' : H.obj ? 'bomba' : 'flecha');
     else await animConjuro(u, H);
     // Efecto visual sobre el área
     const fxNombre = H.fx === 'ataque' ? (u.st.armaEl || 'corte') : H.fx;
@@ -693,8 +695,9 @@ const Batalla = (() => {
     if (H.obj) {
       const o = H.uso;
       if (o.revive) { t.ko = false; t.hp = Math.round(t.st.hpMax * o.revive); t.alpha = 1; popup(t, 'Revive', '#ffe680'); chispas(t, '#ffe680', 14); }
-      if (o.cura) { const c = Math.min(o.cura, t.st.hpMax - t.hp); t.hp += c; popup(t, c, '#6f9'); }
-      if (o.mp) { t.mp = Math.min(t.st.mpMax, t.mp + o.mp); popup(t, o.mp + ' MP', '#8cf'); }
+      const dosis = u.st.pasiva === 'farmacia' ? 1.5 : 1;
+      if (o.cura) { const c = Math.min(Math.round(o.cura * dosis), t.st.hpMax - t.hp); t.hp += c; popup(t, c, '#6f9'); }
+      if (o.mp) { const m = Math.round(o.mp * dosis); t.mp = Math.min(t.st.mpMax, t.mp + m); popup(t, m + ' MP', '#8cf'); }
       if (o.limpia) { quitarMalos(t); popup(t, 'Limpio', '#cfe'); }
       if (o.danio) { const d = Math.round(o.danio * mElem(t, o.el) * azar(0.92, 1.08)); popup(t, d, '#fff'); res.mato = await aplicarDanio(u, t, d); }
       res.efecto = true;
@@ -733,6 +736,7 @@ const Batalla = (() => {
       popup(t, d, fuerte ? '#ffe14a' : '#fff', fuerte);
       golpeVisual(t, u);
       res.efecto = true;
+      if (H.drena && !u.ko) { const v = Math.min(Math.round(d * H.drena), u.st.hpMax - u.hp); u.hp += v; if (v) popup(u, v, '#6f9'); }
       res.mato = await aplicarDanio(u, t, d);
       if (!t.ko && H.est) H.est.forEach(e => { if (Math.random() * 100 < probEstado(u, t, e)) aplicarEstado(u, t, e); });
       return res;
@@ -761,6 +765,17 @@ const Batalla = (() => {
       case 'meditar': { const m = Math.min(Math.round(12 + t.st.mpMax * 0.1), t.st.mpMax - t.mp); t.mp += m; popup(t, m + ' MP', '#8cf'); break; }
       case 'juramento': { const c = Math.min(Math.round(t.st.hpMax * 0.3), t.st.hpMax - t.hp); t.hp += c; popup(t, c, '#6f9'); aplicarEstado(u, t, { id:'valor', dur:3 }); break; }
       case 'purificar': quitarMalos(t); popup(t, 'Limpio', '#cfe'); break;
+      case 'canalizar': { const m = Math.min(Math.round(10 + u.st.mag / 3), t.st.mpMax - t.mp); t.mp += m; popup(t, m + ' MP', '#8cf'); chispas(t, '#8cf', 8); break; }
+      case 'elixir': { const c = Math.min(Math.round(t.st.hpMax * 0.35), t.st.hpMax - t.hp); t.hp += c; t.mp = Math.min(t.st.mpMax, t.mp + 15); popup(t, c, '#6f9'); chispas(t, '#8f8', 10); break; }
+      case 'furia': { const q = Math.min(Math.round(t.st.hpMax * 0.15), t.hp - 1); t.hp -= q; if (q) popup(t, q, '#f66'); aplicarEstado(u, t, { id:'valor', dur:3 }); aplicarEstado(u, t, { id:'prisa', dur:3 }); break; }
+      case 'muerte': {
+        if (t.jefe || Math.random() >= 0.35) { popup(t, t.jefe ? 'Inmune' : 'Falla', '#ccc'); break; }
+        popup(t, 'Muerte', '#b8ffb8', true); res.mato = await aplicarDanio(u, t, t.hp); break;
+      }
+      case 'desesperado': {
+        const d = Math.max(1, Math.round((u.st.atk * 1.5 + (u.st.hpMax - u.hp)) * azar(0.93, 1.07)));
+        popup(t, d, '#ffe14a', true); golpeVisual(t, u); res.mato = await aplicarDanio(u, t, d); break;
+      }
       case 'chakra': { const c = Math.min(Math.round(t.st.hpMax * 0.2), t.st.hpMax - t.hp); t.hp += c; t.mp = Math.min(t.st.mpMax, t.mp + Math.round(t.st.mpMax * 0.1)); popup(t, c, '#6f9'); chispas(t, '#8f8', 8); break; }
       case 'gravedad': {
         if (t.jefe) { popup(t, 'Inmune', '#ccc'); break; }
@@ -1114,6 +1129,9 @@ const Batalla = (() => {
       } else if (e.tipo === 'robo') v += 10 * e.prob / 100;
       else if (H.esp === 'purificar') v += Object.keys(t.est).some(k => ESTADOS[k].malo) ? 22 : 0;
       else if (H.esp === 'chakra') v += (t.st.hpMax - t.hp) / t.st.hpMax > 0.3 ? 30 : 0;
+      else if (H.esp === 'elixir') v += (t.st.hpMax - t.hp) / t.st.hpMax > 0.3 ? 36 : 0;
+      else if (H.esp === 'canalizar') v += t !== u && t.mp / Math.max(1, t.st.mpMax) < 0.35 ? 24 : 0;
+      else if (H.esp === 'furia') v += !t.est.valor && t.hp / t.st.hpMax > 0.6 ? 26 : 0;
     }
     if (H.carga) v *= H.carga >= 25 ? 0.85 : 0.7; // pueden moverse antes de que salga
     if (H.esp === 'primeros' || H.esp === 'juramento') v += u.hp / u.st.hpMax < 0.5 ? 35 : 0;

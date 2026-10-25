@@ -210,6 +210,17 @@ const ICO = (() => {
           if (P.g) gema(c, 0, -10, 3, P.g);
           break;
         }
+        case 'instrumento': {
+          c.rotate(-Math.PI / 5);
+          rr(c, -2.4, -30, 4.8, 26, 2); f(c, g(c, -30, -4, P.w, P.w2), 2);
+          rr(c, -4.5, -36, 9, 8, 2.4); f(c, v >= 4 ? P.a : '#3a2010', 2);
+          c.beginPath(); c.ellipse(0, 10, v === 3 ? 11 : 13, v === 3 ? 17 : 15, 0, 0, Math.PI * 2); f(c, g(c, -6, 26, v >= 5 ? '#5a3a8a' : v === 3 ? '#e8ecf4' : '#d89a50', v >= 5 ? '#1a1030' : v === 3 ? '#9aa2b8' : '#8a5224'), 2.4);
+          circ(c, 0, 6, 4); f(c, '#2a1408', 1.6);
+          c.beginPath(); for (let i = -1; i <= 1; i++) { c.moveTo(i * 1.2, -30); c.lineTo(i * 1.2, 20); } c.lineWidth = 0.7; c.strokeStyle = '#f4f0e6'; c.stroke();
+          rr(c, -6, 18, 12, 3, 1.2); f(c, '#2a1408', 1.2);
+          if (P.g) gema(c, 0, -32, 3, P.g);
+          break;
+        }
         case 'puños': {
           rr(c, -18, -12, 36, 26, 10); f(c, g(c, -12, 14, '#ffd8b0', '#d89a6a'), 2.4);
           rr(c, -20, 4, 40, 12, 5); f(c, v >= 5 ? '#3a2a3a' : '#c84a3a', 2.2);

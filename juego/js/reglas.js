@@ -224,7 +224,7 @@ function calcStats(u) {
   // Mascota
   const m = u._mascota !== undefined ? u._mascota : (u.mascota ? mascota(u.mascota) : null);
   if (m) {
-    const M = MASCOTAS[m.id], k = 1 + (m.nivel - 1) * 0.25;
+    const M = MASCOTAS[m.id], k = (1 + (m.nivel - 1) * 0.25) * (u.pasiva && HAB[u.pasiva]?.pv === 'bestias' ? 2 : 1);
     for (const [st, v] of Object.entries(M.bon)) {
       if (st === 'mov') s.mov += v; else if (st === 'eva') s.eva += Math.round(v * k); else if (st === 'hp') s.hp += v * k; else s[st] += v * k;
     }
@@ -239,6 +239,10 @@ function calcStats(u) {
   if (pv === 'salto') { s.salto += 2; s.mov += 1; }
   if (pv === 'halcon' && s.armaTipo === 'arco') s.rango[1] += 1;
   if (pv === 'inmune') ['veneno', 'dormido', 'ciego'].forEach(e => s.inmune.add(e));
+  if (pv === 'voz') { s.inmune.add('silencio'); s.mp *= 1.1; }
+  if (pv === 'sexto') s.eva += 10;
+  if (pv === 'vampiro') s.efectos.vampiro = (s.efectos.vampiro || 0) + 1;
+  if (pv === 'rabia') { s.atk *= 1.15; s.def *= 0.9; }
   if (pv === 'sangre') { hpMult += 0.1; s.resEl.fuego = Math.min(0.9, (s.resEl.fuego || 0) + 0.5); }
   s.pasiva = pv;
   s.hp = (s.hp + hpExtra) * hpMult;
@@ -338,12 +342,14 @@ function detalleHab(id, u) {
     const f = s ? Math.round(H.p * (0.5 + s.mag / 14) * (s.pasiva === 'magia' ? 1.2 : 1)) : null;
     p.push(`Daño mágico ${H.p}${f ? ` ≈ ${f} antes de resistencia` : ''}`);
     if (H.antidemonio) p.push('×2 contra demonios');
+    if (H.drena) p.push(`te cura ${Math.round(H.drena * 100)}% del daño`);
   } else if (H.tipo === 'cura') {
     const f = s ? Math.round(H.p * (0.5 + s.mag / 14)) : null;
     p.push(`Cura ${f ? f + ' de vida' : 'poder ' + H.p}`);
   } else if (H.tipo === 'revivir') p.push(`Levanta a un caído con ${Math.round(H.p * 100)}% de vida${H.prob ? ` (${H.prob}% de chance)` : ''}`);
   const esp = { primeros:'Cura 30% de su vida', meditar:'Recupera 12 + 10% de su magia', chakra:'Cura 20% de vida y 10% de magia', juramento:'Cura 30% de vida y da Valor (+25% ataque)',
-    gravedad:'Quita 25% de la vida actual (no a jefes)', purificar:'Quita todos los estados malos', robar_oro:'Roba 20 + 12 × nivel del enemigo en oro (más fácil por la espalda)', robar_obj:'Roba un material, poción o gema' }[H.esp];
+    gravedad:'Quita 25% de la vida actual (no a jefes)', purificar:'Quita todos los estados malos', robar_oro:'Roba 20 + 12 × nivel del enemigo en oro (más fácil por la espalda)', robar_obj:'Roba un material, poción o gema',
+    muerte:'35% de matar de un golpe (no a jefes)', canalizar:'Le da 10 + magia/3 de magia a un aliado', elixir:'Cura 35% de vida y 15 de magia', furia:'Pierde 15% de vida; gana Valor y Prisa 3 turnos', desesperado:'Daño = ataque × 1.5 + la vida que le falta' }[H.esp];
   if (esp) p.push(esp);
   if (H.el) p.push(`elemento ${ELEMENTOS[H.el].n.toLowerCase()} (×1.5 si es débil)`);
   (H.est || []).forEach(e => p.push(`${H.tipo === 'apoyo' && (H.af || 'e') === 'a' ? '' : e.prob + '% '}${ESTADOS[e.id].n} ${e.dur || 3} turnos: ${EFECTO_ESTADO[e.id]}`));

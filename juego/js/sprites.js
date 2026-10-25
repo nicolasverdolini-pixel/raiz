@@ -89,6 +89,13 @@ const SPR = (() => {
         relleno(ctx, grad(ctx, -28, -12, '#fff2b0', '#c8962a'));
         circulo(ctx, 0, -10.5, 2.2); relleno(ctx, '#c8962a');
         break;
+      case 'instrumento': // laúd colgado en diagonal
+        ctx.rotate(-0.5);
+        rr(ctx, -1.6, -34, 3.2, 22, 1.2); relleno(ctx, '#5a3418');
+        rr(ctx, -3, -38, 6, 6, 1.5); relleno(ctx, '#3a2010');
+        ctx.beginPath(); ctx.ellipse(0, -4, 8, 10, 0, 0, Math.PI * 2); relleno(ctx, grad(ctx, -14, 6, '#d89a50', '#8a5224'));
+        circulo(ctx, 0, -6, 2.4); relleno(ctx, '#2a1408');
+        break;
       case 'lanza':
         rr(ctx, -1.6, -52, 3.2, 64, 1.5); relleno(ctx, grad(ctx, -52, 12, '#b08048', '#6a4428'));
         ctx.beginPath(); ctx.moveTo(-4.5, -50); ctx.lineTo(0, -64); ctx.lineTo(4.5, -50); ctx.lineTo(0, -46); ctx.closePath(); relleno(ctx, metal());
