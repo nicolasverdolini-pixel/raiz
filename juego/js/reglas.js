@@ -78,7 +78,7 @@ const FAC_UNICOS = {
 };
 
 function crearUnidad({ nombre, clase, nivel = 1, look, unico = null, fac }) {
-  const u = { id:uid(), nombre, unico, look: look || { pelo:elegir(PELOS), piel:elegir(PIELES) }, nivel, exp:0,
+  const u = { id:uid(), nombre, unico, look: look || { pelo:elegir(PELOS), piel:elegir(PIELES), estilo:Math.floor(Math.random() * 3), semilla:uid() }, nivel, exp:0,
     fac: fac || facAzar(), clase, sec:null, pasiva:null, cl:{}, apr:[], eq:{ arma:null, armadura:null, acc:null }, mascota:null };
   u.cl[clase] = { pc:0, tot:0 };
   return u;
@@ -306,5 +306,5 @@ function crearEnemigo(e, facil = false) {
 function PJ_LOOK_ENEMIGO(e) {
   const pj = Object.values(PJ).find(p => p.n === e.n);
   if (pj?.look) return pj.look;
-  return { pelo:elegir(PELOS), piel:elegir(PIELES) };
+  return { pelo:elegir(PELOS), piel:elegir(PIELES), estilo:Math.floor(Math.random() * 3), semilla:uid() };
 }

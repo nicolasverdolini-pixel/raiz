@@ -1091,6 +1091,7 @@ const Batalla = (() => {
   }
   function golpeVisual(t, u) {
     t.flash = 1;
+    t.dolor = performance.now() + 500;
     shake = Math.max(shake, 4);
     const dx = t.x - u.x, dy = t.y - u.y, n = Math.hypot(dx, dy) || 1;
     tween(220, p => { t.off.x = dx / n * 0.15 * L.TW * Math.sin(p * Math.PI); t.off.y = dy / n * 0.15 * L.TD * Math.sin(p * Math.PI); t.flash = 1 - p; })
@@ -1270,7 +1271,10 @@ const Batalla = (() => {
     const vista = humano && v.dir === 2 ? 'b' : 'f';
     const espejo = humano ? v.dir === 3 : (v.dir === 2 || v.dir === 3);
     const frame = v.caminando ? 1 + Math.floor(t / 120) % 2 : 0;
-    const img = SPR.personaje(v.vis, vista, frame);
+    // Gestos: parpadea cada tanto, hace mueca al recibir un golpe y cierra los ojos al caer.
+    const semilla = (v.id.charCodeAt(0) * 37 + v.id.charCodeAt(1) * 11) % 3000;
+    const expr = v.ko ? 'parpadeo' : (v.dolor > t ? 'dolor' : v.cargando ? 'enojo' : ((t + semilla) % 3600) < 140 ? 'parpadeo' : '');
+    const img = SPR.personaje(v.vis, vista, frame, expr);
     const w = 20 * k, h = 20 * k;
     ctx.save();
     ctx.translate(cx, fy + respira);

@@ -244,6 +244,7 @@ const Pueblo = (() => {
 
   // ---------- Charla y misiones ----------
   function misionDisponible(v) {
+    if (v.regalo && !G.flags['reg_' + v.id] && G.paso >= (v.regalo.desde || 0)) return true;
     const S = v.mision && SECRETAS[v.mision];
     if (!S) return false;
     return G.paso >= S.req && !G.flags['sec_' + v.mision];
@@ -264,6 +265,19 @@ const Pueblo = (() => {
     let lineas;
     const S = v.mision && SECRETAS[v.mision];
     const id = v.mision;
+    const R = v.regalo;
+    if (R && !G.flags['reg_' + v.id] && G.paso >= (R.desde || 0) && !(S && G.paso >= S.req && !G.flags['sec_' + id])) {
+      // Regalo de una sola vez.
+      G.flags['reg_' + v.id] = true;
+      const nombres = [];
+      for (const [k, n] of Object.entries(R.obj || {})) { G.obj[k] = (G.obj[k] || 0) + n; nombres.push(`${OBJ[k].n} x${n}`); }
+      if (R.gema) { sumarGema(R.gema); nombres.push(nombreGema(R.gema)); }
+      if (R.equipo) { const it = nuevoItem(R.equipo.id, 0, R.equipo.rareza || 0); nombres.push(`${EQ[it.id].n} (${RAREZAS[it.rareza].n.toLowerCase()})`); }
+      guardar();
+      setTimeout(() => Sonido.fx('moneda'), 300);
+      dialogo([[quien, R.txt], [null, `Recibiste: ${nombres.join(', ')}.`]], () => { if (P) { P.bloqueado = false; v.hablando = false; } });
+      return;
+    }
     if (S && G.flags['sec_' + id + '_ok']) lineas = S.gracias.map(([, t]) => [quien, t]);
     else if (S && G.paso >= S.req && !G.flags['sec_' + id]) {
       lineas = S.pedido.map(([, t]) => [quien, t]);
@@ -337,7 +351,8 @@ const Pueblo = (() => {
     const cx = ox + p.x * TS, fy = oy + p.y * TS + TS * 0.28;
     const vista = p.dir === 2 ? 'b' : 'f', espejo = p.dir === 3;
     const frame = p.mov ? 1 + Math.floor(t / 140) % 2 : 0;
-    const img = SPR.personaje(vis, vista, frame);
+    const semilla = ((p.id || 'yo').charCodeAt(0) * 53) % 3000;
+    const img = SPR.personaje(vis, vista, frame, p.hablando ? (Math.floor(t / 160) % 2 ? 'habla' : '') : ((t + semilla) % 3400) < 140 ? 'parpadeo' : '');
     const w = TS * 1.5;
     ctx.save(); ctx.translate(cx, fy); ctx.scale(1, 0.38);
     const gs = ctx.createRadialGradient(0, 0, 0, 0, 0, TS * 0.42); gs.addColorStop(0, 'rgba(0,0,0,.4)'); gs.addColorStop(1, 'rgba(0,0,0,0)');

@@ -82,11 +82,12 @@ const SPR = (() => {
         rr(ctx, -1.8, -40, 3.6, 50, 1.8); relleno(ctx, grad(ctx, -40, 10, '#b08048', '#6a4428'));
         brillo(ctx, 0, -43, 5.5, P.A); circulo(ctx, 0, -43, 5.5); relleno(ctx, gradR(ctx, 0, -43, 5.5, '#ffffff', P.A));
         break;
-      case 'maza': // campanilla
-        rr(ctx, -1.6, -18, 3.2, 26, 1.5); relleno(ctx, '#6a4428');
-        ctx.beginPath(); ctx.moveTo(-9, -18); ctx.quadraticCurveTo(-9, -34, 0, -34); ctx.quadraticCurveTo(9, -34, 9, -18); ctx.quadraticCurveTo(11, -16, 0, -16); ctx.quadraticCurveTo(-11, -16, -9, -18);
-        relleno(ctx, grad(ctx, -34, -16, '#fff2b0', '#c8962a'));
-        circulo(ctx, 0, -14.5, 2.4); relleno(ctx, '#c8962a');
+      case 'maza': // campanilla, colgando a un costado para no tapar la cara
+        ctx.rotate(0.9);
+        rr(ctx, -1.6, -14, 3.2, 20, 1.5); relleno(ctx, '#6a4428');
+        ctx.beginPath(); ctx.moveTo(-8, -14); ctx.quadraticCurveTo(-8, -28, 0, -28); ctx.quadraticCurveTo(8, -28, 8, -14); ctx.quadraticCurveTo(10, -12, 0, -12); ctx.quadraticCurveTo(-10, -12, -8, -14);
+        relleno(ctx, grad(ctx, -28, -12, '#fff2b0', '#c8962a'));
+        circulo(ctx, 0, -10.5, 2.2); relleno(ctx, '#c8962a');
         break;
       case 'lanza':
         rr(ctx, -1.6, -52, 3.2, 64, 1.5); relleno(ctx, grad(ctx, -52, 12, '#b08048', '#6a4428'));
@@ -194,8 +195,113 @@ const SPR = (() => {
     }
   }
 
+  // ---------- Caras ----------
+  // Cada personaje tiene rasgos propios: forma y color de ojos, cejas, boca y detalles (pecas, cicatriz, parche, lentes...).
+  const IRIS = ['#4a3020', '#2a6aa8', '#3a8a4a', '#8a5a2a', '#5a5a6a', '#8a3a9a', '#2a8a8a', '#a8402a'];
+  function caraDe(look) {
+    const c = look.cara || {};
+    const h = hash((look.pelo || '') + (look.piel || '') + (look.estilo ?? '') + (look.semilla || '') + (look.barba ? 'b' : ''));
+    const r = n => (hash(h + ':' + n) % 1000) / 1000;
+    return {
+      ojos: c.ojos ?? Math.floor(r(1) * 5),
+      iris: c.iris ?? IRIS[Math.floor(r(2) * IRIS.length)],
+      cejas: c.cejas ?? Math.floor(r(3) * 5),
+      boca: c.boca ?? Math.floor(r(4) * 5),
+      pecas: c.pecas ?? r(5) < 0.22,
+      pestanas: c.pestanas ?? (look.estilo === 2 && r(6) < 0.7),
+      cicatriz: c.cicatriz ?? r(7) < 0.08,
+      lunar: c.lunar ?? r(8) < 0.12,
+      arrugas: c.arrugas ?? false,
+      parche: c.parche ?? false,
+      lentes: c.lentes ?? r(9) < 0.07,
+      bigote: c.bigote ?? false,
+      rubor: c.rubor ?? (0.15 + r(10) * 0.25),
+    };
+  }
+  function dibujarCara(ctx, P, f, expr, look) {
+    const ojoY = 42.5;
+    const cerrados = expr === 'parpadeo' || expr === 'feliz';
+    const enojo = expr === 'enojo' || expr === 'dolor';
+    const triste = expr === 'triste';
+    const sorpresa = expr === 'sorpresa';
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    // Arrugas y rubor
+    if (f.arrugas) { ctx.strokeStyle = 'rgba(90,50,40,.45)'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(36, 31); ctx.quadraticCurveTo(50, 29, 64, 31); ctx.moveTo(35, 44); ctx.lineTo(33, 46); ctx.moveTo(65, 44); ctx.lineTo(67, 46); ctx.stroke(); }
+    ctx.fillStyle = `rgba(255,110,110,${enojo ? 0.12 : f.rubor})`; elipse(ctx, 37, 48.5, 3.6, 2); ctx.fill(); elipse(ctx, 63, 48.5, 3.6, 2); ctx.fill();
+    if (f.pecas) { ctx.fillStyle = 'rgba(150,80,50,.55)'; [[35, 47], [37.5, 48.5], [39.5, 46.8], [61, 47], [63.5, 48.5], [65, 46.6]].forEach(([x, y]) => { circulo(ctx, x, y, 0.55); ctx.fill(); }); }
+    // Ojos
+    [[42.5, -1], [57.5, 1]].forEach(([x, lado]) => {
+      if (f.parche && lado === 1) return;
+      if (cerrados) {
+        ctx.strokeStyle = '#2a1f2e'; ctx.lineWidth = 1.7; ctx.beginPath();
+        if (expr === 'feliz') ctx.arc(x, ojoY + 1.2, 2.8, Math.PI * 1.1, Math.PI * 1.9); else ctx.arc(x, ojoY - 0.6, 2.8, Math.PI * 0.15, Math.PI * 0.85);
+        ctx.stroke(); return;
+      }
+      if (expr === 'dolor') { ctx.strokeStyle = '#2a1f2e'; ctx.lineWidth = 1.7; ctx.beginPath(); ctx.moveTo(x + lado * 2.4, ojoY - 2); ctx.lineTo(x - lado * 1.8, ojoY); ctx.lineTo(x + lado * 2.4, ojoY + 2); ctx.stroke(); return; }
+      let rx = 2.9, ry = 3.9;
+      if (f.ojos === 1) { rx = 3.5; ry = 4.6; }
+      if (f.ojos === 3) { rx = 3; ry = 1.9; }
+      if (sorpresa) { rx += 0.6; ry += 0.8; }
+      ctx.beginPath();
+      if (f.ojos === 2) { ctx.moveTo(x - 3.6, ojoY); ctx.quadraticCurveTo(x, ojoY - 4.6, x + 3.6, ojoY - 0.6 * lado); ctx.quadraticCurveTo(x, ojoY + 3.6, x - 3.6, ojoY); }
+      else ctx.ellipse(x, ojoY, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#fbf7ee'; ctx.fill();
+      ctx.save(); ctx.clip();
+      circulo(ctx, x + lado * 0.2, ojoY + 0.4, f.ojos === 3 ? 1.9 : Math.min(rx, ry) * 0.86); ctx.fillStyle = f.iris; ctx.fill();
+      circulo(ctx, x + lado * 0.2, ojoY + 0.4, f.ojos === 3 ? 1.1 : Math.min(rx, ry) * 0.48); ctx.fillStyle = '#1e1a2a'; ctx.fill();
+      circulo(ctx, x + 0.9, ojoY - 1.3, 1.05); ctx.fillStyle = '#fff'; ctx.fill();
+      if (f.ojos === 1) { circulo(ctx, x - 1, ojoY + 1.4, 0.55); ctx.fill(); }
+      if (f.ojos === 4) { ctx.fillStyle = P.S; ctx.fillRect(x - 5, ojoY - 6, 10, 5.6); }
+      ctx.restore();
+      ctx.strokeStyle = '#2a1f2e'; ctx.lineWidth = 1.2; ctx.beginPath();
+      if (f.ojos === 2) { ctx.moveTo(x - 3.6, ojoY); ctx.quadraticCurveTo(x, ojoY - 4.6, x + 3.6, ojoY - 0.6 * lado); }
+      else if (f.ojos === 4) { ctx.moveTo(x - rx, ojoY - 0.4); ctx.lineTo(x + rx, ojoY - 0.4); }
+      else ctx.ellipse(x, ojoY, rx, ry, 0, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.lineWidth = 1.6; ctx.stroke();
+      if (f.pestanas) { ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(x + lado * 2.6, ojoY - 2.6); ctx.lineTo(x + lado * 4.4, ojoY - 3.8); ctx.moveTo(x + lado * 3.2, ojoY - 1.4); ctx.lineTo(x + lado * 4.9, ojoY - 2); ctx.stroke(); }
+    });
+    if (triste && !cerrados) { ctx.fillStyle = 'rgba(140,200,255,.85)'; ctx.beginPath(); ctx.ellipse(39.5, 48, 1, 1.7, 0, 0, Math.PI * 2); ctx.fill(); }
+    // Parche
+    if (f.parche) {
+      ctx.strokeStyle = '#1e1a2a'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(30, 34); ctx.lineTo(70, 40); ctx.stroke();
+      elipse(ctx, 57.5, 42.5, 4.4, 4); ctx.fillStyle = '#1e1a2a'; ctx.fill();
+    }
+    // Cejas
+    const cc = luz(P.H, -0.35);
+    ctx.strokeStyle = cc; ctx.lineWidth = f.cejas === 1 ? 2.6 : 1.6;
+    const tipo = enojo ? 2 : triste ? 3 : sorpresa ? 4 : f.cejas;
+    [[42.5, -1], [57.5, 1]].forEach(([x, lado]) => {
+      ctx.beginPath();
+      const y = sorpresa ? 34.5 : 36.4;
+      if (tipo === 2) { ctx.moveTo(x + lado * 3, y - 1.6); ctx.lineTo(x - lado * 2.6, y + 1); }
+      else if (tipo === 3) { ctx.moveTo(x + lado * 3, y + 0.6); ctx.lineTo(x - lado * 2.6, y - 1.6); }
+      else if (tipo === 4) { ctx.moveTo(x - 3, y); ctx.quadraticCurveTo(x, y - 2.4, x + 3, y); }
+      else ctx.moveTo(x - 2.8, y), ctx.lineTo(x + 2.8, y - (lado * 0.3));
+      ctx.stroke();
+    });
+    // Nariz
+    ctx.strokeStyle = 'rgba(120,60,40,.45)'; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.arc(50, 46, 1.2, Math.PI * 0.1, Math.PI * 0.9); ctx.stroke();
+    // Boca
+    if (!look.barba || f.bigote) {
+      const b = expr === 'habla' ? 'habla' : expr === 'feliz' ? 2 : enojo ? 'enojo' : triste ? 4 : sorpresa ? 'o' : f.boca;
+      ctx.strokeStyle = '#7a3036'; ctx.lineWidth = 1.4; ctx.fillStyle = '#7a3036';
+      if (b === 'habla' || b === 'o') { elipse(ctx, 50, 50.2, b === 'o' ? 1.8 : 2.4, b === 'o' ? 2.2 : 1.7); ctx.fill(); }
+      else if (b === 'enojo') { ctx.beginPath(); ctx.moveTo(47, 50.4); ctx.quadraticCurveTo(50, 48.8, 53, 50.4); ctx.stroke(); }
+      else if (b === 0) { ctx.beginPath(); ctx.arc(50, 48.5, 2.6, 0.2, Math.PI - 0.2); ctx.stroke(); }
+      else if (b === 1) { ctx.beginPath(); ctx.moveTo(47.8, 50); ctx.lineTo(52.2, 50); ctx.stroke(); }
+      else if (b === 2) { ctx.beginPath(); ctx.moveTo(46.6, 48.8); ctx.quadraticCurveTo(50, 53.8, 53.4, 48.8); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillRect(47.6, 48.8, 4.8, 1.1); }
+      else if (b === 3) { ctx.beginPath(); ctx.moveTo(47.4, 50); ctx.quadraticCurveTo(51, 50.8, 53, 48.4); ctx.stroke(); }
+      else { ctx.beginPath(); ctx.arc(50, 52, 2.4, Math.PI * 1.2, Math.PI * 1.8); ctx.stroke(); }
+    }
+    if (f.bigote) { ctx.beginPath(); ctx.moveTo(50, 47.6); ctx.quadraticCurveTo(45, 46.2, 43, 49.4); ctx.quadraticCurveTo(46.6, 48.6, 50, 49); ctx.quadraticCurveTo(53.4, 48.6, 57, 49.4); ctx.quadraticCurveTo(55, 46.2, 50, 47.6); ctx.fillStyle = luz(P.H, -0.1); ctx.fill(); }
+    if (f.lunar) { circulo(ctx, 60.5, 50, 0.7); ctx.fillStyle = '#4a2a20'; ctx.fill(); }
+    if (f.cicatriz) { ctx.strokeStyle = 'rgba(160,70,70,.8)'; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(38, 37); ctx.lineTo(41.5, 47.5); ctx.moveTo(38.6, 40); ctx.lineTo(40.6, 39.4); ctx.moveTo(39.6, 43); ctx.lineTo(41.6, 42.4); ctx.stroke(); }
+    if (f.lentes) { ctx.strokeStyle = '#3a3040'; ctx.lineWidth = 1.2; circulo(ctx, 42.5, 42.5, 4.6); ctx.stroke(); circulo(ctx, 57.5, 42.5, 4.6); ctx.stroke(); ctx.beginPath(); ctx.moveTo(47.1, 42); ctx.lineTo(52.9, 42); ctx.stroke(); ctx.fillStyle = 'rgba(200,230,255,.18)'; circulo(ctx, 42.5, 42.5, 4.6); ctx.fill(); circulo(ctx, 57.5, 42.5, 4.6); ctx.fill(); }
+    ctx.restore();
+  }
+
   // ---------- Personaje humano ----------
-  function humano(ctx, P, vis, vista, frame) {
+  function humano(ctx, P, vis, vista, frame, expr) {
     const C = CLASES[vis.clase] || {};
     const asp = P.asp;
     const look = vis.look || {};
@@ -256,16 +362,7 @@ const SPR = (() => {
         relleno(ctx, grad(ctx, 44, 64, luz(P.H, 0.1), luz(P.H, -0.2)), true, 1.8);
       }
       if (asp.ojosBrillan) { brillo(ctx, 42.5, 42, 2.8, P.E); brillo(ctx, 57.5, 42, 2.8, P.E); }
-      else {
-        [42.5, 57.5].forEach(x => {
-          elipse(ctx, x, 42.5, 2.9, 3.9); ctx.fillStyle = '#2a1f2e'; ctx.fill();
-          circulo(ctx, x + 0.9, 41, 1.15); ctx.fillStyle = '#fff'; ctx.fill();
-        });
-        ctx.save(); ctx.strokeStyle = luz(P.H, -0.35); ctx.lineWidth = 1.6; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(39.5, 36.5); ctx.lineTo(45, 36); ctx.moveTo(55, 36); ctx.lineTo(60.5, 36.5); ctx.stroke(); ctx.restore();
-        if (!look.barba) { ctx.save(); ctx.strokeStyle = '#7a3a3a'; ctx.lineWidth = 1.4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(50, 48.5, 2.6, 0.2, Math.PI - 0.2); ctx.stroke(); ctx.restore(); }
-        ctx.fillStyle = 'rgba(255,110,110,.28)'; elipse(ctx, 37.5, 48, 3.4, 2); ctx.fill(); elipse(ctx, 62.5, 48, 3.4, 2); ctx.fill();
-      }
+      else dibujarCara(ctx, P, caraDe(look), expr, look);
     }
 
     // Brazo derecho (delante) con el arma
@@ -436,8 +533,8 @@ const SPR = (() => {
   // ---------- Entrada principal ----------
   const cache = new Map();
   // vis: { clase, look:{pelo,piel,barba,estilo}, t: tinte, arma, mascota }. vista: 'f' frente | 'b' espalda. frame: 0 quieto, 1-2 caminando.
-  function personaje(vis, vista = 'f', frame = 0) {
-    const key = JSON.stringify([vis.clase, vis.look, vis.t, vis.arma, vista, vis.mascota, frame, vis.asp]);
+  function personaje(vis, vista = 'f', frame = 0, expr = '') {
+    const key = JSON.stringify([vis.clase, vis.look, vis.t, vis.arma, vista, vis.mascota, frame, vis.asp, expr]);
     if (cache.has(key)) return cache.get(key);
     const C = vis.mascota ? MASCOTAS[vis.mascota] : (CLASES[vis.clase] || CLASES.recluta);
     const asp = Object.assign({}, C.asp, vis.t ? TINTES[vis.t] : null, vis.asp);
@@ -449,7 +546,7 @@ const SPR = (() => {
     if (vis.mascota) mascotaDibujo(ctx, C.spr, P, frame);
     else {
       const spr = C.spr || 'humano';
-      if (spr === 'humano') humano(ctx, P, Object.assign({}, vis, vis.clase === 'hueco' ? {} : {}), vista, frame);
+      if (spr === 'humano') humano(ctx, P, vis, vista, frame, expr);
       else if (spr === 'lobo') lobo(ctx, P, frame);
       else if (spr === 'arana') arana(ctx, P, frame);
       else if (spr === 'murcielago') murcielago(ctx, P, frame);
@@ -459,12 +556,12 @@ const SPR = (() => {
     cache.set(key, cv);
     return cv;
   }
-  function retrato(vis) {
-    const key = 'r' + JSON.stringify(vis);
+  function retrato(vis, expr = '') {
+    const key = 'r' + JSON.stringify(vis) + expr;
     if (cache.has(key)) return cache.get(key);
     const cv = lienzo(S, S), ctx = cv.getContext('2d');
     const humanoide = !CLASES[vis.clase]?.spr || CLASES[vis.clase].spr === 'humano';
-    if (humanoide) ctx.drawImage(personaje(Object.assign({}, vis, { arma:null }), 'f'), -S * 0.25, -S * 0.02, S * 1.5, S * 1.5);
+    if (humanoide) ctx.drawImage(personaje(Object.assign({}, vis, { arma:null }), 'f', 0, expr), -S * 0.25, -S * 0.02, S * 1.5, S * 1.5);
     else ctx.drawImage(personaje(vis, 'f'), 0, 0);
     cache.set(key, cv);
     return cv;

@@ -412,10 +412,19 @@ function tarjetaCapitulo(txt, cb) {
   montar(`<div class="capitulo" data-x="seguir"><div class="cap-txt">${esc(txt)}</div></div>`, { seguir:una });
   setTimeout(una, 3200);
 }
+// Gesto del retrato según quién habla y cómo.
+function gestoDe(quien, txt) {
+  const malos = ['gris', 'vesk', 'saal', 'corvin', 'voz', 'soldado'];
+  if (/\.\.\.$|olvid|perd|llor|lástima/i.test(txt)) return 'triste';
+  if (/¡/.test(txt)) return typeof quien === 'string' && malos.includes(quien) ? 'enojo' : 'sorpresa';
+  if (/gracias|jaja|lindo|me encanta|bien!/i.test(txt)) return 'feliz';
+  if (typeof quien === 'string' && malos.includes(quien)) return 'enojo';
+  return '';
+}
 function dialogo(lineas, cb) {
   if (!lineas || !lineas.length) { cb(); return; }
   let i = 0, escribiendo = null, terminado = false;
-  const fin = () => { if (terminado) return; terminado = true; clearInterval(escribiendo); document.querySelector('.dialogo')?.remove(); cb(); };
+  const fin = () => { if (terminado) return; terminado = true; clearInterval(escribiendo); clearInterval(caja._anim); document.querySelector('.dialogo')?.remove(); cb(); };
   const caja = document.createElement('div');
   caja.className = 'dialogo';
   caja.innerHTML = `<div class="dlg-fondo"></div><div class="dlg-caja"><div class="dlg-retrato"></div><div class="dlg-cuerpo"><div class="dlg-nombre"></div><div class="dlg-texto"></div></div><div class="dlg-sig">▼</div></div><button class="dlg-saltar mini">Saltar ⏭</button>`;
@@ -425,7 +434,22 @@ function dialogo(lineas, cb) {
     const pj = !quien ? null : typeof quien === 'string' ? PJ[quien] : quien;
     const vis = pj ? (pj.vis || { clase:pj.clase, look:pj.look, t:pj.t }) : null;
     caja.querySelector('.dlg-nombre').textContent = pj ? pj.n : '';
-    caja.querySelector('.dlg-retrato').innerHTML = pj ? `<img src="${SPR.retrato(vis).toDataURL()}" alt="">` : '';
+    // Retrato que habla, parpadea y pone cara según lo que dice.
+    const base = lineas[i][2] || gestoDe(quien, txt);
+    caja.querySelector('.dlg-retrato').innerHTML = pj ? `<img alt="">` : '';
+    const img = caja.querySelector('.dlg-retrato img');
+    clearInterval(caja._anim);
+    if (img) {
+      const url = e => SPR.retrato(vis, e).toDataURL();
+      const cache = {}; const de = e => cache[e] || (cache[e] = url(e));
+      img.src = de(base);
+      let k = 0;
+      caja._anim = setInterval(() => {
+        k++;
+        if (escribiendo) img.src = de(k % 2 ? 'habla' : base);
+        else img.src = de(k % 28 === 0 ? 'parpadeo' : base);
+      }, 120);
+    }
     caja.classList.toggle('narracion', !pj);
     const el = caja.querySelector('.dlg-texto');
     el.textContent = '';
@@ -488,53 +512,6 @@ function escenaPueblo(id) {
 }
 
 // ---------- Tienda ----------
-function pantallaTienda(id, tab = 'obj', volver = () => pantallaPueblo(id)) {
-  const tier = tierActual();
-  const objs = Object.entries(OBJ).filter(([k, o]) => o.tier <= tier && o.precio);
-  const eqs = Object.entries(EQ).filter(([k, d]) => d.tier <= tier && d.precio && !d.forja);
-  let cuerpo = '';
-  if (tab === 'obj') {
-    cuerpo = objs.map(([k, o]) => `<div class="art"><span class="art-ic">${ICON_OBJ[k]}</span><div class="art-dat"><b>${esc(o.n)}</b><small>${esc(o.d)}</small><small>Tenés: ${G.obj[k] || 0}</small></div>
-      <button data-x="comprarObj" data-id="${k}" ${G.oro < o.precio ? 'disabled' : ''}>${o.precio} 💰</button></div>`).join('');
-  } else if (tab === 'eq') {
-    const ofertas = ofertasTienda(id);
-    cuerpo = ofertas.length ? `<div class="sep">Ofertas especiales (cambian después de cada batalla)</div>` + ofertas.map((o, i) => {
-      const d = EQ[o.id], R = RAREZAS[o.rareza];
-      return `<div class="art oferta" style="--rz:${R.c}"><span class="art-ic">${iconoItem(o.id)}</span><div class="art-dat"><b style="color:${R.c}">${esc(d.n)}</b><small>${R.n} · ${statsItem(o.id)}</small><small>Con atributos extra al azar</small></div>
-        <button data-x="comprarOferta" data-i="${i}" ${o.vendido || G.oro < o.precio ? 'disabled' : ''}>${o.vendido ? 'Vendido' : o.precio + ' 💰'}</button></div>`;
-    }).join('') : '';
-    const grupos = [['Armas', d => d.slot === 'arma'], ['Armaduras', d => d.slot === 'armadura'], ['Accesorios', d => d.slot === 'acc']];
-    cuerpo += grupos.map(([t, f]) => `<div class="sep">${t}</div>` + eqs.filter(([, d]) => f(d)).map(([k, d]) => {
-      const quien = G.unidades.filter(u => d.slot !== "acc" && puedeEquipar(u, k)).map(u => u.nombre).slice(0, 4).join(', ');
-      const tiene = G.equipo.filter(i => i.id === k).length;
-      return `<div class="art"><span class="art-ic">${iconoItem(k)}</span><div class="art-dat"><b>${esc(d.n)}</b><small>${statsItem(k)}</small><small>${d.slot === 'arma' ? ARMA_INFO[d.tipo].n : d.slot === 'armadura' ? ARMADURA_INFO[d.tipo] : 'Accesorio'}${quien ? ' · ' + esc(quien) : ''} · Tenés: ${tiene}</small></div>
-        <button data-x="comprarEq" data-id="${k}" ${G.oro < d.precio ? 'disabled' : ''}>${d.precio} 💰</button></div>`;
-    }).join('')).join('');
-  } else {
-    const sueltos = G.equipo.filter(i => !dueñoDe(i.uid));
-    const vObjs = Object.entries(G.obj).filter(([k, v]) => v > 0 && OBJ[k].precio);
-    cuerpo = (sueltos.length ? '<div class="sep">Equipo sin usar</div>' : '') + sueltos.map(it => {
-      const pr = precioVenta(it);
-      return `<div class="art"><span class="art-ic">${iconoItem(it.id)}</span><div class="art-dat"><b>${nombreItemHTML(it)}</b><small>${statsInst(it)}</small><small>${it.gemas.map(gemaHTML).join('')}</small></div><button data-x="venderEq" data-id="${it.uid}">+${pr} 💰</button></div>`;
-    }).join('') + (vObjs.length ? '<div class="sep">Objetos</div>' : '') + vObjs.map(([k, v]) => `<div class="art"><span class="art-ic">${ICON_OBJ[k]}</span><div class="art-dat"><b>${esc(OBJ[k].n)}</b><small>Tenés: ${v}</small></div><button data-x="venderObj" data-id="${k}">+${Math.round(OBJ[k].precio / 2)} 💰</button></div>`).join('');
-    if (!cuerpo) cuerpo = '<p class="sub centro">No tenés nada para vender.</p>';
-  }
-  montar(`${cabecera('Tienda')}
-    <div class="tabs"><button data-x="tab" data-t="obj" class="${tab === 'obj' ? 'on' : ''}">Objetos</button><button data-x="tab" data-t="eq" class="${tab === 'eq' ? 'on' : ''}">Equipo</button><button data-x="tab" data-t="vender" class="${tab === 'vender' ? 'on' : ''}">Vender</button></div>
-    <div class="lista">${cuerpo}</div>`, {
-    volver,
-    tab: d => pantallaTienda(id, d.t, volver),
-    comprarObj: d => { const o = OBJ[d.id]; if (G.oro < o.precio) return; G.oro -= o.precio; G.obj[d.id] = (G.obj[d.id] || 0) + 1; Sonido.fx('compra'); guardar(); pantallaTienda(id, tab, volver); },
-    comprarOferta: d => {
-      const o = ofertasTienda(id)[+d.i]; if (!o || o.vendido || G.oro < o.precio) return;
-      G.oro -= o.precio; o.vendido = true; const it = nuevoItem(o.id, 0, o.rareza);
-      Sonido.fx('compra'); chispazo(); toast(`¡${EQ[o.id].n} ${RAREZAS[o.rareza].n.toLowerCase()}!`, 'bien'); guardar(); pantallaTienda(id, tab, volver);
-    },
-    comprarEq: d => { const e = EQ[d.id]; if (G.oro < e.precio) return; G.oro -= e.precio; nuevoItem(d.id); Sonido.fx('compra'); toast(`Compraste ${e.n}. Equipalo desde Grupo.`); guardar(); pantallaTienda(id, tab, volver); },
-    venderEq: d => { const it = item(d.id); if (!it) return; G.oro += precioVenta(it); it.gemas.forEach(g => g && sumarGema(g)); G.equipo = G.equipo.filter(i => i !== it); Sonido.fx('moneda'); guardar(); pantallaTienda(id, tab, volver); },
-    venderObj: d => { if (!G.obj[d.id]) return; G.obj[d.id]--; if (!G.obj[d.id]) delete G.obj[d.id]; G.oro += Math.round(OBJ[d.id].precio / 2); Sonido.fx('moneda'); guardar(); pantallaTienda(id, tab, volver); },
-  });
-}
 function ofertasTienda(id) {
   G.ofertas = G.ofertas || {};
   const o = G.ofertas[id];
@@ -656,7 +633,7 @@ function pantallaCriadero(id, volver = () => pantallaPueblo(id)) {
 function candidatosTaberna() {
   if (!G.taberna || G.taberna.clave !== G.batallas) {
     const nv = Math.max(1, nivelPromedio() - 1);
-    G.taberna = { clave:G.batallas, lista:[0, 1, 2].map(() => ({ nombre:elegir(NOMBRES), clase:elegir(['recluta', 'novicio']), nivel:nv, look:{ pelo:elegir(PELOS), piel:elegir(PIELES) }, fac:facAzar() })) };
+    G.taberna = { clave:G.batallas, lista:[0, 1, 2].map(() => ({ nombre:elegir(NOMBRES), clase:elegir(['recluta', 'novicio']), nivel:nv, look:{ pelo:elegir(PELOS), piel:elegir(PIELES), estilo:Math.floor(Math.random() * 3), semilla:uid() }, fac:facAzar() })) };
   }
   return G.taberna.lista;
 }
@@ -687,41 +664,6 @@ function pantallaTaberna(id, volver = () => pantallaPueblo(id)) {
 }
 
 // ---------- Grupo ----------
-function pantallaGrupo(volver, tab = 'personajes') {
-  let cuerpo = '';
-  if (tab === 'personajes') {
-    cuerpo = `<div class="lista-u">${G.unidades.map(u => {
-      const s = calcStats(u), cl = u.cl[u.clase];
-      const m = u.mascota ? mascota(u.mascota) : null;
-      return `<button class="u-fila" data-x="ficha" data-id="${u.id}">${spriteHTML(visDe(u), 48)}
-        <div class="u-dat"><b>${esc(u.nombre)}</b><span>${CLASES[u.clase].n} Nv${nivelClase(cl.tot)} · Nivel ${u.nivel}</span>
-        <small>PV ${s.hpMax} · PM ${s.mpMax} · ${cl.pc} PC${u.sec ? ' · 2ª ' + CLASES[u.sec].n : ''}</small>
-        <div class="barra mini"><i style="width:${u.exp}%;background:#ffd84a"></i></div></div>
-        ${m ? `<span class="masc-mini">${spriteHTML({ mascota:m.id }, 28)}</span>` : ''}</button>`;
-    }).join('')}</div>`;
-  } else if (tab === 'mascotas') {
-    cuerpo = G.mascotas.length ? `<div class="lista">${G.mascotas.map(m => {
-      const d = dueñoMascota(m.uid), M = MASCOTAS[m.id];
-      return `<button class="art boton-art" data-x="mascota" data-id="${m.uid}"><span class="art-ic">${spriteHTML({ mascota:m.id }, 44)}</span><div class="art-dat"><b>${esc(m.nombre)}</b> <small>${esc(M.n)} · Nv ${m.nivel}</small><small>${esc(M.d)}</small><small>${d ? 'Acompaña a ' + esc(d.nombre) : 'Sin dueño'}</small></div></button>`;
-    }).join('')}</div>` : '<p class="sub centro">Todavía no tenés mascotas.</p>';
-  } else {
-    const objs = Object.entries(G.obj).filter(([, v]) => v > 0);
-    const gemas = Object.entries(G.gemas).filter(([, v]) => v > 0);
-    const sueltos = G.equipo.filter(i => !dueñoDe(i.uid));
-    cuerpo = `<div class="sep">Objetos</div>${objs.map(([k, v]) => `<div class="art"><span class="art-ic">${ICON_OBJ[k]}</span><div class="art-dat"><b>${esc(OBJ[k].n)} x${v}</b><small>${esc(OBJ[k].d)}</small></div></div>`).join('') || '<p class="sub">Nada.</p>'}
-      <div class="sep">Materiales</div><div class="mats">${Object.entries(MAT).map(([k, m]) => `<span>${ICO.html(k, 18)} ${esc(m.n)}: <b>${G.mat[k] || 0}</b></span>`).join('')}</div>
-      <div class="sep">Gemas</div>${gemas.map(([k, v]) => `<div class="art"><span class="art-ic">${gemaHTML(k)}</span><div class="art-dat"><b>${esc(nombreGema(k))} x${v}</b><small>${esc(gemaInfo(k).def.d)}</small></div></div>`).join('') || '<p class="sub">Ninguna.</p>'}
-      <div class="sep">Equipo sin usar</div>${sueltos.map(it => `<div class="art"><span class="art-ic">${iconoItem(it.id)}</span><div class="art-dat"><b>${nombreItemHTML(it)}</b><small>${statsInst(it)}</small><small>${it.gemas.map(gemaHTML).join('')}</small></div></div>`).join('') || '<p class="sub">Nada.</p>'}`;
-  }
-  montar(`${cabecera('Grupo')}
-    <div class="tabs"><button data-x="tab" data-t="personajes" class="${tab === 'personajes' ? 'on' : ''}">Personajes</button><button data-x="tab" data-t="mascotas" class="${tab === 'mascotas' ? 'on' : ''}">Mascotas</button><button data-x="tab" data-t="inv" class="${tab === 'inv' ? 'on' : ''}">Inventario</button></div>
-    ${cuerpo}`, {
-    volver,
-    tab: d => pantallaGrupo(volver, d.t),
-    ficha: d => pantallaFicha(d.id, 'estado', () => pantallaGrupo(volver, 'personajes')),
-    mascota: d => elegirDueñoMascota(d.id, () => pantallaGrupo(volver, 'mascotas')),
-  });
-}
 function elegirDueñoMascota(mid, volver) {
   const m = mascota(mid);
   modal(`<h3>¿Quién lleva a ${esc(m.nombre)}?</h3>
@@ -740,111 +682,6 @@ function elegirDueñoMascota(mid, volver) {
 }
 
 // ---------- Ficha del personaje ----------
-function pantallaFicha(uidU, tab, volver) {
-  const u = G.unidades.find(v => v.id === uidU);
-  const s = calcStats(u), C = CLASES[u.clase], cl = u.cl[u.clase];
-  const sig = pcParaSiguiente(cl.tot);
-  let cuerpo = '';
-  if (tab === 'estado') {
-    const fila = (n, v) => `<div class="st"><span>${n}</span><b>${v}</b></div>`;
-    cuerpo = `<div class="stats">${fila('Vida', s.hpMax)}${fila('Magia', s.mpMax)}${fila('Ataque', s.atk)}${fila('Defensa', s.def)}${fila('Magia (poder)', s.mag)}${fila('Resistencia', s.res)}${fila('Velocidad', Math.round(s.spd * 10) / 10)}${fila('Movimiento', s.mov)}${fila('Salto', s.salto)}${fila('Evasión', s.eva + '%')}${fila('Arma', `${ARMA_INFO[s.armaTipo]?.n || '—'} (${Math.round(s.armaPoder)})${s.armaEl ? ' ' + ELEMENTOS[s.armaEl].i : ''}`)}${fila('Alcance', s.rango.join('-'))}</div>
-      ${Object.keys(s.resEl).length ? `<p class="sub">Resiste: ${Object.entries(s.resEl).map(([e, v]) => `${ELEMENTOS[e].i} ${Math.round(v * 100)}%`).join(' · ')}</p>` : ''}
-      ${Object.keys(s.efectos).length ? `<p class="sub">Habilidades de gemas: ${Object.entries(s.efectos).map(([e, v]) => `${{ regen:'Regeneración', vampiro:'Vampiro', contra:'Contraataque' }[e]} ${'I'.repeat(Math.min(3, v))}`).join(' · ')}</p>` : ''}
-      <div class="ventana"><b>${C.n}</b> nivel ${nivelClase(cl.tot)} · ${cl.pc} PC para gastar${sig ? ` · faltan ${sig} PC para el nivel ${nivelClase(cl.tot) + 1}` : ' · nivel máximo'}<br><small>${esc(C.d)}</small><br><small>Secundaria: ${u.sec ? CLASES[u.sec].n : 'ninguna'} · Pasiva: ${u.pasiva ? HAB[u.pasiva].n : 'ninguna'}</small></div>
-      ${u.unico ? '' : '<button data-x="despedir" class="peligro">Despedir</button>'}`;
-  } else if (tab === 'equipo') {
-    const slot = (k, nombre) => {
-      const it = item(u.eq[k]);
-      return `<button class="art boton-art" data-x="slot" data-s="${k}"><span class="art-ic">${it ? iconoItem(it.id) : '➕'}</span><div class="art-dat"><small>${nombre}</small><b>${it ? nombreItemHTML(it) : 'Nada'}</b><small>${it ? statsInst(it) : ''}</small><small>${it ? it.gemas.map(gemaHTML).join(' ') : ''}</small></div></button>`;
-    };
-    const m = u.mascota ? mascota(u.mascota) : null;
-    cuerpo = slot('arma', `Arma (${C.armas.map(a => ARMA_INFO[a].n).join(', ')})`) + slot('armadura', `Armadura (${C.armad.map(a => ARMADURA_INFO[a]).join(', ')})`) + slot('acc', 'Accesorio') +
-      `<button class="art boton-art" data-x="mascotaSlot"><span class="art-ic">${m ? spriteHTML({ mascota:m.id }, 40) : '🐾'}</span><div class="art-dat"><small>Mascota</small><b>${m ? esc(m.nombre) + ' Nv ' + m.nivel : 'Ninguna'}</b><small>${m ? esc(MASCOTAS[m.id].d) : 'Tocá para elegir'}</small></div></button>
-      <button data-x="optimo" class="sec">✨ Equipar lo mejor</button>`;
-  } else if (tab === 'clase') {
-    const lista = clasesJugables().filter(c => !CLASES[c].unico || CLASES[c].unico === u.unico);
-    cuerpo = `<div class="sep">Clase principal</div><div class="clases">${lista.map(c => {
-      const K = CLASES[c], ok = claseDesbloqueada(u, c), n = nivelClase(u.cl[c]?.tot || 0);
-      const req = Object.entries(K.req).map(([k, v]) => `${CLASES[k].n} ${v}`).join(' + ') || 'Disponible';
-      return `<button class="clase ${ok ? '' : 'off'} ${u.clase === c ? 'on' : ''}" data-x="clase" data-c="${c}">${spriteHTML({ clase:c, look:u.look }, 40)}<b>${K.n}</b><small>${ok ? 'Nv ' + n : '🔒 ' + req}</small></button>`;
-    }).join('')}</div>
-    <div class="sep">Habilidades secundarias</div>
-    <div class="fila-wrap"><button class="chip-b ${!u.sec ? 'on' : ''}" data-x="sec" data-c="">Ninguna</button>${lista.filter(c => c !== u.clase && claseDesbloqueada(u, c) && habsActivasDe(u, c).length).map(c => `<button class="chip-b ${u.sec === c ? 'on' : ''}" data-x="sec" data-c="${c}">${CLASES[c].n}</button>`).join('')}</div>
-    <p class="sub">Solo aparecen las clases de las que aprendió alguna habilidad.</p>`;
-  } else {
-    const lista = clasesJugables().filter(c => claseDesbloqueada(u, c));
-    cuerpo = lista.map(c => {
-      const K = CLASES[c], clc = u.cl[c] || { pc:0, tot:0 };
-      return `<div class="sep">${K.n} — ${clc.pc} PC</div>` + K.habs.map(h => {
-        const H = HAB[h], ya = u.apr.includes(h);
-        if (H.historia && !ya) return `<div class="hab-f off"><b>${esc(H.n)}</b><small>Se aprende con la historia.</small></div>`;
-        const puede = !ya && clc.pc >= H.pc;
-        const tipo = H.tipo === 'pasiva' ? 'Pasiva' : (H.mp ? H.mp + ' PM' : 'sin PM');
-        return `<button class="hab-f ${ya ? 'ya' : ''} ${puede ? 'puede' : ''}" data-x="${ya ? (H.tipo === 'pasiva' ? 'pasiva' : 'nada') : 'aprender'}" data-h="${h}"><b>${ya ? '✔ ' : ''}${esc(H.n)}</b><span>${ya ? (H.tipo === 'pasiva' ? (u.pasiva === h ? '★ Equipada' : 'Equipar') : tipo) : H.pc + ' PC'}</span><small>${esc(H.d)} ${!ya ? '· ' + tipo : ''}</small></button>`;
-      }).join('');
-    }).join('') + '<p class="sub">Los PC se ganan en batalla con la clase puesta. Las pasivas se equipan tocándolas (una por personaje).</p>';
-  }
-  montar(`${cabecera(u.nombre)}
-    <div class="ficha-cab">${spriteHTML(visDe(u), 72)}<div><b>${esc(u.nombre)}</b><br><span>${C.n} · Nivel ${u.nivel}</span><div class="barra"><i style="width:${u.exp}%;background:#ffd84a"></i></div><small>EXP ${u.exp}/100</small></div></div>
-    <div class="tabs"><button data-x="tab" data-t="estado" class="${tab === 'estado' ? 'on' : ''}">Estado</button><button data-x="tab" data-t="equipo" class="${tab === 'equipo' ? 'on' : ''}">Equipo</button><button data-x="tab" data-t="clase" class="${tab === 'clase' ? 'on' : ''}">Clase</button><button data-x="tab" data-t="habs" class="${tab === 'habs' ? 'on' : ''}">Habilidades</button></div>
-    <div class="lista">${cuerpo}</div>`, {
-    volver,
-    tab: d => pantallaFicha(uidU, d.t, volver),
-    slot: d => elegirEquipo(u, d.s, () => pantallaFicha(uidU, 'equipo', volver)),
-    mascotaSlot: () => elegirMascotaPara(u, () => pantallaFicha(uidU, 'equipo', volver)),
-    optimo: () => { equiparOptimo(u); Sonido.fx('brillo'); guardar(); pantallaFicha(uidU, 'equipo', volver); },
-    clase: d => {
-      if (!claseDesbloqueada(u, d.c)) { const K = CLASES[d.c]; toast('Requiere: ' + Object.entries(K.req).map(([k, v]) => `${CLASES[k].n} nivel ${v}`).join(' y ')); return; }
-      cambiarClase(u, d.c); equiparOptimo(u, true); Sonido.fx('brillo'); guardar(); pantallaFicha(uidU, 'clase', volver);
-    },
-    sec: d => { u.sec = d.c || null; guardar(); pantallaFicha(uidU, 'clase', volver); },
-    aprender: d => {
-      const H = HAB[d.h];
-      if (!aprender(u, d.h)) { toast(`Faltan PC (${H.pc})`); return; }
-      Sonido.fx('nivel'); toast(`¡Aprendió ${H.n}!`, 'bien');
-      if (H.tipo === 'pasiva' && !u.pasiva) u.pasiva = d.h;
-      guardar(); pantallaFicha(uidU, 'habs', volver);
-    },
-    pasiva: d => { u.pasiva = u.pasiva === d.h ? null : d.h; Sonido.fx('brillo'); guardar(); pantallaFicha(uidU, 'habs', volver); },
-    nada: () => {},
-    despedir: () => confirmar(`¿Despedir a ${esc(u.nombre)}? Su equipo queda en el inventario.`, () => { G.unidades = G.unidades.filter(v => v !== u); guardar(); volver(); }),
-  });
-}
-function elegirEquipo(u, slot, volver) {
-  const actual = item(u.eq[slot]);
-  const opciones = G.equipo.filter(it => EQ[it.id].slot === slot && puedeEquipar(u, it.id) && it.uid !== u.eq[slot])
-    .sort((a, b) => valorItem(b) - valorItem(a));
-  const antes = calcStats(u);
-  const diff = it => {
-    const prev = u.eq[slot]; u.eq[slot] = it.uid;
-    const d = calcStats(u); u.eq[slot] = prev;
-    const p = [];
-    [['atk', 'Atq'], ['def', 'Def'], ['mag', 'Mag'], ['res', 'Res'], ['hpMax', 'PV'], ['mpMax', 'PM'], ['mov', 'Mov'], ['eva', 'Eva']].forEach(([k, n]) => {
-      const dv = Math.round((d[k] - antes[k]) * 10) / 10; if (dv) p.push(`<span class="${dv > 0 ? 'mas' : 'menos'}">${n} ${dv > 0 ? '+' : ''}${dv}</span>`);
-    });
-    const dp = Math.round(d.armaPoder - antes.armaPoder); if (dp && slot === 'arma') p.unshift(`<span class="${dp > 0 ? 'mas' : 'menos'}">Poder ${dp > 0 ? '+' : ''}${dp}</span>`);
-    return p.join(' ');
-  };
-  modal(`<h3>${{ arma:'Arma', armadura:'Armadura', acc:'Accesorio' }[slot]}</h3>
-    ${actual ? `<button data-x="quitar" class="sec">Quitar ${nombreItemHTML(actual)}</button>` : ''}
-    <div class="lista-modal">${opciones.map(it => { const d = dueñoDe(it.uid); return `<button class="art boton-art" data-x="poner" data-id="${it.uid}"><span class="art-ic">${iconoItem(it.id)}</span><div class="art-dat"><b>${nombreItemHTML(it)}</b><small>${statsInst(it)}</small><small>${diff(it)}${d ? ' · lo tiene ' + esc(d.nombre) : ''}</small></div></button>`; }).join('') || '<p class="sub">No hay nada que pueda usar. Comprá en la tienda.</p>'}</div>
-    <button data-x="cerrar">Cerrar</button>`, {
-    quitar: (d, c) => { u.eq[slot] = null; guardar(); c(); volver(); },
-    poner: (d, c) => {
-      const otro = dueñoDe(d.id); if (otro) Object.keys(otro.eq).forEach(k => { if (otro.eq[k] === d.id) otro.eq[k] = null; });
-      u.eq[slot] = d.id; Sonido.fx('forja'); guardar(); c(); volver();
-    },
-  });
-}
-function elegirMascotaPara(u, volver) {
-  modal(`<h3>Mascota de ${esc(u.nombre)}</h3>
-    ${G.mascotas.map(m => { const d = dueñoMascota(m.uid); return `<button class="art boton-art" data-x="poner" data-id="${m.uid}"><span class="art-ic">${spriteHTML({ mascota:m.id }, 36)}</span><div class="art-dat"><b>${esc(m.nombre)} · Nv ${m.nivel}</b><small>${esc(MASCOTAS[m.id].d)}</small><small>${d ? 'Ahora con ' + esc(d.nombre) : 'Libre'}</small></div></button>`; }).join('') || '<p class="sub">No tenés mascotas todavía. Hay un criadero en Puerto Garza.</p>'}
-    ${u.mascota ? '<button data-x="quitar" class="sec">Sin mascota</button>' : ''}
-    <button data-x="cerrar">Cerrar</button>`, {
-    poner: (d, c) => { G.unidades.forEach(v => { if (v.mascota === d.id) v.mascota = null; }); u.mascota = d.id; Sonido.fx('mascota'); guardar(); c(); volver(); },
-    quitar: (d, c) => { u.mascota = null; guardar(); c(); volver(); },
-  });
-}
 function valorItem(it) {
   const d = EQ[it.id];
   return ((d.poder || 0) * 2 + (d.def || 0) + (d.res || 0)) * (1 + RAREZAS[it.rareza || 0].m) + Object.values(it.bonos || {}).reduce((a, b) => a + b, 0) * 0.6 + (d.mag || 0) * 1.5 + (d.atk || 0) * 2 + it.mejora * 2 + it.gemas.filter(Boolean).length * 3 + (d.mov || 0) * 6 + (d.spd || 0) * 5;

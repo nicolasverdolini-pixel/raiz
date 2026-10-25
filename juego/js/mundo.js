@@ -53,22 +53,22 @@ const PUEBLOS = {
         { hasta:10, t:['Hay algo en tu mirada, Lior. Como si supieras algo de mí que yo no sé.'] },
         { hasta:99, t:['Me llamo Oderic. Todavía me cuesta decirlo en voz alta. Gracias, campanero.'] },
       ], mision:'torre' },
-      { id:'ruperto', n:'Pescador Ruperto', ropa:'pescador', look:{ pelo:'#8a8a92', piel:'#c88a5a', barba:true, estilo:0 }, x:8, y:10, charla:[
+      { id:'ruperto', n:'Pescador Ruperto', ropa:'pescador', look:{ pelo:'#8a8a92', piel:'#c88a5a', barba:true, estilo:0 , cara:{ojos:3, cejas:1, boca:0, arrugas:true}}, x:8, y:10, regalo:{ desde:1, obj:{ remedio:2 }, txt:'Hierbas del lago. Curan el veneno de las arañas. Te van a hacer falta en el bosque.' }, charla:[
         { hasta:99, t:['El lago está raro. Los peces se esconden de algo.', 'Si ves una trucha dorada, avisame. Nunca vi una, pero por las dudas.'] },
       ], mision:'ermitano' },
-      { id:'ilse', n:'Cazadora Ilse', ropa:'cazadora', look:{ pelo:'#3a2a1e', piel:'#e0ac80', estilo:2 }, x:3, y:12, charla:[
+      { id:'ilse', n:'Cazadora Ilse', ropa:'cazadora', look:{ pelo:'#3a2a1e', piel:'#e0ac80', estilo:2 , cara:{ojos:2, iris:'#3a8a4a', cejas:4, boca:1, pestanas:true, pecas:true}}, x:3, y:12, charla:[
         { hasta:99, t:['Las huellas en el barro no mienten. Algo grande ronda las colinas.', 'Un buen arquero aprovecha la altura. Subí a los techos si podés.'] },
       ], mision:'lobo_blanco' },
-      { id:'pipo', n:'Pipo', ropa:'nino', look:{ pelo:'#e8c06a', piel:'#f6d8bc', estilo:1 }, x:4, y:7, charla:[
+      { id:'pipo', n:'Pipo', ropa:'nino', look:{ pelo:'#e8c06a', piel:'#f6d8bc', estilo:1 , cara:{ojos:1, iris:'#2a6aa8', boca:2, pecas:true}}, x:4, y:7, regalo:{ desde:4, gema:'rubi1', txt:'¡Mirá lo que encontré en el río! Es roja y brilla. Te la regalo, pero si es un tesoro me devolvés la mitad.' }, charla:[
         { hasta:0, t:['¡Mañana es el Festival del Alba! ¡Va a haber bollos de miel!'] },
         { hasta:3, t:['Mi mamá dice que la niebla se lleva a los que andan solos. Yo no tengo miedo. Bueno, un poco.', '¿Vos sos el que toca la campana? ¿Me enseñás?'] },
         { hasta:99, t:['¡Volviste! ¿Es verdad que peleaste contra un dragón? ¿Y le ganaste? ¿Y era muy grande?', 'Cuando sea grande quiero ser campanero. O ladrón de puerto. Todavía no decido.'] },
       ] },
-      { id:'berta', n:'Doña Berta', ropa:'aldeana', look:{ pelo:'#d8d8d8', piel:'#f2c9a0', estilo:1 }, x:9, y:6, charla:[
+      { id:'berta', n:'Doña Berta', ropa:'aldeana', look:{ pelo:'#d8d8d8', piel:'#f2c9a0', estilo:1 , cara:{ojos:4, cejas:3, boca:0, arrugas:true, rubor:0.45}}, x:9, y:6, regalo:{ desde:0, obj:{ pocion:2 }, txt:'Tomá, querido, unas pociones. Afuera está lleno de bichos y vos sos muy flaquito.' }, charla:[
         { hasta:2, t:['Ay, mis gallinas no ponen desde que robaron la campana. Todo está al revés.', 'Las pociones de la tienda son caras, pero salvan vidas. Llevá siempre algunas.'] },
         { hasta:99, t:['Dicen que en Puerto Garza hay un criadero de mascotas. ¡Un perro te vendría bien, querido!', 'Mis gallinas volvieron a poner. Te guardé huevos. Bueno, me los comí. Pero te guardé la intención.'] },
       ] },
-      { id:'guardia_b', n:'Guardia Tomé', ropa:'guardia', look:{ pelo:'#3a2a1e', piel:'#e0ac80', estilo:0 }, x:7, y:13, quieto:true, charla:[
+      { id:'guardia_b', n:'Guardia Tomé', ropa:'guardia', look:{ pelo:'#3a2a1e', piel:'#e0ac80', estilo:0 , cara:{ojos:0, cejas:1, boca:1, bigote:true}}, x:7, y:13, quieto:true, regalo:{ desde:2, obj:{ fenix:1 }, txt:'Llevate esta pluma de fénix. Me la dio mi abuela. Yo no salgo nunca del pueblo, a vos te va a servir más.' }, charla:[
         { hasta:99, t:['Si un enemigo es mucho más fuerte que vos, volvé y entrená en las zonas que ya ganaste. No hay vergüenza en eso.', 'Atacá por la espalda. Pega más y casi nunca falla. Me lo enseñó mi abuela.'] },
       ] },
     ],
@@ -102,20 +102,20 @@ const PUEBLOS = {
     objetos: [{ tipo:'barril', x:8, y:4 }, { tipo:'barril', x:8, y:9 }, { tipo:'caja', x:9, y:12 }],
     entrada: [4, 13], salidas: [[4, 15], [5, 15]],
     vecinos: [
-      { id:'tuerto', n:'Marinero Tuerto', ropa:'marinero', look:{ pelo:'#1a1a22', piel:'#9a6440', barba:true, estilo:0 }, x:9, y:6, charla:[
+      { id:'tuerto', n:'Marinero Tuerto', ropa:'marinero', look:{ pelo:'#1a1a22', piel:'#9a6440', barba:true, estilo:0 , cara:{ojos:3, cejas:2, boca:3, parche:true, cicatriz:true}}, x:9, y:6, charla:[
         { hasta:99, t:['El mar devuelve lo que se lleva. Tarde o temprano.', '¿Ves este ojo? Lo perdí apostando. No pregunten contra quién.'] },
       ], mision:'naufragio' },
-      { id:'merla', n:'Vieja Merla', ropa:'anciana', look:{ pelo:'#f0f0f0', piel:'#e0ac80', estilo:2 }, x:4, y:10, charla:[
+      { id:'merla', n:'Vieja Merla', ropa:'anciana', look:{ pelo:'#f0f0f0', piel:'#e0ac80', estilo:2 , cara:{ojos:4, iris:'#8a3a9a', cejas:3, boca:3, arrugas:true, lunar:true}}, x:4, y:10, regalo:{ desde:5, gema:'opalo1', txt:'Un ópalo. Sube la magia. Mi maestro tenía cientos, este se le cayó.' }, charla:[
         { hasta:99, t:['Las gemas tienen memoria, ¿sabías? Por eso brillan.', 'Tres gemas iguales en la fragua dan una mejor. Es paciencia, nada más.'] },
       ], mision:'alquimista' },
-      { id:'nora', n:'Pescadora Nora', ropa:'pescador', look:{ pelo:'#c84a2a', piel:'#f2c9a0', estilo:1 }, x:7, y:12, charla:[
+      { id:'nora', n:'Pescadora Nora', ropa:'pescador', look:{ pelo:'#c84a2a', piel:'#f2c9a0', estilo:1 , cara:{ojos:2, iris:'#2a8a8a', boca:2, pecas:true, pestanas:true}}, x:7, y:12, regalo:{ desde:5, obj:{ hipocion:2 }, txt:'Por echar a los contrabandistas. Son caras, no las desperdicies.' }, charla:[
         { hasta:5, t:['Los contrabandistas se adueñaron de los muelles. Nadie se anima a decirles nada.', 'Si peleás en los muelles, cuidado con el agua: lo profundo no se cruza.'] },
         { hasta:99, t:['Desde que echaste a los contrabandistas, pesco el doble. ¡Gracias!', 'Fenn me debe tres sardinas. Decile que no me olvido.'] },
       ] },
-      { id:'comerciante', n:'Comerciante Abel', ropa:'noble', look:{ pelo:'#b8662a', piel:'#f2c9a0', estilo:0 }, x:4, y:4, charla:[
+      { id:'comerciante', n:'Comerciante Abel', ropa:'noble', look:{ pelo:'#b8662a', piel:'#f2c9a0', estilo:0 , cara:{ojos:0, cejas:4, boca:2, bigote:true}}, x:4, y:4, regalo:{ desde:4, obj:{ eter:2 }, txt:'Una muestra gratis. Si te gustan, volvé a comprar. Así funciona el comercio, amigo.' }, charla:[
         { hasta:99, t:['En la tienda a veces hay ofertas raras. Equipo con brillo especial. ¡Mirá bien!', 'El equipo legendario no se compra: se gana. O se forja.'] },
       ] },
-      { id:'luli', n:'Luli', ropa:'nino', look:{ pelo:'#1a1a22', piel:'#9a6440', estilo:2 }, x:6, y:10, charla:[
+      { id:'luli', n:'Luli', ropa:'nino', look:{ pelo:'#1a1a22', piel:'#9a6440', estilo:2 , cara:{ojos:1, iris:'#8a5a2a', boca:0, pestanas:true}}, x:6, y:10, regalo:{ desde:4, obj:{ bomba:1 }, txt:'Encontré esto en el muelle. Hace tic tac. ¿Lo querés? Yo no lo quiero.' }, charla:[
         { hasta:99, t:['¡Quiero un gatito campanita! Mamá dice que cuando sea grande.', 'Los perros te cuidan. Si alguien te pega, ¡te defienden! Eso dice el del criadero.'] },
       ] },
     ],
@@ -150,20 +150,20 @@ const PUEBLOS = {
     objetos: [{ tipo:'fuente', x:5, y:6 }, { tipo:'fuente', x:6, y:6 }],
     entrada: [5, 13], salidas: [[5, 15], [6, 15]],
     vecinos: [
-      { id:'dunk', n:'Herrero Dunk', ropa:'herrero', look:{ pelo:'#6a3a1a', piel:'#c88a5a', barba:true, estilo:0 }, x:10, y:8, charla:[
+      { id:'dunk', n:'Herrero Dunk', ropa:'herrero', look:{ pelo:'#6a3a1a', piel:'#c88a5a', barba:true, estilo:0 , cara:{ojos:3, cejas:1, boca:2, cicatriz:true}}, x:10, y:8, charla:[
         { hasta:99, t:['Hierro para mejorar, plata para lo fino, esquirlas para lo legendario. Así de simple.', 'Un arma +5 de rareza mítica... eso sí que vale una vida de herrero.'] },
       ], mision:'mina' },
-      { id:'pell', n:'Archivista Pell', ropa:'sabio', look:{ pelo:'#d8d8d8', piel:'#f6d8bc', estilo:1 }, x:3, y:8, charla:[
+      { id:'pell', n:'Archivista Pell', ropa:'sabio', look:{ pelo:'#d8d8d8', piel:'#f6d8bc', estilo:1 , cara:{ojos:0, cejas:3, boca:1, lentes:true, arrugas:true}}, x:3, y:8, charla:[
         { hasta:99, t:['Los libros dicen que las campanas se fundieron con la plata de la luna. Los libros mienten mucho.', 'Los hechizos grandes tardan en salir. Si apuntás donde el enemigo va a estar, mejor.'] },
       ], mision:'biblioteca' },
-      { id:'guardia_c', n:'Guardia Real', ropa:'guardia', look:{ pelo:'#1a1a22', piel:'#e0ac80', estilo:0 }, x:4, y:4, quieto:true, charla:[
+      { id:'guardia_c', n:'Guardia Real', ropa:'guardia', look:{ pelo:'#1a1a22', piel:'#e0ac80', estilo:0 , cara:{ojos:3, cejas:2, boca:1}}, x:4, y:4, quieto:true, charla:[
         { hasta:9, t:['La reina no recibe a nadie. Órdenes.', 'Sir Aldous era el mejor de nosotros. Si él cambió de bando, algo anda muy mal.'] },
         { hasta:99, t:['Dicen que la reina llora de noche. Que ahora se acuerda de cosas que había olvidado.'] },
       ] },
-      { id:'dama', n:'Dama Celestina', ropa:'noble', look:{ pelo:'#e8c06a', piel:'#f6d8bc', estilo:2 }, x:8, y:4, charla:[
+      { id:'dama', n:'Dama Celestina', ropa:'noble', look:{ pelo:'#e8c06a', piel:'#f6d8bc', estilo:2 , cara:{ojos:2, iris:'#2a6aa8', cejas:4, boca:3, pestanas:true, lunar:true, rubor:0.4}}, x:8, y:4, regalo:{ desde:8, equipo:{ id:'anillo_sabio', rareza:2 }, txt:'Este anillo no combina con mis vestidos. Quedátelo, campanero. Te queda mejor a vos.' }, charla:[
         { hasta:99, t:['¿Un campanero en la Ciudadela? Qué exótico.', 'En la joyería venden ópalos que suben la magia. A mí me los regalan, claro.'] },
       ] },
-      { id:'mendigo', n:'Viejo Sin Nombre', ropa:'aldeano', look:{ pelo:'#9a9aa0', piel:'#c88a5a', barba:true, estilo:0 }, x:7, y:13, charla:[
+      { id:'mendigo', n:'Viejo Sin Nombre', ropa:'aldeano', look:{ pelo:'#9a9aa0', piel:'#c88a5a', barba:true, estilo:0 , cara:{ojos:4, cejas:3, boca:4, arrugas:true}}, x:7, y:13, regalo:{ desde:11, obj:{ elixir:1 }, txt:'Ahora que me acuerdo de quién soy, me acuerdo de esto que guardaba. Tomá. Es para vos.' }, charla:[
         { hasta:10, t:['¿Mi nombre? Se lo llevó la niebla. Pero me acuerdo del olor del pan. Eso no me lo saca nadie.'] },
         { hasta:99, t:['¡Me llamo Gaspar! ¡Gaspar! Ayer me acordé. Gracias, muchacho.'] },
       ] },
