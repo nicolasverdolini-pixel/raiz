@@ -66,6 +66,7 @@ function statsInst(it) {
   if (d.res) p.push(`Res ${Math.round(d.res * (1 + (d.slot === 'armadura' ? R.m : 0))) + (d.slot === 'armadura' ? it.mejora : 0)}`);
   ['atk', 'mag', 'mp', 'spd', 'mov', 'salto', 'eva'].forEach(k => { if (d[k]) p.push(`${{ atk:'Atq', mag:'Mag', mp:'PM', spd:'Vel', mov:'Mov', salto:'Salto', eva:'Eva' }[k]} +${d[k]}`); });
   for (const [k, v] of Object.entries(it.bonos || {})) p.push(`<span style="color:${R.c}">${BONOS_EQ[k]} +${v}</span>`);
+  (d.rasgos || []).forEach(r => p.push(`<span class="rasgo" title="${RASGOS[r].d}">★ ${RASGOS[r].n}: ${RASGOS[r].d}</span>`));
   const el = d.el || it.el; if (el) p.push(ELEMENTOS[el].i + ' ' + ELEMENTOS[el].n);
   if (d.inmune) p.push('Inmune: ' + d.inmune.map(e => ESTADOS[e].n).join(', '));
   if (it.gemas.length) p.push(`${it.gemas.length} engarce${it.gemas.length > 1 ? 's' : ''}`);
@@ -81,6 +82,7 @@ function statsItem(id, mejora = 0) {
   if (d.inmune) p.push('Inmune: ' + d.inmune.map(e => ESTADOS[e].n).join(', '));
   if (d.veneno) p.push('Envenena');
   if (d.gemas) p.push(`${d.gemas} engarce${d.gemas > 1 ? 's' : ''}`);
+  (d.rasgos || []).forEach(r => p.push(`<span class="rasgo">★ ${RASGOS[r].n}</span>`));
   return p.join(' · ');
 }
 function iconoItem(id) { return ICO.html(ICO.deItem(id), 34); }
@@ -175,92 +177,153 @@ function mostrarAyuda() {
 }
 
 // ---------- Mapa del mundo ----------
-let imgMundo = null;
-function pintarMundo() {
-  if (imgMundo) return imgMundo;
-  const W = 216, H = 336, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+// Mapa del mundo ilustrado: costas marcadas, bosques, montañas y volcanes dibujados como íconos.
+const imgMundo = {};
+function pintarMundo(region = 'norte') {
+  if (imgMundo[region]) return imgMundo[region];
+  const W = 720, H = 1120, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d'), img = ctx.createImageData(W, H);
-  const r = (() => { let s = 12345; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; })();
-  const G0 = 12, grid = Array.from({ length:(G0 + 1) * (G0 + 1) }, r);
-  const ruido = (x, y, f) => {
+  const semilla = region === 'sur' ? 777 : 12345;
+  const r = (() => { let s = semilla; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; })();
+  const G0 = 16, grid = Array.from({ length:(G0 + 1) * (G0 + 1) }, r), grid2 = Array.from({ length:(G0 + 1) * (G0 + 1) }, r);
+  const ruido = (g, x, y, f) => {
     const gx = x * f, gy = y * f, ix = Math.floor(gx) % G0, iy = Math.floor(gy) % G0, fx = gx - Math.floor(gx), fy = gy - Math.floor(gy);
-    const v = (a, b) => grid[((b % G0) * (G0 + 1)) + (a % G0)];
+    const v = (a, b) => g[((b % G0) * (G0 + 1)) + (a % G0)];
     const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
     return (v(ix, iy) * (1 - sx) + v(ix + 1, iy) * sx) * (1 - sy) + (v(ix, iy + 1) * (1 - sx) + v(ix + 1, iy + 1) * sx) * sy;
   };
-  const nodos = Object.values(NODOS);
+  const nodos = Object.values(NODOS).filter(n => n.region === region).concat(Object.values(SECRETAS).filter(S => (S.region || 'norte') === region));
+  const alto = new Float32Array(W * H), hum = new Float32Array(W * H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const nx = x / W, ny = y / H;
-    let h = ruido(nx, ny, 4) * 0.55 + ruido(nx, ny, 9) * 0.3 + ruido(nx, ny, 19) * 0.15;
-    const borde = Math.min(nx, 1 - nx, ny, 1 - ny);
-    h -= Math.max(0, 0.16 - borde) * 2.2;
-    // Alrededor de cada lugar hay tierra firme (pasto), para que ningún pueblo quede en el agua o en la nieve.
+    let h = ruido(grid, nx, ny, 3) * 0.55 + ruido(grid, nx, ny, 7) * 0.3 + ruido(grid, nx, ny, 15) * 0.15;
+    h -= Math.max(0, 0.13 - Math.min(nx, 1 - nx, ny, 1 - ny)) * 2.6;
     let cerca = 0;
-    nodos.forEach(n => { const d = Math.hypot(nx - n.x / 100, (ny - n.y / 100) * 1.5); cerca = Math.max(cerca, Math.exp(-(d * d) / 0.006)); });
-    h = h * (1 - cerca) + 0.55 * cerca;
-    h += 0.06;
+    for (const n of nodos) { const d = Math.hypot(nx - n.x / 100, (ny - n.y / 100) * 1.55); if (d < 0.12) cerca = Math.max(cerca, 1 - d / 0.12); }
+    h = h * (1 - cerca * 0.85) + 0.55 * cerca * 0.85 + 0.06;
+    alto[y * W + x] = h; hum[y * W + x] = ruido(grid2, nx, ny, 5);
+  }
+  const PAL = region === 'sur'
+    ? { mar:[34, 18, 40], marClaro:[60, 34, 66], costa:[20, 10, 24], arena:[120, 96, 88], pasto:[118, 104, 104], bosque:[98, 84, 86], monte:[74, 62, 70], nieve:[52, 40, 50] }
+    : { mar:[54, 104, 178], marClaro:[96, 150, 212], costa:[30, 40, 60], arena:[232, 214, 150], pasto:[124, 186, 92], bosque:[92, 158, 80], monte:[150, 140, 128], nieve:[244, 246, 252] };
+  const tierra = h => h >= 0.42;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const k = y * W + x, h = alto[k];
     let c;
-    if (h < 0.40) c = [40, 80, 150]; else if (h < 0.43) c = [62, 112, 182];
-    else if (h < 0.46) c = [224, 204, 138];
-    else if (h < 0.66) c = (ruido(nx, ny, 14) > 0.6 ? [52, 120, 60] : [92, 160, 74]);
-    else if (h < 0.76) c = [120, 120, 112];
-    else c = [236, 240, 248];
-    // La Bruma cubre el norte.
-    const bruma = Math.max(0, 0.3 - ny) * 1.7;
-    c = c.map((v, i) => v * (1 - bruma) + [170, 150, 210][i] * bruma);
-    
-    const i = (y * W + x) * 4;
-    img.data[i] = c[0]; img.data[i + 1] = c[1]; img.data[i + 2] = c[2]; img.data[i + 3] = 255;
+    if (!tierra(h)) {
+      // Agua: más clara cerca de la costa.
+      let costa = false;
+      for (let d = 4; d <= 14 && !costa; d += 5) { const a = alto[Math.min(H - 1, y + d) * W + x], b = alto[Math.max(0, y - d) * W + x], cc = alto[y * W + Math.min(W - 1, x + d)], dd = alto[y * W + Math.max(0, x - d)]; if (tierra(a) || tierra(b) || tierra(cc) || tierra(dd)) costa = true; }
+      c = costa ? PAL.marClaro : PAL.mar;
+    } else {
+      // Borde de la costa bien marcado.
+      const borde = !tierra(alto[k + 1]) || !tierra(alto[k - 1]) || !tierra(alto[k + W]) || !tierra(alto[k - W]) || !tierra(alto[k + 2]) || !tierra(alto[k - 2 * W]);
+      if (borde) c = PAL.costa;
+      else if (h < 0.455) c = PAL.arena;
+      else if (h > 0.74) c = PAL.nieve;
+      else if (h > 0.66) c = PAL.monte;
+      else c = hum[k] > 0.56 ? PAL.bosque : PAL.pasto;
+    }
+    const v = ((x * 7 + y * 13) % 5) - 2; // grano muy fino para que no se vea plano
+    img.data[k * 4] = c[0] + v; img.data[k * 4 + 1] = c[1] + v; img.data[k * 4 + 2] = c[2] + v; img.data[k * 4 + 3] = 255;
   }
   ctx.putImageData(img, 0, 0);
-  imgMundo = cv.toDataURL();
-  return imgMundo;
+  // Olas
+  ctx.strokeStyle = region === 'sur' ? 'rgba(200,120,220,.25)' : 'rgba(255,255,255,.35)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  for (let i = 0; i < 70; i++) {
+    const x = r() * W, y = r() * H;
+    if (tierra(alto[Math.floor(y) * W + Math.floor(x)])) continue;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + 7, y - 4, x + 14, y); ctx.quadraticCurveTo(x + 21, y + 4, x + 28, y); ctx.stroke();
+  }
+  // Íconos de terreno (lejos de los lugares, para que los nombres se lean bien)
+  const libre = (x, y) => nodos.every(n => Math.hypot(x - n.x / 100 * W, y - n.y / 100 * H) > 46);
+  const arbol = (x, y, s) => {
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(x, y + s * 0.9, s * 0.7, s * 0.25, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = region === 'sur' ? '#3a2a2a' : '#6a4428'; ctx.fillRect(x - s * 0.12, y + s * 0.2, s * 0.24, s * 0.7);
+    ctx.beginPath(); ctx.arc(x, y, s * 0.62, 0, 7); ctx.fillStyle = region === 'sur' ? '#5a4a4e' : '#3e8a3a'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = region === 'sur' ? '#241a1e' : '#1e4a20'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x - s * 0.2, y - s * 0.2, s * 0.22, 0, 7); ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fill();
+  };
+  const monte = (x, y, s, volcan) => {
+    ctx.beginPath(); ctx.moveTo(x - s, y + s * 0.7); ctx.lineTo(x - s * 0.1, y - s * 0.8); ctx.lineTo(x + s, y + s * 0.7); ctx.closePath();
+    const g = ctx.createLinearGradient(x - s, 0, x + s, 0); g.addColorStop(0, volcan ? '#6a4a46' : '#c8c0b4'); g.addColorStop(0.5, volcan ? '#4a3434' : '#9a9286'); g.addColorStop(1, volcan ? '#2a1e1e' : '#6e665c');
+    ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 2.2; ctx.strokeStyle = '#2a2420'; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - s * 0.36, y - s * 0.22); ctx.lineTo(x - s * 0.1, y - s * 0.8); ctx.lineTo(x + s * 0.26, y - s * 0.22); ctx.lineTo(x, y - s * 0.32); ctx.closePath();
+    ctx.fillStyle = volcan ? '#ff6a1a' : '#ffffff'; ctx.fill();
+    if (volcan) { ctx.fillStyle = 'rgba(255,140,40,.35)'; ctx.beginPath(); ctx.arc(x - s * 0.1, y - s * 0.9, s * 0.4, 0, 7); ctx.fill(); }
+  };
+  for (let gy = 16; gy < H; gy += 30) for (let gx = 16; gx < W; gx += 30) {
+    const x = gx + (r() - 0.5) * 14, y = gy + (r() - 0.5) * 14;
+    const k = Math.floor(y) * W + Math.floor(x), h = alto[k];
+    if (!tierra(h) || !libre(x, y)) continue;
+    if (h > 0.66) { if (r() < (h > 0.72 ? 0.55 : 0.3)) monte(x, y, 13 + r() * 6, region === 'sur' && r() < 0.35); }
+    else if (hum[k] > 0.56 && h > 0.46) { if (r() < 0.8) arbol(x, y, 9 + r() * 3); }
+    else if (region === 'sur' && r() < 0.06) { ctx.strokeStyle = '#ff6a1a'; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(x - 8, y); ctx.lineTo(x - 2, y + 3); ctx.lineTo(x + 6, y - 2); ctx.stroke(); }
+  }
+  // Niebla al norte (Aldmora) o el Abismo al sur
+  const g = ctx.createLinearGradient(0, region === 'sur' ? H : 0, 0, region === 'sur' ? H * 0.62 : H * 0.3);
+  g.addColorStop(0, region === 'sur' ? 'rgba(90,20,90,.55)' : 'rgba(200,190,235,.55)'); g.addColorStop(1, 'rgba(200,190,235,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // Marco y rosa de los vientos
+  ctx.lineWidth = 8; ctx.strokeStyle = '#2a2016'; ctx.strokeRect(4, 4, W - 8, H - 8);
+  const rx = W - 60, ry = H - 70;
+  ctx.fillStyle = 'rgba(255,248,230,.9)'; ctx.beginPath(); ctx.arc(rx, ry, 30, 0, 7); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#2a2016'; ctx.stroke();
+  ctx.fillStyle = '#c83a3a'; ctx.beginPath(); ctx.moveTo(rx, ry - 26); ctx.lineTo(rx + 7, ry); ctx.lineTo(rx - 7, ry); ctx.fill();
+  ctx.fillStyle = '#2a2016'; ctx.beginPath(); ctx.moveTo(rx, ry + 26); ctx.lineTo(rx + 7, ry); ctx.lineTo(rx - 7, ry); ctx.fill();
+  ctx.font = 'bold 14px Fredoka, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('N', rx, ry - 32);
+  imgMundo[region] = cv.toDataURL('image/jpeg', 0.9);
+  return imgMundo[region];
 }
 function nodoVisible(id) { return G.paso >= NODOS[id].desde || (G.flags.fin && true); }
 // Los lugares secretos aparecen cuando algún vecino te cuenta de ellos.
-function nodosSecretos() {
-  return Object.entries(SECRETAS).filter(([id]) => G.flags['sec_' + id]).map(([id, S]) => [id, { n:S.n, tipo:'secreto', x:S.x, y:S.y, secreto:id }]);
+function nodosSecretos(region) {
+  return Object.entries(SECRETAS).filter(([id, S]) => G.flags['sec_' + id] && (S.region || 'norte') === region).map(([id, S]) => [id, { n:S.n, tipo:'secreto', x:S.x, y:S.y, secreto:id, region:S.region || 'norte' }]);
 }
-function nodoDe(id) { return NODOS[id] || (SECRETAS[id] && { n:SECRETAS[id].n, tipo:'secreto', x:SECRETAS[id].x, y:SECRETAS[id].y, secreto:id }); }
+function nodoDe(id) { return NODOS[id] || (SECRETAS[id] && { n:SECRETAS[id].n, tipo:'secreto', x:SECRETAS[id].x, y:SECRETAS[id].y, secreto:id, region:SECRETAS[id].region || 'norte' }); }
 function pasoActual() { return HISTORIA[G.paso] || null; }
 function batallaGanada(bid) { const i = HISTORIA.findIndex(p => p.b === bid); return i >= 0 && i < G.paso; }
 
-function pantallaMapa() {
+function pantallaMapa(region) {
   Sonido.musica('mapa');
   const paso = pasoActual();
   const sig = paso ? paso.nodo : null;
-  const nodos = Object.entries(NODOS).filter(([id]) => nodoVisible(id)).concat(nodosSecretos());
-  const caminos = CAMINOS.filter(([a, b]) => nodoVisible(a) && nodoVisible(b)).map(([a, b]) => {
-    const A = NODOS[a], Bn = NODOS[b];
-    return `<line x1="${A.x}" y1="${A.y}" x2="${Bn.x}" y2="${Bn.y}" />`;
-  }).join('');
+  region = region || G.region || (sig && NODOS[sig].region) || 'norte';
+  if (sig && !region) region = NODOS[sig].region;
+  G.region = region;
+  const nodos = Object.entries(NODOS).filter(([id, n]) => n.region === region && nodoVisible(id)).concat(nodosSecretos(region));
+  const ids = new Set(nodos.map(([id]) => id));
+  const caminos = CAMINOS.filter(([a, b]) => ids.has(a) && ids.has(b)).map(([a, b]) => `<line x1="${NODOS[a].x}" y1="${NODOS[a].y}" x2="${NODOS[b].x}" y2="${NODOS[b].y}" />`).join('');
+  const sigAca = sig && NODOS[sig].region === region;
+  const titulo = region === 'sur' ? 'Tierras del Sur' : 'Aldmora';
   montar(`
-    ${cabecera(G.flags.fin ? 'Aldmora (epílogo)' : 'Aldmora — Capítulo ' + capituloActual(), false)}
-    <div class="mundo">
-      <img class="mundo-img" src="${pintarMundo()}" alt="">
-      <svg class="mundo-caminos" viewBox="0 0 100 100" preserveAspectRatio="none">${caminos}</svg>
+    ${cabecera(G.flags.fin ? titulo + ' (epílogo)' : titulo + ' — Capítulo ' + capituloActual(), false)}
+    <div class="mundo ${region}">
+      <img class="mundo-img" src="${pintarMundo(region)}" alt="">
+      <svg class="mundo-caminos" viewBox="0 0 100 100" preserveAspectRatio="none">${caminos.replace(/<line/g, '<line class="sombra"')}${caminos}</svg>
       ${nodos.map(([id, n]) => `
-        <button class="nodo ${n.tipo} ${id === sig ? 'sig' : ''} ${(n.batalla && batallaGanada(n.batalla)) || (n.secreto && G.flags['sec_' + id + '_ok']) ? 'ganado' : ''}" style="left:${n.x}%;top:${n.y}%" data-x="nodo" data-id="${id}">
-          <span class="nodo-ic">${n.tipo === 'pueblo' ? '🏠' : n.secreto ? (G.flags['sec_' + id + '_ok'] ? '⚔️' : '❓') : id === sig ? '❗' : '⚔️'}</span><span class="nodo-n">${esc(n.n)}</span>
+        <button class="nodo ${n.tipo} ${n.portal ? 'portal' : ''} ${id === sig ? 'sig' : ''} ${(n.batalla && batallaGanada(n.batalla)) || (n.secreto && G.flags['sec_' + id + '_ok']) ? 'ganado' : ''}" style="left:${n.x}%;top:${n.y}%" data-x="nodo" data-id="${id}">
+          <span class="nodo-ic">${n.portal ? '🗺️' : n.tipo === 'pueblo' ? '🏠' : n.secreto ? (G.flags['sec_' + id + '_ok'] ? '⚔️' : '❓') : id === sig ? '❗' : '⚔️'}</span><span class="nodo-n">${esc(n.n)}</span>
         </button>`).join('')}
     </div>
     <div class="mapa-pie">
-      ${paso ? `<div class="mision">Siguiente: <b>${esc(BATALLAS[paso.b].n)}</b> en ${esc(NODOS[paso.nodo].n)}</div>` : '<div class="mision">La historia terminó. ¡Seguí entrenando!</div>'}
+      ${paso ? `<div class="mision">Siguiente: <b>${esc(BATALLAS[paso.b].n)}</b> en ${esc(NODOS[paso.nodo].n)}${sigAca ? '' : ` <i>(${NODOS[paso.nodo].region === 'sur' ? 'en el sur' : 'en Aldmora'})</i>`}</div>` : '<div class="mision">La historia terminó. ¡Seguí entrenando!</div>'}
       <div class="fila">
         <button data-x="grupo">👥 Grupo</button>
-        ${paso ? '<button data-x="ir" class="ok">❗ Ir</button>' : ''}
+        ${paso ? `<button data-x="ir" class="ok">❗ Ir</button>` : ''}
+        ${G.paso >= 12 ? `<button data-x="region" class="sec">🗺️ ${region === 'sur' ? 'Norte' : 'Sur'}</button>` : ''}
         <button data-x="ajustes" class="sec">⚙️</button>
       </div>
     </div>`, {
     nodo: d => tocarNodo(d.id),
-    ir: () => tocarNodo(sig),
-    grupo: () => pantallaGrupo(pantallaMapa),
+    ir: () => { if (!sigAca) pantallaMapa(NODOS[sig].region); else tocarNodo(sig); },
+    region: () => pantallaMapa(region === 'sur' ? 'norte' : 'sur'),
+    grupo: () => pantallaGrupo(() => pantallaMapa(region)),
     ajustes: pantallaAjustes,
   });
 }
 function tocarNodo(id) {
   const n = nodoDe(id), paso = pasoActual();
   const opciones = [];
+  if (n.portal) { Sonido.fx('pagina'); pantallaMapa(n.portal); return; }
   if (n.secreto) {
     const S = SECRETAS[id], hecho = G.flags['sec_' + id + '_ok'];
     const nv = Math.max(...S.batalla.e.map(e => e.nv));

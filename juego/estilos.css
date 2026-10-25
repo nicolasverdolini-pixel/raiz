@@ -58,10 +58,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 @keyframes balanceo { 0%,100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg); } }
 
 /* Mapa del mundo */
-.mundo { position: relative; margin: 8px 10px; aspect-ratio: 108 / 168; max-height: calc(100dvh - 190px); border: 3px solid var(--borde); border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 3px #0a0d26; margin-inline: auto; width: min(calc(100% - 20px), calc((100dvh - 190px) * 108 / 168)); }
+.mundo { position: relative; margin: 8px 10px; aspect-ratio: 720 / 1120; max-height: calc(100dvh - 190px); border: 3px solid var(--borde); border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 3px #0a0d26; margin-inline: auto; width: min(calc(100% - 20px), calc((100dvh - 190px) * 720 / 1120)); }
 .mundo-img { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: auto; }
 .mundo-caminos { position: absolute; inset: 0; width: 100%; height: 100%; }
-.mundo-caminos line { stroke: #fff4d0; stroke-width: .7; stroke-dasharray: 1.4 1.2; opacity: .85; vector-effect: non-scaling-stroke; stroke-width: 3; }
+.mundo-caminos line { stroke: #fff4d0; stroke-dasharray: 7 6; vector-effect: non-scaling-stroke; stroke-width: 4; stroke-linecap: round; }
+.mundo-caminos line.sombra { stroke: rgba(30,20,10,.75); stroke-dasharray: none; stroke-width: 8; }
 .nodo { position: absolute; transform: translate(-50%, -50%); padding: 0; border: none; background: none; box-shadow: none; display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .nodo-ic { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; border: 2px solid #fff; background: radial-gradient(#3a4aa8, #1a2468); font-size: 1.05rem; box-shadow: 0 2px 0 rgba(0,0,0,.5); }
 .nodo.pueblo .nodo-ic { background: radial-gradient(#d88a3a, #8a4a1a); }
@@ -388,3 +389,11 @@ button.hab small { grid-column: 1 / -1; color: var(--sub); font-size: .72rem; }
 .precio { margin-top: auto; width: 100%; padding: 7px; font-size: .85rem; background: linear-gradient(180deg, #ffe07a, #d89a2a); color: #2a1a08; border-color: #fff4c0; }
 .precio.vender { background: linear-gradient(180deg, #7ae0a0, #2a9a5a); color: #06240f; }
 .precio:disabled { filter: grayscale(.7); }
+
+.h-num { color: #9fd8ff !important; font-size: .68rem !important; margin-top: 2px; line-height: 1.3; }
+button.hab .h-num { grid-column: 1 / -1; }
+
+.nodo.portal .nodo-ic { background: radial-gradient(#ffe07a, #c8862a); }
+.nodo-n { font-size: .72rem; font-weight: 700; background: rgba(255,248,230,.94); color: #2a2016; border-color: #2a2016; }
+
+.rasgo { color: #ffd88a; font-weight: 700; }

@@ -194,7 +194,7 @@ const NODOS = {
   campanario: { n:'Campanario del puerto', tipo:'campo', x:64, y:47, desde:5, batalla:'b6', patrulla:['murcielago','espectro','hueco'] },
   paso:       { n:'Paso de Hierro', tipo:'campo', x:52, y:34, desde:6, batalla:'b7', patrulla:['lobo','golem','murcielago'] },
   fortaleza:  { n:'Fortaleza del Paso', tipo:'campo', x:66, y:22, desde:7, batalla:'b8', patrulla:['golem','caballero:reina','arquero:reina'] },
-  ciudadela:  { n:'Ciudadela de Aldmora', tipo:'pueblo', x:39, y:23, desde:8, tienda:true, herreria:true, taberna:true, mascotas:true, gemas:true },
+  ciudadela:  { n:'Ciudadela de Aldmora', tipo:'pueblo', x:34, y:25, desde:8, tienda:true, herreria:true, taberna:true, mascotas:true, gemas:true },
   puente:     { n:'Puente de las Siete Torres', tipo:'campo', x:22, y:13, desde:8, batalla:'b9', patrulla:['bestia','espectro','hueco','murcielago'] },
   catedral:   { n:'Catedral Muda', tipo:'campo', x:47, y:6, desde:9, batalla:'b10', patrulla:['espectro','bestia','golem'] },
 };

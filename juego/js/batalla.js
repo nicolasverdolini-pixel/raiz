@@ -13,6 +13,7 @@ const Batalla = (() => {
   const vel = () => ((B && B.vel) || 1) * 1.45; // el ritmo base ya es ágil; x2 y x3 lo aceleran más
   const esperar = ms => new Promise(r => setTimeout(r, ms / vel()));
   function tween(ms, fn) {
+    if (vel() >= 20) { fn(1); return Promise.resolve(); } // modo de prueba: sin animaciones
     ms = ms / vel();
     return new Promise(res => {
       const t0 = performance.now();
@@ -45,7 +46,8 @@ const Batalla = (() => {
       ct: azar(0, 25) + st.spd * 3, est:{}, ko:false, rx:x, ry:y, rh:0, off:{ x:0, y:0, z:0 }, alpha:1, flash:0,
       mascota:m, jefe:!!u.jefe, revivio:false, vis:{ clase:u.clase, look:u.look, t:u.t, arma: ARMAS_DIBUJABLES.includes(st.armaTipo) ? st.armaTipo : null } };
     bu.rh = alt(x, y);
-    if (st.pasiva === 'prisa_ini') bu.est.prisa = 4;
+    if (st.pasiva === 'prisa_ini' || st.rasgos.has('prisa_ini')) bu.est.prisa = 4;
+    if (st.rasgos.has('escudo')) bu.est.protegido = 3;
     return bu;
   }
   function refrescarStats(bu) {
@@ -233,6 +235,7 @@ const Batalla = (() => {
     if (cura && !u.ko && u.hp < s.hpMax) { u.hp = Math.min(s.hpMax, u.hp + cura); popup(u, cura, '#6f9'); chispas(u, '#8f8', 6); await esperar(300); }
     let mpMas = 0;
     if (s.pasiva === 'resonancia') mpMas += 5;
+    if (s.rasgos.has('mp_regen')) mpMas += 4;
     if (u.mascota && MASCOTAS[u.mascota.id].accion === 'mp') mpMas += 2 + u.mascota.nivel;
     if (mpMas && u.mp < s.mpMax) u.mp = Math.min(s.mpMax, u.mp + mpMas);
     if (!u.ko) await accionMascota(u);
@@ -353,6 +356,7 @@ const Batalla = (() => {
     if (acc.tipo === 'obj') { const o = OBJ[acc.id]; return Object.assign({ n:o.n, r:o.r, a:o.a || 0, af: o.uso.danio ? 'e' : 'a', obj:true, fx: o.uso.danio ? 'fuego' : o.uso.revive ? 'revivir' : 'cura' }, { uso:o.uso }); }
     return HAB[acc.id];
   }
+  function costoMP(u, H) { return Math.round((H.mp || 0) * (u.st.pasiva === 'ahorro' ? 0.75 : 1)); }
   function rangoDe(u, H) {
     const r = H.r === 'arma' ? u.st.rango : H.r;
     if (u.st.vista && r[1] > 1) return [r[0], r[1] + 1];
@@ -412,11 +416,16 @@ const Batalla = (() => {
     const atk = s.atk * (u.est.valor ? 1.25 : 1) * (u.est.debil ? 0.7 : 1);
     const pow = H.sinArma ? 3 : s.armaPoder;
     const raw = (atk + pow) * 1.6 * (H.p || 1);
-    const def = ts.def * (t.est.quebrado ? 0.6 : 1) * (t.est.protegido ? 1.35 : 1);
+    const def = ts.def * (t.est.quebrado ? 0.6 : 1) * (t.est.protegido ? 1.35 : 1) * (s.rasgos.has('perforar') ? 0.75 : 1);
     let d = Math.max(raw * 0.08 + 1, raw - def);
     const ang = angulo(ax, ay, t);
     d *= ang === 'espalda' ? 1.25 : ang === 'lado' ? 1.1 : 1;
     if (H.espalda && ang === 'espalda') d *= 1.3;
+    if (s.pasiva === 'critico') d *= 1.2;
+    if (s.rasgos.has('critico')) d *= 1.15;
+    if (ts.raza === 'demonio' && s.rasgos.has('antidemonio')) d *= 1.3;
+    if (ts.raza === 'dragon' && s.rasgos.has('antidragon')) d *= 1.4;
+    if (ts.raza === 'demonio') { if (s.pasiva === 'cazador') d *= 1.3; if (H.antidemonio) d *= 2; }
     const dh = alt(ax, ay) - alt(t.x, t.y);
     d *= 1 + clamp(dh, -3, 5) * 0.05;
     const el = H.el || (H.sinArma ? null : s.armaEl);
@@ -441,6 +450,7 @@ const Batalla = (() => {
     const res = ts.res * (t.est.coraza ? 1.35 : 1);
     let d = Math.max(raw * 0.1, raw - res * 0.5);
     d *= mElem(t, H.el);
+    if (ts.raza === 'demonio') { if (s.pasiva === 'cazador') d *= 1.3; if (H.antidemonio) d *= 2; if (s.rasgos.has('antidemonio')) d *= 1.3; }
     if (ts.pasiva === 'ferrea') d *= 0.85;
     return { d:Math.max(1, Math.round(d)), prob:100, el:H.el };
   }
@@ -483,7 +493,7 @@ const Batalla = (() => {
     const H = datosAccion(u, acc);
     u.actuo = true;
     mirarHacia(u, cx, cy);
-    if (acc.tipo === 'hab' && H.mp && !desdeCarga) u.mp -= H.mp;
+    if (acc.tipo === 'hab' && H.mp && !desdeCarga) u.mp -= costoMP(u, H);
     if (H.carga && !desdeCarga) {
       // Los hechizos grandes tardan: se cargan ahora y salen más adelante en la fila de turnos.
       const c = { u, acc, cx, cy, ct:0, vel:H.carga };
@@ -576,6 +586,8 @@ const Batalla = (() => {
         if (u.st.efectos.vampiro && !u.ko) { const v = Math.round(d * [0, 0.1, 0.2, 0.3][Math.min(3, u.st.efectos.vampiro)]); u.hp = Math.min(u.st.hpMax, u.hp + v); popup(u, v, '#6f9'); }
         if (await aplicarDanio(u, t, d)) { res.mato = true; break; }
         if (u.st.armaVeneno && Math.random() * 100 < u.st.armaVeneno) aplicarEstado(u, t, { id:'veneno', prob:100, dur:4 });
+        if (u.st.rasgos.has('aturdir') && Math.random() < 0.15 && !t.st.inmune.has('aturdido')) aplicarEstado(u, t, { id:'aturdido', prob:100, dur:1 });
+        if (u.st.rasgos.has('drenar_mp')) u.mp = Math.min(u.st.mpMax, u.mp + Math.round(u.st.mpMax * 0.05));
         if (u.st.armaLento && Math.random() * 100 < u.st.armaLento) aplicarEstado(u, t, { id:'lento', prob:100, dur:2 });
         if (golpes > 1) await esperar(160);
       }
@@ -666,7 +678,7 @@ const Batalla = (() => {
     t.hp = Math.max(0, t.hp - d);
     if (t.est.dormido && d > 0) { delete t.est.dormido; }
     if (t.hp > 0) return false;
-    if (t.st.pasiva === 'revive' && !t.revivio) {
+    if ((t.st.pasiva === 'revive' || t.st.rasgos.has('fenix')) && !t.revivio) {
       t.revivio = true; t.hp = Math.round(t.st.hpMax * 0.25);
       await esperar(300); popup(t, '¡Última voluntad!', '#ffe680'); chispas(t, '#ffe680', 18); Sonido.fx('revivir');
       return false;
@@ -688,6 +700,7 @@ const Batalla = (() => {
     if (Math.random() < 0.35 * suerte) suma(g.mat, 'hierro');
     if (nv >= 6 && Math.random() < 0.14 * suerte) suma(g.mat, 'plata');
     if (t.jefe) suma(g.mat, 'esquirla');
+    for (const [k, pr] of Object.entries(CLASES[t.u.clase].botin || {})) { let n = Math.floor(pr); if (Math.random() < (pr - n) * suerte) n++; if (n) suma(g.mat, k, n); }
     if (Math.random() < 0.08 * suerte) suma(g.gemas, elegir(Object.keys(GEMAS)) + '1');
     if (Math.random() < 0.15) suma(g.obj, nv >= 8 ? 'hipocion' : 'pocion');
     if (B.def.patrulla) g.oro += Math.round((30 + nv * 18) * suerte);
@@ -761,7 +774,7 @@ const Batalla = (() => {
 
   function puntoEnUnidad(px, py, u) {
     const { cx, fy } = pantallaUnidad(u);
-    const k = L.k * (CLASES[u.vis.clase]?.tam || 1) * 1.15;
+    const k = L.k * (CLASES[u.vis.clase]?.tam || 1) * 1.3;
     return px > cx - 8 * k && px < cx + 8 * k && py > fy - 17 * k && py < fy + 1 * k;
   }
   function tileEn(px, py, soloTapa = false) {
@@ -854,9 +867,9 @@ const Batalla = (() => {
     } else if (ui.modo === 'habs') {
       const hb = habsDeBatalla(u.u);
       const fila = id => {
-        const H = HAB[id], falta = u.mp < (H.mp || 0), mudo = u.est.silencio && ['mag', 'cura', 'apoyo', 'revivir'].includes(H.tipo);
+        const H = HAB[id], falta = u.mp < costoMP(u, H), mudo = u.est.silencio && ['mag', 'cura', 'apoyo', 'revivir'].includes(H.tipo);
         const tarda = H.carga ? ` · ⏳ ${H.carga >= 25 ? 'rápida' : H.carga >= 18 ? 'media' : 'lenta'}` : '';
-        return `<button class="hab" data-a="hab" data-id="${id}" ${falta || mudo ? 'disabled' : ''}><b>${esc(H.n)}</b><span>${H.mp ? H.mp + ' PM' : ''}</span><small>${esc(H.d)}${tarda}</small></button>`;
+        return `<button class="hab" data-a="hab" data-id="${id}" ${falta || mudo ? 'disabled' : ''}><b>${esc(H.n)}</b><span>${H.mp ? costoMP(u, H) + ' PM' : ''}</span><small>${esc(H.d)}</small><small class="h-num">${esc(detalleHab(id, u.u))}</small></button>`;
       };
       let lista = '';
       if (hb.principal.length) lista += `<div class="sep">${CLASES[u.u.clase].n}</div>` + hb.principal.map(fila).join('');
@@ -941,7 +954,7 @@ const Batalla = (() => {
     const propias = u.eq === 'A' ? (() => { const h = habsDeBatalla(u.u); return h.principal.concat(h.secundaria); })() : (u.u.habsE || []);
     propias.forEach(id => {
       const H = HAB[id];
-      if ((H.mp || 0) > u.mp) return;
+      if (costoMP(u, H) > u.mp) return;
       if (u.est.silencio && ['mag', 'cura', 'apoyo', 'revivir'].includes(H.tipo)) return;
       lista.push({ tipo:'hab', id });
     });
@@ -1249,7 +1262,7 @@ const Batalla = (() => {
   function dibujarUnidad(v, t, activo) {
     const { cx, fy } = pantallaUnidad(v);
     const C = CLASES[v.vis.clase] || {};
-    const tam = (C.tam || 1) * 1.15, k = L.k * tam;
+    const tam = (C.tam || 1) * 1.3, k = L.k * tam;
     const respira = v.ko ? 0 : Math.round(Math.sin(t / 300 + v.rx * 2) * 0.6) * L.k * 0.5;
     ctx.globalAlpha = v.alpha;
     // Sombra y anillo de equipo

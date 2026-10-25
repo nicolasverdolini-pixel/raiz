@@ -187,7 +187,7 @@ function pantallaFicha(uidU, tab, volver) {
         const etiqueta = ya ? (pasiva ? (u.pasiva === h ? '★ Puesta' : 'Poner') : (H.mp ? H.mp + ' PM' : 'Libre')) : H.pc + ' PC';
         return `<button class="hab2 ${ya ? 'ya' : ''} ${puede ? 'puede' : ''} ${pasiva ? 'pas' : ''}" data-x="${ya ? (pasiva ? 'pasiva' : 'nada') : 'aprender'}" data-h="${h}">
           <span class="h-ic">${pasiva ? '◆' : H.el ? ELEMENTOS[H.el].i : '✦'}</span>
-          <div><b>${esc(H.n)}</b><small>${esc(H.d)}${H.carga ? ' · tarda en salir' : ''}</small></div>
+          <div><b>${esc(H.n)}</b><small>${esc(H.d)}</small>${pasiva ? '' : `<small class="h-num">${esc(detalleHab(h, u))}</small>`}</div>
           <span class="h-tag">${etiqueta}</span></button>`;
       }).join('')}</div>
       <p class="sub">Los PC se ganan peleando con esa clase puesta. Las pasivas se ponen tocándolas (una por personaje).</p>`;

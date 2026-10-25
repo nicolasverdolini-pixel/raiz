@@ -2,7 +2,7 @@
 'use strict';
 
 const PC_NIVELES = [0, 100, 250, 450, 700, 1000, 1400, 1900, 2500];
-const NIVEL_MAX = 50;
+const NIVEL_MAX = 99;
 let SLOT = 0;
 try { SLOT = +(localStorage.getItem('cb:slot') || 0); } catch (e) {}
 const claveSlot = i => i ? `cb:partida:${i}` : 'cb:partida';
@@ -171,7 +171,7 @@ function calcStats(u) {
   const s = {};
   for (const k in base) s[k] = base[k] * (f[k] || 1) * (C.m[k] || 1);
   s.mov = C.mov; s.salto = C.salto; s.eva = C.eva || 5; s.vuela = !!C.vuela;
-  s.resEl = {}; s.inmune = new Set(); s.efectos = {}; s.armaEl = null; s.armaVeneno = 0; s.armaLento = 0;
+  s.resEl = Object.assign({}, C.resEl || {}); s.raza = C.raza || null; s.inmune = new Set(); s.efectos = {}; s.armaEl = null; s.armaVeneno = 0; s.armaLento = 0;
   const eq = equipoDe(u);
   const arma = eq.arma, ad = arma ? EQ[arma.id] : null;
   const puños = (C.armas || []).includes('puños');
@@ -197,6 +197,12 @@ function calcStats(u) {
     (d.inmune || []).forEach(e => s.inmune.add(e));
   };
   ['arma', 'armadura', 'acc'].forEach(slot => { const it = eq[slot]; if (it) sumar(EQ[it.id], it.mejora, it); });
+  // Rasgos del equipo
+  s.rasgos = new Set();
+  ['arma', 'armadura', 'acc'].forEach(slot => { const it = eq[slot]; if (it) (EQ[it.id].rasgos || []).forEach(r => s.rasgos.add(r)); });
+  if (s.rasgos.has('esquiva')) s.eva += 8;
+  if (s.rasgos.has('alcance') && s.rango[1] > 1) s.rango[1] += 1;
+  ['regen', 'vampiro', 'contra'].forEach(r => { if (s.rasgos.has(r)) s.efectos[r] = (s.efectos[r] || 0) + 1; });
   // Gemas
   let hpMult = 1;
   ['arma', 'armadura', 'acc'].forEach(slot => {
@@ -233,6 +239,7 @@ function calcStats(u) {
   if (pv === 'salto') { s.salto += 2; s.mov += 1; }
   if (pv === 'halcon' && s.armaTipo === 'arco') s.rango[1] += 1;
   if (pv === 'inmune') ['veneno', 'dormido', 'ciego'].forEach(e => s.inmune.add(e));
+  if (pv === 'sangre') { hpMult += 0.1; s.resEl.fuego = Math.min(0.9, (s.resEl.fuego || 0) + 0.5); }
   s.pasiva = pv;
   s.hp = (s.hp + hpExtra) * hpMult;
   if (u.jefe) s.hp *= 1.5;
@@ -274,8 +281,8 @@ function claseDesbloqueadaAntes(u, cid, nivelAnterior) {
 }
 
 // ---------- Tienda ----------
-function tierActual() { return [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4][Math.min(G.paso, 11)]; }
-function capituloActual() { return [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 5, 5][Math.min(G.paso, 11)]; }
+function tierActual() { return G.paso >= 12 ? 5 : [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4][G.paso]; }
+function capituloActual() { return G.paso >= 11 ? [6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10, 10][Math.min(G.paso - 11, 16)] : [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 5][G.paso]; }
 function costoReclutar(nv) { return 200 + nv * 40; }
 function costoMejora(it) {
   const n = it.mejora + 1, def = EQ[it.id];
@@ -288,7 +295,7 @@ function alcanza(mat) { return Object.entries(mat).every(([k, v]) => (G.mat[k] |
 // ---------- Enemigos ----------
 function equipoEnemigo(cid, nv) {
   const C = CLASES[cid];
-  const tier = Math.min(4, 1 + Math.floor(nv / 4));
+  const tier = Math.min(nv >= 30 ? 5 : 4, 1 + Math.floor(nv / 4));
   const mejor = (filtro) => Object.entries(EQ).filter(([id, d]) => d.tier <= tier && filtro(d)).sort((a, b) => b[1].tier - a[1].tier)[0];
   const eq = { arma:null, armadura:null, acc:null };
   if (C.mon) return eq;
@@ -307,4 +314,41 @@ function PJ_LOOK_ENEMIGO(e) {
   const pj = Object.values(PJ).find(p => p.n === e.n);
   if (pj?.look) return pj.look;
   return { pelo:elegir(PELOS), piel:elegir(PIELES), estilo:Math.floor(Math.random() * 3), semilla:uid() };
+}
+
+// ---------- Detalle con números de cada habilidad ----------
+const EFECTO_ESTADO = {
+  veneno:'pierde 8% de vida por turno', dormido:'pierde turnos hasta que le peguen', lento:'actúa 50% menos seguido', detenido:'no actúa',
+  aturdido:'pierde 1 turno', silencio:'no puede usar magia', ciego:'50% menos puntería', quebrado:'−40% defensa', debil:'−30% ataque',
+  prisa:'actúa 50% más seguido', protegido:'−26% de daño físico recibido', coraza:'−26% de daño mágico recibido', valor:'+25% ataque',
+  foco:'+30% poder mágico', regen:'recupera 6% de vida por turno',
+};
+function detalleHab(id, u) {
+  const H = HAB[id], p = [];
+  if (!H) return '';
+  if (H.tipo === 'pasiva') return '';
+  const s = u ? calcStats(u) : null;
+  const alcance = H.r === 'arma' ? (s ? s.rango.join('–') : 'del arma') : (H.r[1] === 0 ? 'sobre sí' : `${H.r[0]}–${H.r[1]}`);
+  if (H.tipo === 'fis') {
+    const fuerza = s ? Math.round(((s.atk + (H.sinArma ? 3 : s.armaPoder)) * 1.6) * (H.p || 1) * (s.pasiva === 'critico' ? 1.2 : 1)) : null;
+    p.push(`Daño físico ×${H.p}${H.golpes ? ` (${H.golpes} golpes)` : ''}${fuerza ? ` ≈ ${fuerza * (H.golpes || 1)} antes de defensa` : ''}`);
+    if (H.precisa) p.push('nunca falla');
+    if (H.espalda) p.push('×1.6 por la espalda');
+  } else if (H.tipo === 'mag') {
+    const f = s ? Math.round(H.p * (0.5 + s.mag / 14) * (s.pasiva === 'magia' ? 1.2 : 1)) : null;
+    p.push(`Daño mágico ${H.p}${f ? ` ≈ ${f} antes de resistencia` : ''}`);
+    if (H.antidemonio) p.push('×2 contra demonios');
+  } else if (H.tipo === 'cura') {
+    const f = s ? Math.round(H.p * (0.5 + s.mag / 14)) : null;
+    p.push(`Cura ${f ? f + ' de vida' : 'poder ' + H.p}`);
+  } else if (H.tipo === 'revivir') p.push(`Levanta a un caído con ${Math.round(H.p * 100)}% de vida${H.prob ? ` (${H.prob}% de chance)` : ''}`);
+  const esp = { primeros:'Cura 30% de su vida', meditar:'Recupera 12 + 10% de su magia', chakra:'Cura 20% de vida y 10% de magia', juramento:'Cura 30% de vida y da Valor (+25% ataque)',
+    gravedad:'Quita 25% de la vida actual (no a jefes)', purificar:'Quita todos los estados malos', robar_oro:'Roba 20 + 12 × nivel del enemigo en oro (más fácil por la espalda)', robar_obj:'Roba un material, poción o gema' }[H.esp];
+  if (esp) p.push(esp);
+  if (H.el) p.push(`elemento ${ELEMENTOS[H.el].n.toLowerCase()} (×1.5 si es débil)`);
+  (H.est || []).forEach(e => p.push(`${H.tipo === 'apoyo' && (H.af || 'e') === 'a' ? '' : e.prob + '% '}${ESTADOS[e.id].n} ${e.dur || 3} turnos: ${EFECTO_ESTADO[e.id]}`));
+  p.push(`alcance ${alcance}`);
+  if (H.a) p.push(`área de ${H.a} casilla${H.a > 1 ? 's' : ''} alrededor`);
+  if (H.carga) p.push(`tarda en salir (${H.carga >= 25 ? 'rápido' : H.carga >= 18 ? 'medio' : 'lento'})`);
+  return p.join(' · ');
 }
