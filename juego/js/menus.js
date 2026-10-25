@@ -1,0 +1,861 @@
+// Campanas de Bruma — pantallas: título, mapa del mundo, pueblos, tienda, herrería, taberna, grupo, diálogos y resultados.
+'use strict';
+
+const app = () => document.getElementById('app');
+const ICON_OBJ = new Proxy({}, { get:(o, k) => ICO.html(k, 34) });
+
+function montar(html, acciones = {}) {
+  const a = app();
+  a.innerHTML = html;
+  ICO.iconizar(a);
+  a.onclick = e => {
+    const b = e.target.closest('[data-x]');
+    if (!b || b.disabled || b.classList.contains('off')) return;
+    Sonido.iniciar();
+    const f = acciones[b.dataset.x];
+    if (f) { Sonido.fx(b.dataset.x === 'volver' ? 'atras' : 'sel'); f(b.dataset, b); }
+  };
+  a.scrollTop = 0;
+}
+function toast(txt, tipo = '') {
+  const t = document.createElement('div');
+  t.className = 'toast ' + tipo; t.textContent = txt;
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add('fuera'), 1800);
+  setTimeout(() => t.remove(), 2300);
+}
+function modal(html, acciones = {}) {
+  const d = document.createElement('div');
+  d.className = 'modal';
+  d.innerHTML = `<div class="ventana">${html}</div>`;
+  ICO.iconizar(d);
+  document.body.appendChild(d);
+  const cerrar = () => d.remove();
+  d.addEventListener('click', e => {
+    if (e.target === d) { cerrar(); return; }
+    const b = e.target.closest('[data-x]'); if (!b || b.disabled) return;
+    Sonido.fx(b.dataset.x === 'cerrar' ? 'atras' : 'sel');
+    if (b.dataset.x === 'cerrar') { cerrar(); return; }
+    acciones[b.dataset.x]?.(b.dataset, cerrar);
+  });
+  return cerrar;
+}
+function confirmar(txt, si) { modal(`<p>${txt}</p><div class="fila"><button data-x="si" class="ok">Sí</button><button data-x="cerrar">No</button></div>`, { si:(d, c) => { c(); si(); } }); }
+function spriteHTML(vis, px = 48, vista = 'f') {
+  const c = SPR.personaje(vis, vista);
+  return `<img class="spr" src="${c.toDataURL()}" style="width:${px}px;height:${px}px" alt="">`;
+}
+function visDe(u) {
+  const a = item(u.eq.arma);
+  const tipo = a ? EQ[a.id].tipo : null;
+  return { clase:u.clase, look:u.look, arma: ['espada', 'hacha', 'daga', 'arco', 'vara', 'maza', 'lanza'].includes(tipo) ? tipo : null };
+}
+function cabecera(titulo, volver = true) {
+  return `<header class="cab">${volver ? '<button data-x="volver" class="mini">←</button>' : '<span></span>'}<h2>${esc(titulo)}</h2><span class="oro">💰 ${G.oro}</span></header>`;
+}
+function gemaHTML(clave) {
+  const g = gemaInfo(clave);
+  return g ? `<span class="gema" style="--c:${g.def.c}" title="${esc(nombreGema(clave))}">◆</span>` : '<span class="gema vacia">◇</span>';
+}
+function nombreItem(it) { return EQ[it.id].n + (it.mejora ? ` +${it.mejora}` : ''); }
+function nombreItemHTML(it) { const R = RAREZAS[it.rareza || 0]; return `<span class="rz rz${it.rareza || 0}" style="color:${R.c}">${esc(nombreItem(it))}</span>`; }
+function statsInst(it) {
+  const d = EQ[it.id], R = RAREZAS[it.rareza || 0], p = [];
+  if (d.slot === 'arma') p.push(`Poder ${Math.round(d.poder * (1 + R.m)) + it.mejora * 2}`);
+  if (d.def) p.push(`Def ${Math.round(d.def * (1 + (d.slot === 'armadura' ? R.m : 0))) + (d.slot === 'armadura' ? it.mejora : 0)}`);
+  if (d.res) p.push(`Res ${Math.round(d.res * (1 + (d.slot === 'armadura' ? R.m : 0))) + (d.slot === 'armadura' ? it.mejora : 0)}`);
+  ['atk', 'mag', 'mp', 'spd', 'mov', 'salto', 'eva'].forEach(k => { if (d[k]) p.push(`${{ atk:'Atq', mag:'Mag', mp:'PM', spd:'Vel', mov:'Mov', salto:'Salto', eva:'Eva' }[k]} +${d[k]}`); });
+  for (const [k, v] of Object.entries(it.bonos || {})) p.push(`<span style="color:${R.c}">${BONOS_EQ[k]} +${v}</span>`);
+  const el = d.el || it.el; if (el) p.push(ELEMENTOS[el].i + ' ' + ELEMENTOS[el].n);
+  if (d.inmune) p.push('Inmune: ' + d.inmune.map(e => ESTADOS[e].n).join(', '));
+  if (it.gemas.length) p.push(`${it.gemas.length} engarce${it.gemas.length > 1 ? 's' : ''}`);
+  return p.join(' · ');
+}
+function statsItem(id, mejora = 0) {
+  const d = EQ[id], p = [];
+  if (d.slot === 'arma') p.push(`Poder ${d.poder + mejora * 2}`);
+  if (d.def) p.push(`Def ${d.def + (d.slot === 'armadura' ? mejora : 0)}`);
+  if (d.res) p.push(`Res ${d.res + (d.slot === 'armadura' ? mejora : 0)}`);
+  ['atk', 'mag', 'mp', 'spd', 'mov', 'salto', 'eva'].forEach(k => { if (d[k]) p.push(`${{ atk:'Atq', mag:'Mag', mp:'PM', spd:'Vel', mov:'Mov', salto:'Salto', eva:'Eva' }[k]} +${d[k]}`); });
+  if (d.el) p.push(ELEMENTOS[d.el].i + ' ' + ELEMENTOS[d.el].n);
+  if (d.inmune) p.push('Inmune: ' + d.inmune.map(e => ESTADOS[e].n).join(', '));
+  if (d.veneno) p.push('Envenena');
+  if (d.gemas) p.push(`${d.gemas} engarce${d.gemas > 1 ? 's' : ''}`);
+  return p.join(' · ');
+}
+function iconoItem(id) { return ICO.html(ICO.deItem(id), 34); }
+
+// ---------- Título ----------
+function pantallaTitulo() {
+  Sonido.musica('titulo');
+  montar(`
+    <div class="titulo">
+      <canvas id="tit-cv"></canvas>
+      <div class="tit-txt">
+        <div class="tit-camp">🔔</div>
+        <h1>Campanas<br>de Bruma</h1>
+        <p class="tit-sub">Un juego de tácticas</p>
+      </div>
+      <div class="tit-botones">
+        <button data-x="jugar" class="ok grande">Jugar</button>
+        <button data-x="ayuda" class="sec">Cómo se juega</button>
+      </div>
+      <div class="tit-pie">Tocá para activar el sonido</div>
+    </div>`, {
+    jugar: elegirRanura,
+    ayuda: mostrarAyuda,
+  });
+  animarTitulo();
+}
+// Tres partidas guardadas por celular: cada uno juega la suya sin pisar las otras.
+function elegirRanura() {
+  const fila = i => {
+    const r = resumenSlot(i);
+    return `<div class="ranura"><div class="ran-dat"><b>Partida ${i + 1}${r && r.nombre ? ' · ' + esc(r.nombre) : ''}</b><small>${r ? (r.fin ? 'Historia terminada' : 'Capítulo ' + [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 5, 5][Math.min(r.paso, 11)]) + ` · nivel ${r.nv} · ${r.oro} oro` : 'Vacía'}</small></div>
+      ${r ? `<button data-x="cont" data-i="${i}" class="ok mini">Seguir</button><button data-x="borrar" data-i="${i}" class="peligro mini">🗑</button>` : `<button data-x="nueva" data-i="${i}" class="mini">Nueva</button>`}</div>`;
+  };
+  modal(`<h3>Elegí tu partida</h3><p class="sub centro">Cada partida se guarda aparte en este celular. Si jugás con amigos, cada uno usa la suya (o juega en su propio teléfono).</p>${[0, 1, 2].map(fila).join('')}<button data-x="cerrar" class="sec">Volver</button>`, {
+    cont: (d, c) => { c(); usarSlot(+d.i); cargar(); pantallaMapa(); },
+    nueva: (d, c) => {
+      c(); usarSlot(+d.i);
+      const n = (prompt('¿Cómo se llama quien juega esta partida?', '') || '').trim().slice(0, 16);
+      nuevaPartida(); G.nombre = n; guardar(); jugarPaso(0);
+    },
+    borrar: (d, c) => { c(); confirmar(`¿Borrar la partida ${+d.i + 1}? No se puede deshacer.`, () => { borrarSlot(+d.i); elegirRanura(); }); },
+  });
+}
+function animarTitulo() {
+  const cv = document.getElementById('tit-cv'); if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const r = cv.getBoundingClientRect(); cv.width = r.width; cv.height = r.height;
+  const nieblas = Array.from({ length:18 }, () => ({ x:Math.random(), y:0.4 + Math.random() * 0.6, v:azar(0.0002, 0.0008), s:azar(0.2, 0.5) }));
+  const estrellas = Array.from({ length:60 }, () => ({ x:Math.random(), y:Math.random() * 0.5, f:Math.random() * 6 }));
+  const step = t => {
+    if (!document.getElementById('tit-cv')) return;
+    const W = cv.width, H = cv.height;
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0b1030'); g.addColorStop(0.6, '#2a2050'); g.addColorStop(1, '#4a3a6a');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    estrellas.forEach(e => { ctx.fillStyle = `rgba(255,255,255,${0.4 + Math.sin(t / 600 + e.f) * 0.4})`; ctx.fillRect(e.x * W, e.y * H, 2, 2); });
+    // Torres con campanas
+    [[0.12, 0.55], [0.3, 0.42], [0.5, 0.36], [0.7, 0.42], [0.88, 0.55]].forEach(([x, y], i) => {
+      const tx = x * W, ty = y * H, w = W * 0.07;
+      ctx.fillStyle = '#1a1430'; ctx.fillRect(tx - w / 2, ty, w, H - ty);
+      ctx.beginPath(); ctx.moveTo(tx - w * 0.7, ty); ctx.lineTo(tx, ty - w * 1.2); ctx.lineTo(tx + w * 0.7, ty); ctx.fill();
+      const sw = Math.sin(t / 700 + i) * 0.25;
+      ctx.save(); ctx.translate(tx, ty + w * 0.3); ctx.rotate(sw);
+      ctx.fillStyle = '#e8c86a'; ctx.beginPath(); ctx.moveTo(-w * 0.25, w * 0.35); ctx.quadraticCurveTo(-w * 0.22, -w * 0.05, 0, -w * 0.1); ctx.quadraticCurveTo(w * 0.22, -w * 0.05, w * 0.25, w * 0.35); ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = 'rgba(255,220,140,.12)'; ctx.beginPath(); ctx.arc(tx, ty + w * 0.4, w * 0.9, 0, Math.PI * 2); ctx.fill();
+    });
+    nieblas.forEach(n => {
+      n.x += n.v; if (n.x > 1.3) n.x = -0.3;
+      const rg = ctx.createRadialGradient(n.x * W, n.y * H, 0, n.x * W, n.y * H, n.s * W);
+      rg.addColorStop(0, 'rgba(230,230,250,.16)'); rg.addColorStop(1, 'rgba(230,230,250,0)');
+      ctx.fillStyle = rg; ctx.fillRect(n.x * W - n.s * W, n.y * H - n.s * W, n.s * W * 2, n.s * W * 2);
+    });
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+function mostrarAyuda() {
+  modal(`<h3>Cómo se juega</h3><div class="ayuda">
+    <p><b>Batallas por turnos.</b> Cada personaje actúa cuando le llega el turno (los más rápidos, más seguido). En tu turno podés <b>mover</b> y <b>actuar</b> una vez cada cosa, en el orden que quieras.</p>
+    <p><b>Alturas y espaldas.</b> Pegarle a alguien por la espalda hace más daño y casi nunca falla. Al terminar el turno elegís para dónde mira tu personaje. Desde lo alto los arcos llegan más lejos.</p>
+    <p><b>Clases.</b> Cada acción da <b>EXP</b> (nivel del personaje) y <b>PC</b> (puntos de la clase que tiene puesta). Con PC aprendés habilidades, y subiendo de nivel las clases se destraban clases nuevas.</p>
+    <p><b>Secundaria y pasiva.</b> Además de su clase, cada personaje puede usar las habilidades de otra clase (secundaria) y llevar una habilidad pasiva aprendida.</p>
+    <p><b>Herrería.</b> Mejorá armas y armaduras con oro y minerales, engarzá <b>gemas</b> (dan elemento, atributos o una habilidad extra) y forjá equipo especial.</p>
+    <p><b>Mascotas.</b> Acompañan a su dueño, le suben atributos y a veces actúan solas. Suben de nivel con las batallas.</p>
+    <p><b>Patrullas.</b> En las zonas que ya ganaste podés volver a pelear para juntar experiencia, oro y materiales.</p>
+    <p><b>Pueblos.</b> Arrastrá el dedo para caminar. Entrá a las tiendas por la puerta y hablá con la gente: algunos cuentan cosas según cómo vas, y otros te dan <b>misiones secretas</b> que aparecen en el mapa.</p>
+    <p><b>Hechizos con carga.</b> Los hechizos grandes no salen al instante: se ven en la fila de turnos (✦) y caen donde apuntaste. Si el enemigo se mueve, lo esquiva.</p>
+    <p><b>Rarezas.</b> El equipo puede ser común, raro, especial, legendario o mítico: más poder, atributos extra y más engarces.</p>
+    <p><b>Es difícil a propósito.</b> Si un jefe te gana, entrená, mejorá el equipo y probá otras clases.</p>
+  </div><button data-x="cerrar" class="ok">Entendido</button>`);
+}
+
+// ---------- Mapa del mundo ----------
+let imgMundo = null;
+function pintarMundo() {
+  if (imgMundo) return imgMundo;
+  const W = 216, H = 336, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d'), img = ctx.createImageData(W, H);
+  const r = (() => { let s = 12345; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; })();
+  const G0 = 12, grid = Array.from({ length:(G0 + 1) * (G0 + 1) }, r);
+  const ruido = (x, y, f) => {
+    const gx = x * f, gy = y * f, ix = Math.floor(gx) % G0, iy = Math.floor(gy) % G0, fx = gx - Math.floor(gx), fy = gy - Math.floor(gy);
+    const v = (a, b) => grid[((b % G0) * (G0 + 1)) + (a % G0)];
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    return (v(ix, iy) * (1 - sx) + v(ix + 1, iy) * sx) * (1 - sy) + (v(ix, iy + 1) * (1 - sx) + v(ix + 1, iy + 1) * sx) * sy;
+  };
+  const nodos = Object.values(NODOS);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const nx = x / W, ny = y / H;
+    let h = ruido(nx, ny, 4) * 0.55 + ruido(nx, ny, 9) * 0.3 + ruido(nx, ny, 19) * 0.15;
+    const borde = Math.min(nx, 1 - nx, ny, 1 - ny);
+    h -= Math.max(0, 0.16 - borde) * 2.2;
+    // Alrededor de cada lugar hay tierra firme (pasto), para que ningún pueblo quede en el agua o en la nieve.
+    let cerca = 0;
+    nodos.forEach(n => { const d = Math.hypot(nx - n.x / 100, (ny - n.y / 100) * 1.5); cerca = Math.max(cerca, Math.exp(-(d * d) / 0.006)); });
+    h = h * (1 - cerca) + 0.55 * cerca;
+    h += 0.06;
+    let c;
+    if (h < 0.40) c = [40, 80, 150]; else if (h < 0.43) c = [62, 112, 182];
+    else if (h < 0.46) c = [224, 204, 138];
+    else if (h < 0.66) c = (ruido(nx, ny, 14) > 0.6 ? [52, 120, 60] : [92, 160, 74]);
+    else if (h < 0.76) c = [120, 120, 112];
+    else c = [236, 240, 248];
+    // La Bruma cubre el norte.
+    const bruma = Math.max(0, 0.3 - ny) * 1.7;
+    c = c.map((v, i) => v * (1 - bruma) + [170, 150, 210][i] * bruma);
+    
+    const i = (y * W + x) * 4;
+    img.data[i] = c[0]; img.data[i + 1] = c[1]; img.data[i + 2] = c[2]; img.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  imgMundo = cv.toDataURL();
+  return imgMundo;
+}
+function nodoVisible(id) { return G.paso >= NODOS[id].desde || (G.flags.fin && true); }
+// Los lugares secretos aparecen cuando algún vecino te cuenta de ellos.
+function nodosSecretos() {
+  return Object.entries(SECRETAS).filter(([id]) => G.flags['sec_' + id]).map(([id, S]) => [id, { n:S.n, tipo:'secreto', x:S.x, y:S.y, secreto:id }]);
+}
+function nodoDe(id) { return NODOS[id] || (SECRETAS[id] && { n:SECRETAS[id].n, tipo:'secreto', x:SECRETAS[id].x, y:SECRETAS[id].y, secreto:id }); }
+function pasoActual() { return HISTORIA[G.paso] || null; }
+function batallaGanada(bid) { const i = HISTORIA.findIndex(p => p.b === bid); return i >= 0 && i < G.paso; }
+
+function pantallaMapa() {
+  Sonido.musica('mapa');
+  const paso = pasoActual();
+  const sig = paso ? paso.nodo : null;
+  const nodos = Object.entries(NODOS).filter(([id]) => nodoVisible(id)).concat(nodosSecretos());
+  const caminos = CAMINOS.filter(([a, b]) => nodoVisible(a) && nodoVisible(b)).map(([a, b]) => {
+    const A = NODOS[a], Bn = NODOS[b];
+    return `<line x1="${A.x}" y1="${A.y}" x2="${Bn.x}" y2="${Bn.y}" />`;
+  }).join('');
+  montar(`
+    ${cabecera(G.flags.fin ? 'Aldmora (epílogo)' : 'Aldmora — Capítulo ' + capituloActual(), false)}
+    <div class="mundo">
+      <img class="mundo-img" src="${pintarMundo()}" alt="">
+      <svg class="mundo-caminos" viewBox="0 0 100 100" preserveAspectRatio="none">${caminos}</svg>
+      ${nodos.map(([id, n]) => `
+        <button class="nodo ${n.tipo} ${id === sig ? 'sig' : ''} ${(n.batalla && batallaGanada(n.batalla)) || (n.secreto && G.flags['sec_' + id + '_ok']) ? 'ganado' : ''}" style="left:${n.x}%;top:${n.y}%" data-x="nodo" data-id="${id}">
+          <span class="nodo-ic">${n.tipo === 'pueblo' ? '🏠' : n.secreto ? (G.flags['sec_' + id + '_ok'] ? '⚔️' : '❓') : id === sig ? '❗' : '⚔️'}</span><span class="nodo-n">${esc(n.n)}</span>
+        </button>`).join('')}
+    </div>
+    <div class="mapa-pie">
+      ${paso ? `<div class="mision">Siguiente: <b>${esc(BATALLAS[paso.b].n)}</b> en ${esc(NODOS[paso.nodo].n)}</div>` : '<div class="mision">La historia terminó. ¡Seguí entrenando!</div>'}
+      <div class="fila">
+        <button data-x="grupo">👥 Grupo</button>
+        ${paso ? '<button data-x="ir" class="ok">❗ Ir</button>' : ''}
+        <button data-x="ajustes" class="sec">⚙️</button>
+      </div>
+    </div>`, {
+    nodo: d => tocarNodo(d.id),
+    ir: () => tocarNodo(sig),
+    grupo: () => pantallaGrupo(pantallaMapa),
+    ajustes: pantallaAjustes,
+  });
+}
+function tocarNodo(id) {
+  const n = nodoDe(id), paso = pasoActual();
+  const opciones = [];
+  if (n.secreto) {
+    const S = SECRETAS[id], hecho = G.flags['sec_' + id + '_ok'];
+    const nv = Math.max(...S.batalla.e.map(e => e.nv));
+    if (!hecho) opciones.push(`<button data-x="secreta" class="ok">❓ ${esc(S.n)} (enemigos nivel ${nv})</button>`);
+    else opciones.push(`<button data-x="patrulla">⚔️ Patrullar (nivel ~${Math.max(nivelPromedio(), nv - 2)})</button>`);
+  }
+  if (paso && paso.nodo === id) opciones.push(`<button data-x="historia" class="ok">❗ ${esc(BATALLAS[paso.b].n)} (historia)</button>`);
+  if (n.tipo === 'pueblo') opciones.push('<button data-x="pueblo">🏠 Entrar al pueblo</button>');
+  if (n.batalla && batallaGanada(n.batalla) && n.patrulla) opciones.push(`<button data-x="patrulla">⚔️ Patrullar (nivel ~${nivelPromedio()})</button>`);
+  if (!opciones.length) { toast('Todavía no hay nada que hacer acá.'); return; }
+  if (opciones.length === 1 && n.tipo === 'pueblo' && !(paso && paso.nodo === id)) { pantallaPueblo(id); return; }
+  modal(`<h3>${esc(n.n)}</h3>${opciones.join('')}<button data-x="cerrar" class="sec">Cancelar</button>`, {
+    historia: (d, c) => { c(); jugarPaso(G.paso); },
+    pueblo: (d, c) => { c(); pantallaPueblo(id); },
+    patrulla: (d, c) => { c(); patrullar(id); },
+    secreta: (d, c) => { c(); jugarSecreta(id); },
+  });
+}
+function pantallaAjustes() {
+  modal(`<h3>Ajustes</h3>
+    <button data-x="musica">${Sonido.musicaOn ? '🔊 Música: sí' : '🔇 Música: no'}</button>
+    <button data-x="fx">${Sonido.fxOn ? '🔔 Efectos: sí' : '🔕 Efectos: no'}</button>
+    <button data-x="ayuda">❓ Cómo se juega</button>
+    <button data-x="titulo">🏁 Ir al título</button>
+    <button data-x="borrar" class="peligro">🗑 Borrar partida</button>
+    <button data-x="cerrar" class="ok">Cerrar</button>`, {
+    musica: (d, c) => { Sonido.setMusica(!Sonido.musicaOn); c(); pantallaAjustes(); },
+    fx: (d, c) => { Sonido.setFx(!Sonido.fxOn); c(); pantallaAjustes(); },
+    ayuda: (d, c) => { c(); mostrarAyuda(); },
+    titulo: (d, c) => { c(); guardar(); pantallaTitulo(); },
+    borrar: (d, c) => { c(); confirmar('¿Borrar esta partida para siempre?', () => { borrarSlot(SLOT); pantallaTitulo(); }); },
+  });
+}
+
+// ---------- Historia ----------
+function jugarPaso(i) {
+  const paso = HISTORIA[i];
+  if (!paso) { pantallaMapa(); return; }
+  const def = BATALLAS[paso.b];
+  const seguir = () => {
+    (paso.une_antes || []).forEach(k => { const u = unirPersonaje(k); if (u) toast(`${u.nombre} se unió al grupo`, 'bien'); });
+    guardar();
+    preparar(def, { historia:true, alVolver:pantallaMapa }, ids => batallar(def, ids, res => {
+      if (!res.gano) { pantallaDerrota(def, ids, () => jugarPaso(i)); return; }
+      const premios = aplicarPremios(def, res);
+      pantallaResultados(premios, () => {
+        dialogo(paso.despues, () => {
+          (paso.une || []).forEach(k => { const u = unirPersonaje(k); if (u) toast(`${u.nombre} se unió al grupo`, 'bien'); });
+          if (paso.mascota && !G.mascotas.some(m => m.id === paso.mascota)) {
+            const m = nuevaMascota(paso.mascota);
+            const lior = G.unidades.find(u => u.unico === 'lior');
+            if (lior && !lior.mascota) lior.mascota = m.uid;
+            toast(`Nueva mascota: ${MASCOTAS[paso.mascota].n}`, 'bien'); Sonido.fx('mascota');
+          }
+          if (paso.aprende) { const u = G.unidades.find(v => v.unico === paso.aprende.quien); if (u && !u.apr.includes(paso.aprende.hab)) u.apr.push(paso.aprende.hab); }
+          G.paso = Math.max(G.paso, i + 1);
+          if (i + 1 >= HISTORIA.length) G.flags.fin = true;
+          guardar();
+          const prox = HISTORIA[i + 1];
+          if (prox && prox.seguida) jugarPaso(i + 1); else pantallaMapa();
+        });
+      });
+    }));
+  };
+  const conTitulo = cb => paso.cap ? tarjetaCapitulo(paso.cap, cb) : cb();
+  conTitulo(() => dialogo(paso.antes, seguir));
+}
+function jugarSecreta(id) {
+  const S = SECRETAS[id], def = S.batalla;
+  preparar(def, { alVolver:pantallaMapa }, ids => batallar(def, ids, res => {
+    if (!res.gano) { pantallaDerrota(def, ids, () => jugarSecreta(id)); return; }
+    G.flags['sec_' + id + '_ok'] = true;
+    const p = aplicarPremios(Object.assign({}, def, { premio:S.premio }), res);
+    pantallaResultados(p, () => dialogo([[null, `Misión secreta cumplida: «${S.n}». Volvé a hablar con quien te la dio.`]], pantallaMapa));
+  }));
+}
+function patrullar(id) {
+  const n = NODOS[id] || { n:SECRETAS[id].n, patrulla:SECRETAS[id].patrulla, base:SECRETAS[id].batalla };
+  const base = n.base || BATALLAS[n.batalla];
+  const nv = n.base ? Math.max(nivelPromedio(), Math.max(...base.e.map(e => e.nv)) - 2) : nivelPromedio();
+  const pos = base.e.map(e => [e.x, e.y]).sort(() => Math.random() - 0.5);
+  const cant = clamp(3 + Math.floor(Math.random() * 3), 3, pos.length);
+  const e = pos.slice(0, cant).map(([x, y]) => { const [c, t] = elegir(n.patrulla).split(':'); return { c, t, nv:Math.max(1, nv + Math.floor(Math.random() * 3) - 1), x, y }; });
+  const def = { n:'Patrulla: ' + n.n, mapa:base.mapa, musica:'batalla', aliados:base.aliados, e, oro:60 + nv * 20, patrulla:true, objetivo:'Derrotá a todos los enemigos' };
+  preparar(def, { alVolver:pantallaMapa }, ids => batallar(def, ids, res => {
+    if (!res.gano) { pantallaDerrota(def, ids, () => patrullar(id)); return; }
+    pantallaResultados(aplicarPremios(def, res), pantallaMapa);
+  }));
+}
+function batallar(def, ids, alTerminar) {
+  Batalla.iniciar({ def, ids, onFin: res => { guardar(); alTerminar(res); } });
+}
+function aplicarPremios(def, res) {
+  const g = res.ganado;
+  const p = { oro:(def.oro || 0) + g.oro, mat:Object.assign({}, g.mat), obj:Object.assign({}, g.obj), gemas:Object.assign({}, g.gemas), mascotas:[], extra:[], equipo:[] };
+  const pr = def.premio || {};
+  p.oro += pr.oro || 0;
+  for (const [k, v] of Object.entries(pr.mat || {})) p.mat[k] = (p.mat[k] || 0) + v;
+  for (const [k, v] of Object.entries(pr.gemas || {})) p.gemas[k] = (p.gemas[k] || 0) + v;
+  (g.equipo || []).concat(pr.equipo || []).forEach(e => p.equipo.push(nuevoItem(e.id, 0, e.rareza || 0)));
+  if (pr.mascota) { const m = nuevaMascota(pr.mascota); const libre = G.unidades.find(u => !u.mascota); if (libre) libre.mascota = m.uid; p.extra.push(`Nueva mascota: ${MASCOTAS[pr.mascota].n}`); }
+  for (const [k, v] of Object.entries(def.mat || {})) p.mat[k] = (p.mat[k] || 0) + v;
+  if (def.gema) p.gemas[def.gema + '1'] = (p.gemas[def.gema + '1'] || 0) + 1;
+  G.oro += p.oro;
+  for (const [k, v] of Object.entries(p.mat)) G.mat[k] = (G.mat[k] || 0) + v;
+  for (const [k, v] of Object.entries(p.obj)) G.obj[k] = (G.obj[k] || 0) + v;
+  for (const [k, v] of Object.entries(p.gemas)) sumarGema(k, v);
+  // Mascotas de los que pelearon
+  res.participantes.forEach(pt => {
+    const u = G.unidades.find(v => v.id === pt.id);
+    if (!u) return;
+    if (!pt.ko) darExp(u, 0, 10);
+    const m = u.mascota ? mascota(u.mascota) : null;
+    if (m && m.nivel < 10) {
+      m.exp += 35;
+      if (m.exp >= 100) { m.exp -= 100; m.nivel++; p.mascotas.push(`${m.nombre} subió a nivel ${m.nivel}`); }
+    }
+  });
+  G.batallas++;
+  guardar();
+  return p;
+}
+function pantallaResultados(p, seguir) {
+  const lineas = [];
+  lineas.push(`<div class="res-fila">💰 <b>+${p.oro}</b> oro</div>`);
+  for (const [k, v] of Object.entries(p.mat)) lineas.push(`<div class="res-fila">${ICO.html(k, 20)} ${esc(MAT[k].n)} x${v}</div>`);
+  for (const [k, v] of Object.entries(p.obj)) lineas.push(`<div class="res-fila">${ICON_OBJ[k] || '🎁'} ${esc(OBJ[k].n)} x${v}</div>`);
+  for (const [k, v] of Object.entries(p.gemas)) lineas.push(`<div class="res-fila">${gemaHTML(k)} ${esc(nombreGema(k))} x${v}</div>`);
+  (p.equipo || []).forEach(it => lineas.push(`<div class="res-fila">${iconoItem(it.id).replace('34px', '22px').replace('34px', '22px')} ${nombreItemHTML(it)} <small>(${RAREZAS[it.rareza || 0].n})</small></div>`));
+  (p.extra || []).forEach(t => lineas.push(`<div class="res-fila">🐾 ${esc(t)}</div>`));
+  p.mascotas.forEach(t => lineas.push(`<div class="res-fila">🐾 ${esc(t)}</div>`));
+  montar(`<div class="resultados"><h1 class="brilla">¡Victoria!</h1>
+    <div class="ventana">${lineas.join('')}</div>
+    <div class="res-grupo">${G.unidades.slice(0, 8).map(u => `<div class="res-u">${spriteHTML(visDe(u), 40)}<span>${esc(u.nombre)}</span><small>Nv ${u.nivel} · ${u.exp}%</small></div>`).join('')}</div>
+    <button data-x="seguir" class="ok grande">Continuar</button></div>`, { seguir });
+}
+function pantallaDerrota(def, ids, reintentar) {
+  montar(`<div class="resultados derrota"><h1>Derrota...</h1>
+    <p>La experiencia y los PC que ganaron se conservan. Podés reintentar, o entrenar y equiparte mejor.</p>
+    <button data-x="reintentar" class="ok grande">Reintentar</button>
+    <button data-x="mapa" class="grande">Volver al mapa</button></div>`, { reintentar, mapa:pantallaMapa });
+}
+
+// ---------- Diálogos ----------
+function tarjetaCapitulo(txt, cb) {
+  Sonido.fx('sonido');
+  let hecho = false;
+  const una = () => { if (!hecho) { hecho = true; cb(); } };
+  montar(`<div class="capitulo" data-x="seguir"><div class="cap-txt">${esc(txt)}</div></div>`, { seguir:una });
+  setTimeout(una, 3200);
+}
+function dialogo(lineas, cb) {
+  if (!lineas || !lineas.length) { cb(); return; }
+  let i = 0, escribiendo = null, terminado = false;
+  const fin = () => { if (terminado) return; terminado = true; clearInterval(escribiendo); document.querySelector('.dialogo')?.remove(); cb(); };
+  const caja = document.createElement('div');
+  caja.className = 'dialogo';
+  caja.innerHTML = `<div class="dlg-fondo"></div><div class="dlg-caja"><div class="dlg-retrato"></div><div class="dlg-cuerpo"><div class="dlg-nombre"></div><div class="dlg-texto"></div></div><div class="dlg-sig">▼</div></div><button class="dlg-saltar mini">Saltar ⏭</button>`;
+  document.body.appendChild(caja);
+  const mostrar = () => {
+    const [quien, txt] = lineas[i];
+    const pj = !quien ? null : typeof quien === 'string' ? PJ[quien] : quien;
+    const vis = pj ? (pj.vis || { clase:pj.clase, look:pj.look, t:pj.t }) : null;
+    caja.querySelector('.dlg-nombre').textContent = pj ? pj.n : '';
+    caja.querySelector('.dlg-retrato').innerHTML = pj ? `<img src="${SPR.retrato(vis).toDataURL()}" alt="">` : '';
+    caja.classList.toggle('narracion', !pj);
+    const el = caja.querySelector('.dlg-texto');
+    el.textContent = '';
+    let n = 0;
+    clearInterval(escribiendo);
+    escribiendo = setInterval(() => {
+      n += 2; el.textContent = txt.slice(0, n);
+      if (n % 6 === 0) Sonido.fx('pagina');
+      if (n >= txt.length) { clearInterval(escribiendo); escribiendo = null; }
+    }, 28);
+  };
+  caja.addEventListener('click', e => {
+    Sonido.iniciar();
+    if (e.target.closest('.dlg-saltar')) { fin(); return; }
+    if (escribiendo) { clearInterval(escribiendo); escribiendo = null; caja.querySelector('.dlg-texto').textContent = lineas[i][1]; return; }
+    i++;
+    if (i >= lineas.length) fin(); else mostrar();
+  });
+  mostrar();
+}
+
+// ---------- Preparación ----------
+function preparar(def, opts, empezar) {
+  const max = Math.min(5, def.aliados.length);
+  const sel = new Set();
+  const lior = G.unidades.find(u => u.unico === 'lior');
+  G.unidades.slice().sort((a, b) => (b.unico === 'lior') - (a.unico === 'lior') || b.nivel - a.nivel).slice(0, max).forEach(u => sel.add(u.id));
+  const nvE = Math.round(def.e.reduce((s, e) => s + e.nv, 0) / def.e.length);
+  const pintar = () => {
+    montar(`${cabecera('Preparar batalla')}
+      <div class="prep-info"><b>${esc(def.n)}</b><br><span class="sub">Enemigos: ${def.e.length} · nivel ~${nvE} · ${esc(def.objetivo || '')}</span></div>
+      <p class="sub centro">Elegí hasta ${max} personajes ${opts.historia ? '(Lior tiene que ir)' : ''}</p>
+      <div class="lista-u">${G.unidades.map(u => {
+        const s = calcStats(u), on = sel.has(u.id);
+        return `<button class="u-fila ${on ? 'on' : ''}" data-x="tog" data-id="${u.id}">${spriteHTML(visDe(u), 44)}
+          <div class="u-dat"><b>${esc(u.nombre)}</b><span>${CLASES[u.clase].n} · Nv ${u.nivel}</span><small>PV ${s.hpMax} · PM ${s.mpMax}${u.mascota ? ' · 🐾' : ''}</small></div>
+          <span class="check">${on ? '✔' : ''}</span></button>`;
+      }).join('')}</div>
+      <div class="pie-fijo"><button data-x="grupo" class="sec">👥 Equipar</button><button data-x="ir" class="ok" ${sel.size ? '' : 'disabled'}>⚔️ ¡A pelear! (${sel.size}/${max})</button></div>`, {
+      volver: opts.alVolver || pantallaMapa,
+      tog: d => {
+        if (sel.has(d.id)) { if (opts.historia && lior && d.id === lior.id) { toast('Lior tiene que ir'); return; } sel.delete(d.id); }
+        else { if (sel.size >= max) { toast(`Máximo ${max}`); return; } sel.add(d.id); }
+        pintar();
+      },
+      grupo: () => pantallaGrupo(pintar),
+      ir: () => empezar([...sel]),
+    });
+  };
+  pintar();
+}
+
+// ---------- Pueblo ----------
+function pantallaPueblo(id) { Pueblo.entrar(id); }
+function escenaPueblo(id) {
+  // Una tira de casitas con el grupo paseando.
+  const casas = { brezal:['#b04a3a', '#c86a3a', '#8a5a3a'], garza:['#3a6a9a', '#e0d0b0', '#3a8a8a'], ciudadela:['#7a7a8a', '#e6c45a', '#5a4a8a'] }[id] || ['#b04a3a', '#c86a3a', '#8a5a3a'];
+  return `<div class="tira">${casas.map((c, i) => `<div class="casa" style="--techo:${c};--d:${i}"></div>`).join('')}
+    <div class="paseo">${G.unidades.slice(0, 4).map((u, i) => `<span style="--i:${i}">${spriteHTML(visDe(u), 40)}</span>`).join('')}</div></div>`;
+}
+
+// ---------- Tienda ----------
+function pantallaTienda(id, tab = 'obj', volver = () => pantallaPueblo(id)) {
+  const tier = tierActual();
+  const objs = Object.entries(OBJ).filter(([k, o]) => o.tier <= tier && o.precio);
+  const eqs = Object.entries(EQ).filter(([k, d]) => d.tier <= tier && d.precio && !d.forja);
+  let cuerpo = '';
+  if (tab === 'obj') {
+    cuerpo = objs.map(([k, o]) => `<div class="art"><span class="art-ic">${ICON_OBJ[k]}</span><div class="art-dat"><b>${esc(o.n)}</b><small>${esc(o.d)}</small><small>Tenés: ${G.obj[k] || 0}</small></div>
+      <button data-x="comprarObj" data-id="${k}" ${G.oro < o.precio ? 'disabled' : ''}>${o.precio} 💰</button></div>`).join('');
+  } else if (tab === 'eq') {
+    const ofertas = ofertasTienda(id);
+    cuerpo = ofertas.length ? `<div class="sep">Ofertas especiales (cambian después de cada batalla)</div>` + ofertas.map((o, i) => {
+      const d = EQ[o.id], R = RAREZAS[o.rareza];
+      return `<div class="art oferta" style="--rz:${R.c}"><span class="art-ic">${iconoItem(o.id)}</span><div class="art-dat"><b style="color:${R.c}">${esc(d.n)}</b><small>${R.n} · ${statsItem(o.id)}</small><small>Con atributos extra al azar</small></div>
+        <button data-x="comprarOferta" data-i="${i}" ${o.vendido || G.oro < o.precio ? 'disabled' : ''}>${o.vendido ? 'Vendido' : o.precio + ' 💰'}</button></div>`;
+    }).join('') : '';
+    const grupos = [['Armas', d => d.slot === 'arma'], ['Armaduras', d => d.slot === 'armadura'], ['Accesorios', d => d.slot === 'acc']];
+    cuerpo += grupos.map(([t, f]) => `<div class="sep">${t}</div>` + eqs.filter(([, d]) => f(d)).map(([k, d]) => {
+      const quien = G.unidades.filter(u => d.slot !== "acc" && puedeEquipar(u, k)).map(u => u.nombre).slice(0, 4).join(', ');
+      const tiene = G.equipo.filter(i => i.id === k).length;
+      return `<div class="art"><span class="art-ic">${iconoItem(k)}</span><div class="art-dat"><b>${esc(d.n)}</b><small>${statsItem(k)}</small><small>${d.slot === 'arma' ? ARMA_INFO[d.tipo].n : d.slot === 'armadura' ? ARMADURA_INFO[d.tipo] : 'Accesorio'}${quien ? ' · ' + esc(quien) : ''} · Tenés: ${tiene}</small></div>
+        <button data-x="comprarEq" data-id="${k}" ${G.oro < d.precio ? 'disabled' : ''}>${d.precio} 💰</button></div>`;
+    }).join('')).join('');
+  } else {
+    const sueltos = G.equipo.filter(i => !dueñoDe(i.uid));
+    const vObjs = Object.entries(G.obj).filter(([k, v]) => v > 0 && OBJ[k].precio);
+    cuerpo = (sueltos.length ? '<div class="sep">Equipo sin usar</div>' : '') + sueltos.map(it => {
+      const pr = precioVenta(it);
+      return `<div class="art"><span class="art-ic">${iconoItem(it.id)}</span><div class="art-dat"><b>${nombreItemHTML(it)}</b><small>${statsInst(it)}</small><small>${it.gemas.map(gemaHTML).join('')}</small></div><button data-x="venderEq" data-id="${it.uid}">+${pr} 💰</button></div>`;
+    }).join('') + (vObjs.length ? '<div class="sep">Objetos</div>' : '') + vObjs.map(([k, v]) => `<div class="art"><span class="art-ic">${ICON_OBJ[k]}</span><div class="art-dat"><b>${esc(OBJ[k].n)}</b><small>Tenés: ${v}</small></div><button data-x="venderObj" data-id="${k}">+${Math.round(OBJ[k].precio / 2)} 💰</button></div>`).join('');
+    if (!cuerpo) cuerpo = '<p class="sub centro">No tenés nada para vender.</p>';
+  }
+  montar(`${cabecera('Tienda')}
+    <div class="tabs"><button data-x="tab" data-t="obj" class="${tab === 'obj' ? 'on' : ''}">Objetos</button><button data-x="tab" data-t="eq" class="${tab === 'eq' ? 'on' : ''}">Equipo</button><button data-x="tab" data-t="vender" class="${tab === 'vender' ? 'on' : ''}">Vender</button></div>
+    <div class="lista">${cuerpo}</div>`, {
+    volver,
+    tab: d => pantallaTienda(id, d.t, volver),
+    comprarObj: d => { const o = OBJ[d.id]; if (G.oro < o.precio) return; G.oro -= o.precio; G.obj[d.id] = (G.obj[d.id] || 0) + 1; Sonido.fx('compra'); guardar(); pantallaTienda(id, tab, volver); },
+    comprarOferta: d => {
+      const o = ofertasTienda(id)[+d.i]; if (!o || o.vendido || G.oro < o.precio) return;
+      G.oro -= o.precio; o.vendido = true; const it = nuevoItem(o.id, 0, o.rareza);
+      Sonido.fx('compra'); chispazo(); toast(`¡${EQ[o.id].n} ${RAREZAS[o.rareza].n.toLowerCase()}!`, 'bien'); guardar(); pantallaTienda(id, tab, volver);
+    },
+    comprarEq: d => { const e = EQ[d.id]; if (G.oro < e.precio) return; G.oro -= e.precio; nuevoItem(d.id); Sonido.fx('compra'); toast(`Compraste ${e.n}. Equipalo desde Grupo.`); guardar(); pantallaTienda(id, tab, volver); },
+    venderEq: d => { const it = item(d.id); if (!it) return; G.oro += precioVenta(it); it.gemas.forEach(g => g && sumarGema(g)); G.equipo = G.equipo.filter(i => i !== it); Sonido.fx('moneda'); guardar(); pantallaTienda(id, tab, volver); },
+    venderObj: d => { if (!G.obj[d.id]) return; G.obj[d.id]--; if (!G.obj[d.id]) delete G.obj[d.id]; G.oro += Math.round(OBJ[d.id].precio / 2); Sonido.fx('moneda'); guardar(); pantallaTienda(id, tab, volver); },
+  });
+}
+function ofertasTienda(id) {
+  G.ofertas = G.ofertas || {};
+  const o = G.ofertas[id];
+  if (o && o.clave === G.batallas) return o.lista;
+  const tier = tierActual();
+  const lista = [0, 1, 2].map(() => {
+    const eid = equipoAzar(tier), rz = Math.random() < 0.12 && tier >= 3 ? 3 : Math.random() < 0.35 ? 2 : 1;
+    return { id:eid, rareza:rz, precio:Math.round(EQ[eid].precio * (1 + RAREZAS[rz].m * 3)), vendido:false };
+  });
+  G.ofertas[id] = { clave:G.batallas, lista };
+  return lista;
+}
+function puedeEquiparClaseAlguna(u, id) {
+  const d = EQ[id];
+  if (d.slot === 'acc') return false;
+  return clasesJugables().some(c => claseDesbloqueada(u, c) && (d.slot === 'arma' ? CLASES[c].armas.includes(d.tipo) : CLASES[c].armad.includes(d.tipo)));
+}
+
+// ---------- Herrería ----------
+function pantallaHerreria(id, tab = 'mejorar', sel = null, volver = () => pantallaPueblo(id)) {
+  const matHTML = `<div class="mats">${Object.entries(MAT).map(([k, m]) => `<span>${ICO.html(k, 18)} ${esc(m.n)}: <b>${G.mat[k] || 0}</b></span>`).join('')}</div>`;
+  let cuerpo = '';
+  const conDueño = it => { const d = dueñoDe(it.uid); return d ? ` · lo usa ${esc(d.nombre)}` : ''; };
+  if (tab === 'mejorar') {
+    const lista = G.equipo.filter(i => EQ[i.id].slot !== 'acc').sort((a, b) => (EQ[b.id].tier - EQ[a.id].tier));
+    cuerpo = lista.map(it => {
+      if (it.mejora >= 5) return `<div class="art"><span class="art-ic">${iconoItem(it.id)}</span><div class="art-dat"><b>${nombreItemHTML(it)}</b><small>Mejorado al máximo${conDueño(it)}</small></div></div>`;
+      const c = costoMejora(it), ok = G.oro >= c.oro && alcanza(c.mat);
+      return `<div class="art"><span class="art-ic">${iconoItem(it.id)}</span><div class="art-dat"><b>${nombreItemHTML(it)}</b><small>${statsInst(it)}${conDueño(it)}</small><small>→ +${it.mejora + 1}: ${c.oro} oro, ${Object.entries(c.mat).map(([k, v]) => `${v} ${MAT[k].n}`).join(', ')}</small></div>
+        <button data-x="mejorar" data-id="${it.uid}" ${ok ? '' : 'disabled'}>⚒️</button></div>`;
+    }).join('') || '<p class="sub centro">No tenés equipo para mejorar.</p>';
+  } else if (tab === 'gemas') {
+    if (!sel) {
+      const lista = G.equipo.filter(i => i.gemas.length);
+      cuerpo = '<p class="sub centro">Elegí qué pieza querés engarzar (50 oro por gema; sacarlas es gratis).</p>' + (lista.map(it => `<button class="art boton-art" data-x="selItem" data-id="${it.uid}"><span class="art-ic">${iconoItem(it.id)}</span><div class="art-dat"><b>${nombreItemHTML(it)}</b><small>${it.gemas.map(gemaHTML).join(' ')}${conDueño(it)}</small></div></button>`).join('') || '<p class="sub centro">Ninguna pieza tiene engarces. Las de la tienda a partir de "larga" o "de seda" ya tienen.</p>');
+    } else {
+      const it = item(sel);
+      const misGemas = Object.entries(G.gemas).filter(([, v]) => v > 0);
+      cuerpo = `<div class="ventana"><b>${nombreItemHTML(it)}</b><div class="engarces">${it.gemas.map((g, i) => `<button class="engarce" data-x="hueco" data-i="${i}">${gemaHTML(g)}<small>${g ? esc(nombreGema(g)) : 'vacío'}</small></button>`).join('')}</div>
+        <p class="sub">Tocá un engarce para sacar la gema. Para poner una, tocá una gema de abajo.</p></div>
+        <div class="sep">Tus gemas</div>
+        ${misGemas.map(([k, v]) => { const g = gemaInfo(k); return `<button class="art boton-art" data-x="poner" data-g="${k}"><span class="art-ic">${gemaHTML(k)}</span><div class="art-dat"><b>${esc(nombreGema(k))} x${v}</b><small>${esc(g.def.d)}</small></div></button>`; }).join('') || '<p class="sub centro">No tenés gemas. Se consiguen en batallas y en la joyería.</p>'}
+        <button data-x="volverItems" class="sec">← Otra pieza</button>`;
+    }
+  } else if (tab === 'fundir') {
+    const lista = Object.entries(G.gemas).filter(([k, v]) => v >= 3 && gemaInfo(k).nv < 3);
+    cuerpo = '<p class="sub centro">3 gemas iguales se funden en 1 de nivel siguiente. Más nivel, más efecto.</p>' + (lista.map(([k, v]) => {
+      const g = gemaInfo(k), costo = 150 * g.nv;
+      return `<div class="art"><span class="art-ic">${gemaHTML(k)}</span><div class="art-dat"><b>${esc(nombreGema(k))} x${v}</b><small>→ ${esc(nombreGema(g.id + (g.nv + 1)))} · ${costo} oro</small></div><button data-x="fundir" data-g="${k}" ${G.oro >= costo ? '' : 'disabled'}>🔥</button></div>`;
+    }).join('') || '<p class="sub centro">Necesitás 3 gemas iguales del mismo nivel.</p>');
+  } else {
+    cuerpo = FORJA.map(r => {
+      const d = EQ[r.id], ok = G.oro >= r.oro && alcanza(r.mat);
+      return `<div class="art"><span class="art-ic">${iconoItem(r.id)}</span><div class="art-dat"><b>${esc(d.n)}</b><small>${statsItem(r.id)}</small><small>${r.oro} oro, ${Object.entries(r.mat).map(([k, v]) => `${v} ${MAT[k].n} (${G.mat[k] || 0})`).join(', ')}</small></div><button data-x="forjar" data-id="${r.id}" ${ok ? '' : 'disabled'}>🔨</button></div>`;
+    }).join('');
+  }
+  montar(`${cabecera('Herrería')}${matHTML}
+    <div class="tabs"><button data-x="tab" data-t="mejorar" class="${tab === 'mejorar' ? 'on' : ''}">Mejorar</button><button data-x="tab" data-t="gemas" class="${tab === 'gemas' ? 'on' : ''}">Gemas</button><button data-x="tab" data-t="fundir" class="${tab === 'fundir' ? 'on' : ''}">Fundir</button><button data-x="tab" data-t="forjar" class="${tab === 'forjar' ? 'on' : ''}">Forjar</button></div>
+    <div class="lista">${cuerpo}</div>`, {
+    volver,
+    tab: d => pantallaHerreria(id, d.t, null, volver),
+    mejorar: d => {
+      const it = item(d.id), c = costoMejora(it);
+      if (G.oro < c.oro || !alcanza(c.mat)) return;
+      G.oro -= c.oro; for (const [k, v] of Object.entries(c.mat)) G.mat[k] -= v;
+      it.mejora++; Sonido.fx('forja'); chispazo(); toast(`${EQ[it.id].n} +${it.mejora}`, 'bien'); guardar(); pantallaHerreria(id, tab, null, volver);
+    },
+    selItem: d => pantallaHerreria(id, 'gemas', d.id, volver),
+    volverItems: () => pantallaHerreria(id, 'gemas', null, volver),
+    hueco: d => { const it = item(sel); const g = it.gemas[+d.i]; if (!g) return; sumarGema(g); it.gemas[+d.i] = null; guardar(); pantallaHerreria(id, 'gemas', sel, volver); },
+    poner: d => {
+      const it = item(sel); const i = it.gemas.indexOf(null);
+      if (i < 0) { toast('No hay engarces libres. Sacá una gema primero.'); return; }
+      if (G.oro < 50) { toast('Necesitás 50 de oro'); return; }
+      G.oro -= 50; sumarGema(d.g, -1); it.gemas[i] = d.g; Sonido.fx('forja'); chispazo(); guardar(); pantallaHerreria(id, 'gemas', sel, volver);
+    },
+    fundir: d => { const g = gemaInfo(d.g), costo = 150 * g.nv; if (G.oro < costo) return; G.oro -= costo; sumarGema(d.g, -3); sumarGema(g.id + (g.nv + 1)); Sonido.fx('forja'); chispazo(); toast(`¡${nombreGema(g.id + (g.nv + 1))}!`, 'bien'); guardar(); pantallaHerreria(id, tab, null, volver); },
+    forjar: d => {
+      const r = FORJA.find(f => f.id === d.id); if (G.oro < r.oro || !alcanza(r.mat)) return;
+      G.oro -= r.oro; for (const [k, v] of Object.entries(r.mat)) G.mat[k] -= v;
+      nuevoItem(r.id, 0, 3); Sonido.fx('forja'); setTimeout(() => Sonido.fx('nivel'), 300); chispazo(); toast(`¡Forjaste ${EQ[r.id].n} (legendario)!`, 'bien'); guardar(); pantallaHerreria(id, tab, null, volver);
+    },
+  });
+}
+function chispazo() {
+  const d = document.createElement('div'); d.className = 'chispazo';
+  for (let i = 0; i < 14; i++) { const s = document.createElement('i'); s.style.setProperty('--a', (i * 26) + 'deg'); s.style.setProperty('--d', (40 + Math.random() * 60) + 'px'); d.appendChild(s); }
+  document.body.appendChild(d); setTimeout(() => d.remove(), 700);
+}
+
+// ---------- Joyería ----------
+function pantallaJoyeria(id, volver = () => pantallaPueblo(id)) {
+  const venta = Object.entries(GEMAS);
+  const precio = k => GEMAS[k].efecto ? 450 : 250;
+  montar(`${cabecera('Joyería')}<p class="sub centro">Gemas de nivel I. Se engarzan en la herrería.</p>
+    <div class="lista">${venta.map(([k, g]) => `<div class="art"><span class="art-ic">${gemaHTML(k + '1')}</span><div class="art-dat"><b>${esc(g.n)} I</b><small>${esc(g.d)}</small><small>Tenés: ${G.gemas[k + '1'] || 0}</small></div><button data-x="comprar" data-id="${k}" ${G.oro < precio(k) ? 'disabled' : ''}>${precio(k)} 💰</button></div>`).join('')}</div>`, {
+    volver,
+    comprar: d => { const p = precio(d.id); if (G.oro < p) return; G.oro -= p; sumarGema(d.id + '1'); Sonido.fx('compra'); guardar(); pantallaJoyeria(id, volver); },
+  });
+}
+
+// ---------- Criadero de mascotas ----------
+function pantallaCriadero(id, volver = () => pantallaPueblo(id)) {
+  const venta = Object.entries(MASCOTAS).filter(([, m]) => m.precio);
+  montar(`${cabecera('Criadero de mascotas')}<p class="sub centro">Cada mascota acompaña a un personaje. Asignalas desde Grupo.</p>
+    <div class="lista">${venta.map(([k, m]) => `<div class="art"><span class="art-ic">${spriteHTML({ mascota:k }, 44)}</span><div class="art-dat"><b>${esc(m.n)}</b><small>${esc(m.d)}</small><small>Tenés: ${G.mascotas.filter(x => x.id === k).length}</small></div><button data-x="comprar" data-id="${k}" ${G.oro < m.precio ? 'disabled' : ''}>${m.precio} 💰</button></div>`).join('')}</div>`, {
+    volver,
+    comprar: d => {
+      const m = MASCOTAS[d.id]; if (G.oro < m.precio) return;
+      G.oro -= m.precio; const nm = nuevaMascota(d.id); Sonido.fx('mascota');
+      const libre = G.unidades.find(u => !u.mascota);
+      if (libre) { libre.mascota = nm.uid; toast(`${nm.nombre} ahora acompaña a ${libre.nombre}`, 'bien'); } else toast(`¡${m.n}!`, 'bien');
+      guardar(); pantallaCriadero(id, volver);
+    },
+  });
+}
+
+// ---------- Taberna ----------
+function candidatosTaberna() {
+  if (!G.taberna || G.taberna.clave !== G.batallas) {
+    const nv = Math.max(1, nivelPromedio() - 1);
+    G.taberna = { clave:G.batallas, lista:[0, 1, 2].map(() => ({ nombre:elegir(NOMBRES), clase:elegir(['recluta', 'novicio']), nivel:nv, look:{ pelo:elegir(PELOS), piel:elegir(PIELES) }, fac:facAzar() })) };
+  }
+  return G.taberna.lista;
+}
+function pantallaTaberna(id, volver = () => pantallaPueblo(id)) {
+  const lista = candidatosTaberna();
+  montar(`${cabecera('Taberna')}
+    <div class="ventana rumor">🍺 <i>"${esc(elegir(RUMORES))}"</i></div>
+    <div class="sep">Gente buscando trabajo</div>
+    <div class="lista">${lista.map((c, i) => {
+      const costo = costoReclutar(c.nivel);
+      return `<div class="art"><span class="art-ic">${spriteHTML({ clase:c.clase, look:c.look }, 44)}</span><div class="art-dat"><b>${esc(c.nombre)}</b><small>${CLASES[c.clase].n} · Nv ${c.nivel}</small></div><button data-x="reclutar" data-i="${i}" ${G.oro < costo || G.unidades.length >= 12 ? 'disabled' : ''}>${costo} 💰</button></div>`;
+    }).join('') || '<p class="sub centro">Por hoy no hay nadie. Volvé después de otra batalla.</p>'}</div>
+    <p class="sub centro">Grupo: ${G.unidades.length}/12</p>`, {
+    volver,
+    reclutar: d => {
+      const c = lista[+d.i], costo = costoReclutar(c.nivel);
+      if (G.oro < costo) return;
+      G.oro -= costo;
+      const u = crearUnidad(c);
+      const eqIni = c.clase === 'recluta' ? ['espada_corta', 'chaleco_cuero'] : ['vara_roble', 'tunica'];
+      eqIni.forEach(k => { const it = nuevoItem(k); u.eq[EQ[k].slot] = it.uid; });
+      if (c.clase === 'novicio') u.apr.push('chispa'); else u.apr.push('golpe_fuerte');
+      G.unidades.push(u);
+      lista.splice(+d.i, 1);
+      Sonido.fx('nivel'); toast(`${u.nombre} se unió al grupo`, 'bien'); guardar(); pantallaTaberna(id, volver);
+    },
+  });
+}
+
+// ---------- Grupo ----------
+function pantallaGrupo(volver, tab = 'personajes') {
+  let cuerpo = '';
+  if (tab === 'personajes') {
+    cuerpo = `<div class="lista-u">${G.unidades.map(u => {
+      const s = calcStats(u), cl = u.cl[u.clase];
+      const m = u.mascota ? mascota(u.mascota) : null;
+      return `<button class="u-fila" data-x="ficha" data-id="${u.id}">${spriteHTML(visDe(u), 48)}
+        <div class="u-dat"><b>${esc(u.nombre)}</b><span>${CLASES[u.clase].n} Nv${nivelClase(cl.tot)} · Nivel ${u.nivel}</span>
+        <small>PV ${s.hpMax} · PM ${s.mpMax} · ${cl.pc} PC${u.sec ? ' · 2ª ' + CLASES[u.sec].n : ''}</small>
+        <div class="barra mini"><i style="width:${u.exp}%;background:#ffd84a"></i></div></div>
+        ${m ? `<span class="masc-mini">${spriteHTML({ mascota:m.id }, 28)}</span>` : ''}</button>`;
+    }).join('')}</div>`;
+  } else if (tab === 'mascotas') {
+    cuerpo = G.mascotas.length ? `<div class="lista">${G.mascotas.map(m => {
+      const d = dueñoMascota(m.uid), M = MASCOTAS[m.id];
+      return `<button class="art boton-art" data-x="mascota" data-id="${m.uid}"><span class="art-ic">${spriteHTML({ mascota:m.id }, 44)}</span><div class="art-dat"><b>${esc(m.nombre)}</b> <small>${esc(M.n)} · Nv ${m.nivel}</small><small>${esc(M.d)}</small><small>${d ? 'Acompaña a ' + esc(d.nombre) : 'Sin dueño'}</small></div></button>`;
+    }).join('')}</div>` : '<p class="sub centro">Todavía no tenés mascotas.</p>';
+  } else {
+    const objs = Object.entries(G.obj).filter(([, v]) => v > 0);
+    const gemas = Object.entries(G.gemas).filter(([, v]) => v > 0);
+    const sueltos = G.equipo.filter(i => !dueñoDe(i.uid));
+    cuerpo = `<div class="sep">Objetos</div>${objs.map(([k, v]) => `<div class="art"><span class="art-ic">${ICON_OBJ[k]}</span><div class="art-dat"><b>${esc(OBJ[k].n)} x${v}</b><small>${esc(OBJ[k].d)}</small></div></div>`).join('') || '<p class="sub">Nada.</p>'}
+      <div class="sep">Materiales</div><div class="mats">${Object.entries(MAT).map(([k, m]) => `<span>${ICO.html(k, 18)} ${esc(m.n)}: <b>${G.mat[k] || 0}</b></span>`).join('')}</div>
+      <div class="sep">Gemas</div>${gemas.map(([k, v]) => `<div class="art"><span class="art-ic">${gemaHTML(k)}</span><div class="art-dat"><b>${esc(nombreGema(k))} x${v}</b><small>${esc(gemaInfo(k).def.d)}</small></div></div>`).join('') || '<p class="sub">Ninguna.</p>'}
+      <div class="sep">Equipo sin usar</div>${sueltos.map(it => `<div class="art"><span class="art-ic">${iconoItem(it.id)}</span><div class="art-dat"><b>${nombreItemHTML(it)}</b><small>${statsInst(it)}</small><small>${it.gemas.map(gemaHTML).join('')}</small></div></div>`).join('') || '<p class="sub">Nada.</p>'}`;
+  }
+  montar(`${cabecera('Grupo')}
+    <div class="tabs"><button data-x="tab" data-t="personajes" class="${tab === 'personajes' ? 'on' : ''}">Personajes</button><button data-x="tab" data-t="mascotas" class="${tab === 'mascotas' ? 'on' : ''}">Mascotas</button><button data-x="tab" data-t="inv" class="${tab === 'inv' ? 'on' : ''}">Inventario</button></div>
+    ${cuerpo}`, {
+    volver,
+    tab: d => pantallaGrupo(volver, d.t),
+    ficha: d => pantallaFicha(d.id, 'estado', () => pantallaGrupo(volver, 'personajes')),
+    mascota: d => elegirDueñoMascota(d.id, () => pantallaGrupo(volver, 'mascotas')),
+  });
+}
+function elegirDueñoMascota(mid, volver) {
+  const m = mascota(mid);
+  modal(`<h3>¿Quién lleva a ${esc(m.nombre)}?</h3>
+    ${G.unidades.map(u => `<button data-x="asignar" data-id="${u.id}">${esc(u.nombre)}${u.mascota ? ' (tiene ' + esc(mascota(u.mascota)?.nombre || '') + ')' : ''}</button>`).join('')}
+    <button data-x="nadie" class="sec">Nadie</button>
+    <button data-x="renombrar" class="sec">✏️ Cambiar nombre</button>
+    <button data-x="cerrar">Cancelar</button>`, {
+    asignar: (d, c) => {
+      G.unidades.forEach(u => { if (u.mascota === mid) u.mascota = null; });
+      const u = G.unidades.find(v => v.id === d.id); u.mascota = mid;
+      Sonido.fx('mascota'); guardar(); c(); volver();
+    },
+    nadie: (d, c) => { G.unidades.forEach(u => { if (u.mascota === mid) u.mascota = null; }); guardar(); c(); volver(); },
+    renombrar: (d, c) => { const n = prompt('Nombre de la mascota', m.nombre); if (n && n.trim()) { m.nombre = n.trim().slice(0, 14); guardar(); } c(); volver(); },
+  });
+}
+
+// ---------- Ficha del personaje ----------
+function pantallaFicha(uidU, tab, volver) {
+  const u = G.unidades.find(v => v.id === uidU);
+  const s = calcStats(u), C = CLASES[u.clase], cl = u.cl[u.clase];
+  const sig = pcParaSiguiente(cl.tot);
+  let cuerpo = '';
+  if (tab === 'estado') {
+    const fila = (n, v) => `<div class="st"><span>${n}</span><b>${v}</b></div>`;
+    cuerpo = `<div class="stats">${fila('Vida', s.hpMax)}${fila('Magia', s.mpMax)}${fila('Ataque', s.atk)}${fila('Defensa', s.def)}${fila('Magia (poder)', s.mag)}${fila('Resistencia', s.res)}${fila('Velocidad', Math.round(s.spd * 10) / 10)}${fila('Movimiento', s.mov)}${fila('Salto', s.salto)}${fila('Evasión', s.eva + '%')}${fila('Arma', `${ARMA_INFO[s.armaTipo]?.n || '—'} (${Math.round(s.armaPoder)})${s.armaEl ? ' ' + ELEMENTOS[s.armaEl].i : ''}`)}${fila('Alcance', s.rango.join('-'))}</div>
+      ${Object.keys(s.resEl).length ? `<p class="sub">Resiste: ${Object.entries(s.resEl).map(([e, v]) => `${ELEMENTOS[e].i} ${Math.round(v * 100)}%`).join(' · ')}</p>` : ''}
+      ${Object.keys(s.efectos).length ? `<p class="sub">Habilidades de gemas: ${Object.entries(s.efectos).map(([e, v]) => `${{ regen:'Regeneración', vampiro:'Vampiro', contra:'Contraataque' }[e]} ${'I'.repeat(Math.min(3, v))}`).join(' · ')}</p>` : ''}
+      <div class="ventana"><b>${C.n}</b> nivel ${nivelClase(cl.tot)} · ${cl.pc} PC para gastar${sig ? ` · faltan ${sig} PC para el nivel ${nivelClase(cl.tot) + 1}` : ' · nivel máximo'}<br><small>${esc(C.d)}</small><br><small>Secundaria: ${u.sec ? CLASES[u.sec].n : 'ninguna'} · Pasiva: ${u.pasiva ? HAB[u.pasiva].n : 'ninguna'}</small></div>
+      ${u.unico ? '' : '<button data-x="despedir" class="peligro">Despedir</button>'}`;
+  } else if (tab === 'equipo') {
+    const slot = (k, nombre) => {
+      const it = item(u.eq[k]);
+      return `<button class="art boton-art" data-x="slot" data-s="${k}"><span class="art-ic">${it ? iconoItem(it.id) : '➕'}</span><div class="art-dat"><small>${nombre}</small><b>${it ? nombreItemHTML(it) : 'Nada'}</b><small>${it ? statsInst(it) : ''}</small><small>${it ? it.gemas.map(gemaHTML).join(' ') : ''}</small></div></button>`;
+    };
+    const m = u.mascota ? mascota(u.mascota) : null;
+    cuerpo = slot('arma', `Arma (${C.armas.map(a => ARMA_INFO[a].n).join(', ')})`) + slot('armadura', `Armadura (${C.armad.map(a => ARMADURA_INFO[a]).join(', ')})`) + slot('acc', 'Accesorio') +
+      `<button class="art boton-art" data-x="mascotaSlot"><span class="art-ic">${m ? spriteHTML({ mascota:m.id }, 40) : '🐾'}</span><div class="art-dat"><small>Mascota</small><b>${m ? esc(m.nombre) + ' Nv ' + m.nivel : 'Ninguna'}</b><small>${m ? esc(MASCOTAS[m.id].d) : 'Tocá para elegir'}</small></div></button>
+      <button data-x="optimo" class="sec">✨ Equipar lo mejor</button>`;
+  } else if (tab === 'clase') {
+    const lista = clasesJugables().filter(c => !CLASES[c].unico || CLASES[c].unico === u.unico);
+    cuerpo = `<div class="sep">Clase principal</div><div class="clases">${lista.map(c => {
+      const K = CLASES[c], ok = claseDesbloqueada(u, c), n = nivelClase(u.cl[c]?.tot || 0);
+      const req = Object.entries(K.req).map(([k, v]) => `${CLASES[k].n} ${v}`).join(' + ') || 'Disponible';
+      return `<button class="clase ${ok ? '' : 'off'} ${u.clase === c ? 'on' : ''}" data-x="clase" data-c="${c}">${spriteHTML({ clase:c, look:u.look }, 40)}<b>${K.n}</b><small>${ok ? 'Nv ' + n : '🔒 ' + req}</small></button>`;
+    }).join('')}</div>
+    <div class="sep">Habilidades secundarias</div>
+    <div class="fila-wrap"><button class="chip-b ${!u.sec ? 'on' : ''}" data-x="sec" data-c="">Ninguna</button>${lista.filter(c => c !== u.clase && claseDesbloqueada(u, c) && habsActivasDe(u, c).length).map(c => `<button class="chip-b ${u.sec === c ? 'on' : ''}" data-x="sec" data-c="${c}">${CLASES[c].n}</button>`).join('')}</div>
+    <p class="sub">Solo aparecen las clases de las que aprendió alguna habilidad.</p>`;
+  } else {
+    const lista = clasesJugables().filter(c => claseDesbloqueada(u, c));
+    cuerpo = lista.map(c => {
+      const K = CLASES[c], clc = u.cl[c] || { pc:0, tot:0 };
+      return `<div class="sep">${K.n} — ${clc.pc} PC</div>` + K.habs.map(h => {
+        const H = HAB[h], ya = u.apr.includes(h);
+        if (H.historia && !ya) return `<div class="hab-f off"><b>${esc(H.n)}</b><small>Se aprende con la historia.</small></div>`;
+        const puede = !ya && clc.pc >= H.pc;
+        const tipo = H.tipo === 'pasiva' ? 'Pasiva' : (H.mp ? H.mp + ' PM' : 'sin PM');
+        return `<button class="hab-f ${ya ? 'ya' : ''} ${puede ? 'puede' : ''}" data-x="${ya ? (H.tipo === 'pasiva' ? 'pasiva' : 'nada') : 'aprender'}" data-h="${h}"><b>${ya ? '✔ ' : ''}${esc(H.n)}</b><span>${ya ? (H.tipo === 'pasiva' ? (u.pasiva === h ? '★ Equipada' : 'Equipar') : tipo) : H.pc + ' PC'}</span><small>${esc(H.d)} ${!ya ? '· ' + tipo : ''}</small></button>`;
+      }).join('');
+    }).join('') + '<p class="sub">Los PC se ganan en batalla con la clase puesta. Las pasivas se equipan tocándolas (una por personaje).</p>';
+  }
+  montar(`${cabecera(u.nombre)}
+    <div class="ficha-cab">${spriteHTML(visDe(u), 72)}<div><b>${esc(u.nombre)}</b><br><span>${C.n} · Nivel ${u.nivel}</span><div class="barra"><i style="width:${u.exp}%;background:#ffd84a"></i></div><small>EXP ${u.exp}/100</small></div></div>
+    <div class="tabs"><button data-x="tab" data-t="estado" class="${tab === 'estado' ? 'on' : ''}">Estado</button><button data-x="tab" data-t="equipo" class="${tab === 'equipo' ? 'on' : ''}">Equipo</button><button data-x="tab" data-t="clase" class="${tab === 'clase' ? 'on' : ''}">Clase</button><button data-x="tab" data-t="habs" class="${tab === 'habs' ? 'on' : ''}">Habilidades</button></div>
+    <div class="lista">${cuerpo}</div>`, {
+    volver,
+    tab: d => pantallaFicha(uidU, d.t, volver),
+    slot: d => elegirEquipo(u, d.s, () => pantallaFicha(uidU, 'equipo', volver)),
+    mascotaSlot: () => elegirMascotaPara(u, () => pantallaFicha(uidU, 'equipo', volver)),
+    optimo: () => { equiparOptimo(u); Sonido.fx('brillo'); guardar(); pantallaFicha(uidU, 'equipo', volver); },
+    clase: d => {
+      if (!claseDesbloqueada(u, d.c)) { const K = CLASES[d.c]; toast('Requiere: ' + Object.entries(K.req).map(([k, v]) => `${CLASES[k].n} nivel ${v}`).join(' y ')); return; }
+      cambiarClase(u, d.c); equiparOptimo(u, true); Sonido.fx('brillo'); guardar(); pantallaFicha(uidU, 'clase', volver);
+    },
+    sec: d => { u.sec = d.c || null; guardar(); pantallaFicha(uidU, 'clase', volver); },
+    aprender: d => {
+      const H = HAB[d.h];
+      if (!aprender(u, d.h)) { toast(`Faltan PC (${H.pc})`); return; }
+      Sonido.fx('nivel'); toast(`¡Aprendió ${H.n}!`, 'bien');
+      if (H.tipo === 'pasiva' && !u.pasiva) u.pasiva = d.h;
+      guardar(); pantallaFicha(uidU, 'habs', volver);
+    },
+    pasiva: d => { u.pasiva = u.pasiva === d.h ? null : d.h; Sonido.fx('brillo'); guardar(); pantallaFicha(uidU, 'habs', volver); },
+    nada: () => {},
+    despedir: () => confirmar(`¿Despedir a ${esc(u.nombre)}? Su equipo queda en el inventario.`, () => { G.unidades = G.unidades.filter(v => v !== u); guardar(); volver(); }),
+  });
+}
+function elegirEquipo(u, slot, volver) {
+  const actual = item(u.eq[slot]);
+  const opciones = G.equipo.filter(it => EQ[it.id].slot === slot && puedeEquipar(u, it.id) && it.uid !== u.eq[slot])
+    .sort((a, b) => valorItem(b) - valorItem(a));
+  const antes = calcStats(u);
+  const diff = it => {
+    const prev = u.eq[slot]; u.eq[slot] = it.uid;
+    const d = calcStats(u); u.eq[slot] = prev;
+    const p = [];
+    [['atk', 'Atq'], ['def', 'Def'], ['mag', 'Mag'], ['res', 'Res'], ['hpMax', 'PV'], ['mpMax', 'PM'], ['mov', 'Mov'], ['eva', 'Eva']].forEach(([k, n]) => {
+      const dv = Math.round((d[k] - antes[k]) * 10) / 10; if (dv) p.push(`<span class="${dv > 0 ? 'mas' : 'menos'}">${n} ${dv > 0 ? '+' : ''}${dv}</span>`);
+    });
+    const dp = Math.round(d.armaPoder - antes.armaPoder); if (dp && slot === 'arma') p.unshift(`<span class="${dp > 0 ? 'mas' : 'menos'}">Poder ${dp > 0 ? '+' : ''}${dp}</span>`);
+    return p.join(' ');
+  };
+  modal(`<h3>${{ arma:'Arma', armadura:'Armadura', acc:'Accesorio' }[slot]}</h3>
+    ${actual ? `<button data-x="quitar" class="sec">Quitar ${nombreItemHTML(actual)}</button>` : ''}
+    <div class="lista-modal">${opciones.map(it => { const d = dueñoDe(it.uid); return `<button class="art boton-art" data-x="poner" data-id="${it.uid}"><span class="art-ic">${iconoItem(it.id)}</span><div class="art-dat"><b>${nombreItemHTML(it)}</b><small>${statsInst(it)}</small><small>${diff(it)}${d ? ' · lo tiene ' + esc(d.nombre) : ''}</small></div></button>`; }).join('') || '<p class="sub">No hay nada que pueda usar. Comprá en la tienda.</p>'}</div>
+    <button data-x="cerrar">Cerrar</button>`, {
+    quitar: (d, c) => { u.eq[slot] = null; guardar(); c(); volver(); },
+    poner: (d, c) => {
+      const otro = dueñoDe(d.id); if (otro) Object.keys(otro.eq).forEach(k => { if (otro.eq[k] === d.id) otro.eq[k] = null; });
+      u.eq[slot] = d.id; Sonido.fx('forja'); guardar(); c(); volver();
+    },
+  });
+}
+function elegirMascotaPara(u, volver) {
+  modal(`<h3>Mascota de ${esc(u.nombre)}</h3>
+    ${G.mascotas.map(m => { const d = dueñoMascota(m.uid); return `<button class="art boton-art" data-x="poner" data-id="${m.uid}"><span class="art-ic">${spriteHTML({ mascota:m.id }, 36)}</span><div class="art-dat"><b>${esc(m.nombre)} · Nv ${m.nivel}</b><small>${esc(MASCOTAS[m.id].d)}</small><small>${d ? 'Ahora con ' + esc(d.nombre) : 'Libre'}</small></div></button>`; }).join('') || '<p class="sub">No tenés mascotas todavía. Hay un criadero en Puerto Garza.</p>'}
+    ${u.mascota ? '<button data-x="quitar" class="sec">Sin mascota</button>' : ''}
+    <button data-x="cerrar">Cerrar</button>`, {
+    poner: (d, c) => { G.unidades.forEach(v => { if (v.mascota === d.id) v.mascota = null; }); u.mascota = d.id; Sonido.fx('mascota'); guardar(); c(); volver(); },
+    quitar: (d, c) => { u.mascota = null; guardar(); c(); volver(); },
+  });
+}
+function valorItem(it) {
+  const d = EQ[it.id];
+  return ((d.poder || 0) * 2 + (d.def || 0) + (d.res || 0)) * (1 + RAREZAS[it.rareza || 0].m) + Object.values(it.bonos || {}).reduce((a, b) => a + b, 0) * 0.6 + (d.mag || 0) * 1.5 + (d.atk || 0) * 2 + it.mejora * 2 + it.gemas.filter(Boolean).length * 3 + (d.mov || 0) * 6 + (d.spd || 0) * 5;
+}
+// Pone el mejor equipo libre que la clase pueda usar (soloVacios: solo llena huecos).
+function equiparOptimo(u, soloVacios = false) {
+  ['arma', 'armadura', 'acc'].forEach(slot => {
+    if (soloVacios && u.eq[slot]) return;
+    const actual = item(u.eq[slot]);
+    const libres = G.equipo.filter(it => EQ[it.id].slot === slot && puedeEquipar(u, it.id) && !dueñoDe(it.uid));
+    const mejor = libres.sort((a, b) => valorItem(b) - valorItem(a))[0];
+    if (mejor && (!actual || valorItem(mejor) > valorItem(actual))) u.eq[slot] = mejor.uid;
+  });
+}

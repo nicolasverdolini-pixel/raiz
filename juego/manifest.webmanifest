@@ -1,0 +1,15 @@
+{
+  "name": "Campanas de Bruma",
+  "short_name": "Campanas",
+  "description": "Juego de tácticas por turnos.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#141a3a",
+  "theme_color": "#141a3a",
+  "icons": [
+    { "src": "icono.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
