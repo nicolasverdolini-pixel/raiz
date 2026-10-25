@@ -48,7 +48,7 @@ function spriteHTML(vis, px = 48, vista = 'f') {
 function visDe(u) {
   const a = item(u.eq.arma);
   const tipo = a ? EQ[a.id].tipo : null;
-  return { clase:u.clase, look:u.look, unico:u.unico, eqv:eqVisual(u), arma: ['espada', 'hacha', 'daga', 'arco', 'vara', 'maza', 'lanza'].includes(tipo) ? tipo : null };
+  return { clase:u.clase, look:u.look, unico:u.unico, eqv:eqVisual(u), maestro:dominada(u, u.clase), arma: ['espada', 'hacha', 'daga', 'arco', 'vara', 'maza', 'lanza'].includes(tipo) ? tipo : null };
 }
 function cabecera(titulo, volver = true) {
   return `<header class="cab">${volver ? '<button data-x="volver" class="mini">←</button>' : '<span></span>'}<h2>${esc(titulo)}</h2><span class="oro">💰 ${G.oro}</span></header>`;
@@ -580,7 +580,7 @@ function preparar(def, opts, empezar) {
       <div class="lista-u">${G.unidades.map(u => {
         const s = calcStats(u), on = sel.has(u.id);
         return `<button class="u-fila ${on ? 'on' : ''}" data-x="tog" data-id="${u.id}">${spriteHTML(visDe(u), 44)}
-          <div class="u-dat"><b>${esc(u.nombre)}</b><span>${CLASES[u.clase].n} · Nv ${u.nivel}</span><small>PV ${s.hpMax} · PM ${s.mpMax}${u.mascota ? ' · 🐾' : ''}</small></div>
+          <div class="u-dat"><b>${esc(u.nombre)}</b><span>${nombreClase(u)} · Nv ${u.nivel}</span><small>PV ${s.hpMax} · PM ${s.mpMax}${u.mascota ? ' · 🐾' : ''}</small></div>
           <span class="check">${on ? '✔' : ''}</span></button>`;
       }).join('')}</div>
       <div class="pie-fijo"><button data-x="grupo" class="sec">👥 Equipar</button><button data-x="ir" class="ok" ${sel.size ? '' : 'disabled'}>⚔️ ¡A pelear! (${sel.size}/${max})</button></div>`, {

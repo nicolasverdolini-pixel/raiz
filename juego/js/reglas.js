@@ -133,13 +133,14 @@ function habsActivasDe(u, cid) {
   return (CLASES[cid]?.habs || []).filter(h => HAB[h].tipo !== 'pasiva' && u.apr.includes(h));
 }
 function habsDeBatalla(u) {
-  return { principal: habsActivasDe(u, u.clase), secundaria: u.sec ? habsActivasDe(u, u.sec) : [] };
+  return { principal: habsActivasDe(u, u.clase), secundaria: u.sec ? habsActivasDe(u, u.sec) : [], propias: u.unico ? propiasDe(u).filter(p => p.ok).map(p => p.h) : [] };
 }
 function pasivasAprendidas(u) { return u.apr.filter(h => HAB[h].tipo === 'pasiva'); }
 function aprender(u, hid) {
   const cid = Object.keys(CLASES).find(c => CLASES[c].habs.includes(hid));
   const H = HAB[hid];
   if (!cid || u.apr.includes(hid) || H.historia) return false;
+  if (H.maestria && !dominada(u, cid)) return false;
   const cl = u.cl[cid];
   if (!cl || cl.pc < H.pc) return false;
   cl.pc -= H.pc;
@@ -174,7 +175,8 @@ function calcStats(u) {
   const C = CLASES[u.clase], lv = u.nivel, f = u.fac || {};
   const base = { hp:38 + lv * 7, mp:12 + lv * 2.5, atk:6 + lv * 0.9, def:4 + lv * 0.7, mag:6 + lv * 0.9, res:4 + lv * 0.7, spd:6 + lv * 0.12 };
   const s = {};
-  for (const k in base) s[k] = base[k] * (f[k] || 1) * (C.m[k] || 1);
+  const dom = u.cl && dominada(u, u.clase) ? 1.05 : 1; // la clase maestra da +5%
+  for (const k in base) s[k] = base[k] * (f[k] || 1) * (C.m[k] || 1) * dom;
   s.mov = C.mov; s.salto = C.salto; s.eva = C.eva || 5; s.vuela = !!C.vuela;
   s.resEl = Object.assign({}, C.resEl || {}); s.raza = C.raza || null; s.inmune = new Set(); s.efectos = {}; s.armaEl = null; s.armaVeneno = 0; s.armaLento = 0;
   const eq = equipoDe(u);
@@ -244,6 +246,8 @@ function calcStats(u) {
   if (pv === 'salto') { s.salto += 2; s.mov += 1; }
   if (pv === 'halcon' && s.armaTipo === 'arco') s.rango[1] += 1;
   if (pv === 'inmune') ['veneno', 'dormido', 'ciego'].forEach(e => s.inmune.add(e));
+  const bon = u.pasiva ? HAB[u.pasiva]?.bon : null;
+  if (bon) for (const [k, v] of Object.entries(bon)) { if (k === 'eva') s.eva += v; else if (k === 'hp') hpMult += v; else s[k] *= 1 + v; }
   if (pv === 'voz') { s.inmune.add('silencio'); s.mp *= 1.1; }
   if (pv === 'sexto') s.eva += 10;
   if (pv === 'vampiro') s.efectos.vampiro = (s.efectos.vampiro || 0) + 1;

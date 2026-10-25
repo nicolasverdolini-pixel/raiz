@@ -44,7 +44,7 @@ const Batalla = (() => {
     const m = eq === 'A' && u.mascota ? mascota(u.mascota) : null;
     const bu = { id:uid(), u, eq, nombre:u.nombre, st, hp:st.hpMax, mp:st.mpMax, x, y, dir: eq === 'A' ? 2 : 0,
       ct: azar(0, 25) + st.spd * 3, est:{}, ko:false, rx:x, ry:y, rh:0, off:{ x:0, y:0, z:0 }, alpha:1, flash:0,
-      mascota:m, jefe:!!u.jefe, revivio:false, vis:{ clase:u.clase, look:u.look, t:u.t, unico:u.unico, eqv:eqVisual(u), arma: ARMAS_DIBUJABLES.includes(st.armaTipo) ? st.armaTipo : null } };
+      mascota:m, jefe:!!u.jefe, revivio:false, vis:{ clase:u.clase, look:u.look, t:u.t, unico:u.unico, eqv:eqVisual(u), maestro: eq === 'A' && dominada(u, u.clase), arma: ARMAS_DIBUJABLES.includes(st.armaTipo) ? st.armaTipo : null } };
     bu.rh = alt(x, y);
     if (st.pasiva === 'prisa_ini' || st.rasgos.has('prisa_ini')) bu.est.prisa = 4;
     if (st.rasgos.has('escudo')) bu.est.protegido = 3;
@@ -632,8 +632,8 @@ const Batalla = (() => {
     if (H.tipo === 'revivir') return { tipo:'revive', prob:H.prob || 100 };
     if (H.tipo === 'apoyo') return { tipo:'estado', prob:Math.min(...H.est.map(e => probEstado(u, t, e))) };
     if (H.esp === 'gravedad') return { tipo:'danio', d: t.jefe ? 0 : Math.max(1, Math.round(t.hp * 0.25)), prob: t.jefe ? 0 : 90 };
-    if (H.esp === 'muerte') return { tipo:'danio', d: t.jefe ? 0 : t.hp, prob: t.jefe ? 0 : 35 };
-    if (H.esp === 'desesperado') return { tipo:'danio', d: Math.round(u.st.atk * 1.5 + (u.st.hpMax - u.hp)), prob:100 };
+    if (H.esp === 'muerte') return { tipo:'danio', d: t.jefe ? 0 : t.hp, prob: t.jefe ? 0 : (H.prob || 35) };
+    if (H.esp === 'desesperado') return { tipo:'danio', d: Math.round((u.st.atk * 1.5 + (u.st.hpMax - u.hp)) * (H.mult || 1)), prob:100 };
     if (H.esp === 'robar_oro' || H.esp === 'robar_obj') { const ang = angulo(ax, ay, t); return { tipo:'robo', prob: ang === 'espalda' ? 90 : ang === 'lado' ? 75 : 55 }; }
     return { tipo:'especial' };
   }
@@ -790,11 +790,11 @@ const Batalla = (() => {
       case 'elixir': { const c = Math.min(Math.round(t.st.hpMax * 0.35), t.st.hpMax - t.hp); t.hp += c; t.mp = Math.min(t.st.mpMax, t.mp + 15); popup(t, c, '#6f9'); chispas(t, '#8f8', 10); break; }
       case 'furia': { const q = Math.min(Math.round(t.st.hpMax * 0.15), t.hp - 1); t.hp -= q; if (q) popup(t, q, '#f66'); aplicarEstado(u, t, { id:'valor', dur:3 }); aplicarEstado(u, t, { id:'prisa', dur:3 }); break; }
       case 'muerte': {
-        if (t.jefe || Math.random() >= 0.35) { popup(t, t.jefe ? 'Inmune' : 'Falla', '#ccc'); break; }
+        if (t.jefe || Math.random() >= (H.prob || 35) / 100) { popup(t, t.jefe ? 'Inmune' : 'Falla', '#ccc'); break; }
         popup(t, 'Muerte', '#b8ffb8', true); res.mato = await aplicarDanio(u, t, t.hp); break;
       }
       case 'desesperado': {
-        const d = Math.max(1, Math.round((u.st.atk * 1.5 + (u.st.hpMax - u.hp)) * azar(0.93, 1.07)));
+        const d = Math.max(1, Math.round((u.st.atk * 1.5 + (u.st.hpMax - u.hp)) * (H.mult || 1) * azar(0.93, 1.07)));
         popup(t, d, '#ffe14a', true); golpeVisual(t, u); res.mato = await aplicarDanio(u, t, d); break;
       }
       case 'chakra': { const c = Math.min(Math.round(t.st.hpMax * 0.2), t.st.hpMax - t.hp); t.hp += c; t.mp = Math.min(t.st.mpMax, t.mp + Math.round(t.st.mpMax * 0.1)); popup(t, c, '#6f9'); chispas(t, '#8f8', 8); break; }
@@ -1009,7 +1009,7 @@ const Batalla = (() => {
     const masc = (u.mascota ? `<span class="chip masc">🐾 ${esc(u.mascota.nombre)} Nv${u.mascota.nivel}</span>` : '') + (u.cargando ? `<span class="chip" style="background:#c9a6ff">✦ Cargando ${esc(HAB[u.cargando.acc.id].n)}</span>` : '');
     const s = u.st;
     return `<div class="tarj ${u.eq === 'A' ? 'al' : 'en'}">
-      <div class="tarj-cab"><b>${esc(u.nombre)}</b> <span class="sub">${C.n} · Nv ${u.u.nivel}${u.jefe ? ' · JEFE' : ''}</span></div>
+      <div class="tarj-cab"><b>${esc(u.nombre)}</b> <span class="sub">${u.eq === 'A' ? nombreClase(u.u) : C.n} · Nv ${u.u.nivel}${u.jefe ? ' · JEFE' : ''}</span></div>
       <div class="tarj-barras"><span>PV ${u.hp}/${s.hpMax}</span>${barra(u.hp, s.hpMax, u.hp / s.hpMax < 0.3 ? '#ff5a5a' : '#5ae07a')}
       <span>PM ${u.mp}/${s.mpMax}</span>${barra(u.mp, s.mpMax, '#5ab0ff')}</div>
       <div class="tarj-st">Atq ${s.atk} · Def ${s.def} · Mag ${s.mag} · Res ${s.res} · Vel ${Math.round(s.spd)} · Mov ${s.mov}${s.armaEl ? ' · ' + ELEMENTOS[s.armaEl].i : ''}${s.debil.length ? ' · Débil: ' + s.debil.map(e => ELEMENTOS[e].i).join('') : ''}</div>
@@ -1042,7 +1042,8 @@ const Batalla = (() => {
         return `<button class="hab" data-a="hab" data-id="${id}" ${falta || mudo ? 'disabled' : ''}><b>${esc(H.n)}</b><span>${H.mp ? costoMP(u, H) + ' PM' : ''}</span><small>${esc(H.d)}</small><small class="h-num">${esc(detalleHab(id, u.u))}</small></button>`;
       };
       let lista = '';
-      if (hb.principal.length) lista += `<div class="sep">${CLASES[u.u.clase].n}</div>` + hb.principal.map(fila).join('');
+      if (hb.propias.length) lista += `<div class="sep">Propias de ${esc(u.nombre)}</div>` + hb.propias.map(fila).join('');
+      if (hb.principal.length) lista += `<div class="sep">${nombreClase(u.u)}</div>` + hb.principal.map(fila).join('');
       if (hb.secundaria.length) lista += `<div class="sep">${CLASES[u.u.sec].n} (secundaria)</div>` + hb.secundaria.map(fila).join('');
       if (!lista) lista = '<div class="aviso">Todavía no aprendió habilidades. Se aprenden en el menú Grupo con los PC.</div>';
       m = `<div class="lista">${lista}</div><div class="botones"><button data-a="volver" class="sec">← Volver</button></div>`;
@@ -1121,7 +1122,7 @@ const Batalla = (() => {
   }
   function accionesIA(u) {
     const lista = [{ tipo:'atacar' }];
-    const propias = u.eq === 'A' ? (() => { const h = habsDeBatalla(u.u); return h.principal.concat(h.secundaria); })() : (u.u.habsE || []);
+    const propias = u.eq === 'A' ? (() => { const h = habsDeBatalla(u.u); return h.principal.concat(h.secundaria, h.propias); })() : (u.u.habsE || []);
     propias.forEach(id => {
       const H = HAB[id];
       if (costoMP(u, H) > u.mp) return;

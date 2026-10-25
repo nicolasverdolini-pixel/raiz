@@ -55,7 +55,7 @@ function pantallaGrupo(volver, tab = 'personajes') {
         <span class="uc-nv">${u.nivel}</span>
         ${avatarHTML(retratoU(u), 64)}
         <b>${esc(u.nombre)}</b>
-        <span class="uc-cl">${CLASES[u.clase].n} · Nv ${nivelClase(cl.tot)}</span>
+        <span class="uc-cl">${nombreClase(u)} · Nv ${nivelClase(cl.tot)}</span>
         <span class="uc-barras">${barraStat(s.hpMax, s.hpMax, '#5ae07a')}${barraStat(u.exp, 100, '#ffd84a')}</span>
         <span class="uc-pie">${cl.pc ? `<em class="pc">${cl.pc} PC</em>` : ''}${m ? `<img class="uc-m" src="${SPR.personaje({ mascota:m.id }).toDataURL()}" alt="">` : ''}</span>
       </button>`;
@@ -166,7 +166,7 @@ function pantallaFicha(uidU, tab, volver) {
       const req = Object.entries(K.req).map(([k, v]) => `${CLASES[k].n} ${v}`).join(' + ');
       return `<button class="clase2 ${ok ? '' : 'bloq'} ${u.clase === c ? 'on' : ''}" style="--cc:${K.asp.C}" data-x="clase" data-c="${c}">
         <img src="${SPR.personaje({ clase:c, look:u.look, arma:K.armas[0] !== 'puños' ? K.armas[0] : null }).toDataURL()}" alt="">
-        <b>${K.n}</b>
+        <b>${nombreClase(u, c)}${dominada(u, c) ? ' ★' : ''}</b>
         ${ok ? `<small>Nivel ${n}</small>${barraStat(pr, 100, K.asp.C)}` : `<small>🔒 ${esc(req)}</small>`}
       </button>`;
     }).join('')}</div>
@@ -176,11 +176,14 @@ function pantallaFicha(uidU, tab, volver) {
   } else {
     const lista = clasesJugables().filter(c => claseDesbloqueada(u, c));
     const abierta = window._claseHabs && lista.includes(window._claseHabs) ? window._claseHabs : u.clase;
-    const K = CLASES[abierta], clc = u.cl[abierta] || { pc:0, tot:0 };
+    const K = CLASES[abierta], clc = u.cl[abierta] || { pc:0, tot:0 }, propias = propiasDe(u);
     cuerpo = `<div class="fila-wrap">${lista.map(c => `<button class="chip-b ${c === abierta ? 'on' : ''}" data-x="verClase" data-c="${c}">${CLASES[c].n}${u.cl[c]?.pc ? ` · ${u.cl[c].pc}` : ''}</button>`).join('')}</div>
-      <div class="panel pcs" style="--cc:${K.asp.C}"><b>${K.n}</b><span>${clc.pc} PC para gastar</span></div>
+      ${propias.length ? `<div class="sep">Propias de ${esc(u.nombre)}</div><div class="habs2">${propias.map(p => { const H = HAB[p.h]; return `<div class="hab2 ${p.ok ? 'ya' : 'bloq'}"><span class="h-ic">${H.el ? ELEMENTOS[H.el].i : '✪'}</span><div><b>${esc(H.n)}</b><small>${esc(H.d)}</small><small class="h-num">${esc(detalleHab(p.h, u))}</small></div><span class="h-tag">${p.ok ? (H.mp ? H.mp + ' PM' : 'Libre') : '🔒 Nv ' + p.nv}</span></div>`; }).join('')}</div>` : ''}
+      <div class="panel pcs" style="--cc:${K.asp.C}"><b>${nombreClase(u, abierta)}</b><span>${clc.pc} PC para gastar</span></div>
+      ${MAESTRIA[abierta] ? `<p class="sub">${dominada(u, abierta) ? `★ Clase dominada: es ${esc(nombreClase(u, abierta))}, tiene +5% de atributos y abre las habilidades de maestría.` : `Maestría: aprendé todas las habilidades de ${esc(K.n)} y llegá a nivel 5 para convertirte en ${esc(MAESTRIA[abierta][sexoDe(u) === 'f' ? 1 : 0])}.`}</p>` : ''}
       <div class="habs2">${K.habs.map(h => {
         const H = HAB[h], ya = u.apr.includes(h);
+        if (H.maestria && !ya && !dominada(u, abierta)) return `<div class="hab2 bloq"><span class="h-ic">★</span><div><b>${esc(H.n)}</b><small>${esc(H.d)}</small></div><span class="h-tag">🔒 Maestría</span></div>`;
         if (H.historia && !ya) return `<div class="hab2 bloq"><span class="h-ic">✦</span><div><b>${esc(H.n)}</b><small>Se aprende con la historia.</small></div></div>`;
         const puede = !ya && clc.pc >= H.pc;
         const pasiva = H.tipo === 'pasiva';
@@ -197,7 +200,7 @@ function pantallaFicha(uidU, tab, volver) {
       <div class="heroe-img"><img src="${SPR.personaje(visCuerpo, 'f').toDataURL()}" alt=""></div>
       <div class="heroe-dat">
         <h2>${esc(u.nombre)}</h2>
-        <span class="chip-cl">${C.n} · Nv ${nvc}</span>
+        <span class="chip-cl">${nombreClase(u)} · Nv ${nvc}</span>
         <div class="hb"><span>Nivel ${u.nivel}</span>${barraStat(u.exp, 100, '#ffd84a')}</div>
         <div class="hb"><span>PV ${s.hpMax}</span>${barraStat(1, 1, '#5ae07a')}</div>
         <div class="hb"><span>PM ${s.mpMax}</span>${barraStat(1, 1, '#5ab0ff')}</div>
@@ -218,9 +221,10 @@ function pantallaFicha(uidU, tab, volver) {
     sec: d => { u.sec = d.c || null; guardar(); pantallaFicha(uidU, 'clase', volver); },
     verClase: d => { window._claseHabs = d.c; pantallaFicha(uidU, 'habs', volver); },
     aprender: d => {
-      const H = HAB[d.h];
+      const H = HAB[d.h], cid = Object.keys(CLASES).find(c => CLASES[c].habs.includes(d.h)), antes = dominada(u, cid);
       if (!aprender(u, d.h)) { toast(`Faltan PC (${H.pc})`); Sonido.fx('error'); return; }
       Sonido.fx('nivel'); chispazo(); toast(`¡Aprendió ${H.n}!`, 'bien');
+      if (!antes && dominada(u, cid)) setTimeout(() => { Sonido.fx('revivir'); chispazo(); toast(`★ ¡${u.nombre} ahora es ${nombreClase(u, cid)}! Se abren las habilidades de maestría.`, 'bien'); }, 900);
       if (H.tipo === 'pasiva' && !u.pasiva) u.pasiva = d.h;
       guardar(); pantallaFicha(uidU, 'habs', volver);
     },

@@ -831,7 +831,7 @@ const SPR = (() => {
   const FILA_LPC = { f:'s', b:'n', s:'s', n:'n', e:'e', w:'w' };
   function personaje(vis, vista = 'f', frame = 0, expr = '') {
     if (typeof LPC !== 'undefined' && LPC.esHumano(vis)) {
-      const kl = 'L' + JSON.stringify([vis.clase, vis.look, vis.t, vis.unico, vis.eqv, vis.arma, vis.asp, vista, frame]);
+      const kl = 'L' + JSON.stringify([vis.clase, vis.look, vis.t, vis.unico, vis.eqv, vis.arma, vis.asp, vis.maestro, vista, frame]);
       if (cache.has(kl)) return cache.get(kl);
       const cv = lienzo(S, S), c = cv.getContext('2d');
       const f = frame >= 10 ? frame - 10 : frame ? [0, 3, 7][frame] : 0;

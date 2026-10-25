@@ -126,6 +126,7 @@ const LPC = (() => {
     }
     if (!(tipoAr === 'malla' && tier >= 3)) pon('botas', 'cloth', D.paletas.cloth.leather);
     if (tier >= 4 || (tipoAr === 'tela' && tier >= 2)) pon(tier >= 5 && tipoAr !== 'tela' ? 'capa_rota' : 'capa', 'cloth', tela2);
+    if (vis.maestro && !capas.some(c => c.item.startsWith('capa'))) pon('capa', 'cloth', acento);
     let g = GORRO[asp.g];
     if (asp.g === 'yelmo' && tipoAr === 'malla' && tier >= 3) g = 'yelmo';
     if (vis.retrato && (g === 'yelmo' || g === 'casco_barbuta')) g = 'casco_nasal';
@@ -170,7 +171,7 @@ const LPC = (() => {
   const FILA = { n:0, w:1, s:2, e:3 };
   const cache = new Map();
   function recetaDe(vis) {
-    const k = JSON.stringify([vis.clase, vis.look, vis.t, vis.unico, vis.eqv, vis.arma, vis.asp, vis.sinGorro, vis.retrato]);
+    const k = JSON.stringify([vis.clase, vis.look, vis.t, vis.unico, vis.eqv, vis.arma, vis.asp, vis.sinGorro, vis.retrato, vis.maestro]);
     if (!cache.has(k)) cache.set(k, receta(vis));
     return cache.get(k);
   }
@@ -232,5 +233,5 @@ const LPC = (() => {
   // Precarga la caminata de una lista de vis (para que los menús ya la tengan).
   function precargar(lista) { lista.forEach(v => { const r = recetaDe(v); if (r) capasListas(r, 'walk'); }); }
   function alCargar(fn) { avisar = fn; }
-  return { dibujar, animDe, recetaDe, frames, esHumano, precargar, alCargar, receta };
+  return { dibujar, animDe, recetaDe, frames, esHumano, precargar, alCargar, receta, sexo };
 })();
