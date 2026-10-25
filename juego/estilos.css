@@ -216,11 +216,11 @@ button.hab small { grid-column: 1 / -1; color: var(--sub); font-size: .72rem; }
 .prev { font-size: .82rem; }
 .cruz { display: grid; grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(3, 44px); gap: 4px; justify-content: center; }
 .cruz button { padding: 0; font-size: 1.2rem; }
-.cruz button:nth-child(1) { grid-column: 2; grid-row: 1; }
-.cruz button:nth-child(2) { grid-column: 1; grid-row: 2; }
+.cruz button:nth-child(1) { grid-column: 1; grid-row: 1; }
+.cruz button:nth-child(2) { grid-column: 3; grid-row: 1; }
 .cruz button:nth-child(3) { grid-column: 2; grid-row: 2; }
-.cruz button:nth-child(4) { grid-column: 3; grid-row: 2; }
-.cruz button:nth-child(5) { grid-column: 2; grid-row: 3; }
+.cruz button:nth-child(4) { grid-column: 1; grid-row: 3; }
+.cruz button:nth-child(5) { grid-column: 3; grid-row: 3; }
 
 .ico { width: 1.25em; height: 1.25em; vertical-align: -0.28em; display: inline-block; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
 .art-ic .ico { width: 36px; height: 36px; }
@@ -397,3 +397,55 @@ button.hab .h-num { grid-column: 1 / -1; }
 .nodo-n { font-size: .72rem; font-weight: 700; background: rgba(255,248,230,.94); color: #2a2016; border-color: #2a2016; }
 
 .rasgo { color: #ffd88a; font-weight: 700; }
+
+/* Mapa de pergamino con marco oscuro y sellos de lacre */
+.mundo { border: 0 !important; box-shadow: 0 0 0 3px #c8a45a, 0 0 0 9px #1e140c, 0 0 0 11px #6a4a22, 0 10px 30px rgba(0,0,0,.7) !important; border-radius: 4px !important; }
+.mundo-caminos line { stroke: #8a1a14 !important; stroke-width: 3 !important; stroke-dasharray: 2 7 !important; }
+.mundo-caminos line.sombra { stroke: rgba(255,240,200,.5) !important; stroke-dasharray: none !important; stroke-width: 6 !important; }
+.nodo-ic { background: radial-gradient(circle at 40% 35%, #d84a3a, #7a140e 70%) !important; border: 2px solid #f0d080 !important; box-shadow: 0 2px 0 rgba(0,0,0,.5), inset 0 0 0 2px rgba(0,0,0,.25) !important; }
+.nodo.pueblo .nodo-ic { background: radial-gradient(circle at 40% 35%, #4a6ad8, #14205a 70%) !important; }
+.nodo.ganado .nodo-ic { background: radial-gradient(circle at 40% 35%, #6a8a5a, #2a3a22 70%) !important; }
+.nodo.secreto .nodo-ic { background: radial-gradient(circle at 40% 35%, #a86ad8, #3a1460 70%) !important; }
+.nodo-n { font-family: 'Cinzel', serif !important; background: rgba(240,226,190,.95) !important; color: #3a2414 !important; border: 1px solid #6a4a22 !important; border-radius: 2px !important; }
+
+/* ===== Tema oscuro y dorado (estética de táctico clásico) ===== */
+:root { --fondo:#0b0907; --texto:#efe4cc; --sub:#b8a888; --oro:#e6c16a; --borde:#b08a48; --vent1:#2a2018; --vent2:#120e0a; --azul:#6aa8e8; --rojo:#e86a5a; }
+html, body { font-family: 'Alegreya Sans', 'Nunito', sans-serif; background: #0b0907; }
+#app { background: radial-gradient(ellipse at top, #2a1e14 0%, #0b0907 70%) !important; }
+h1, h2, h3, button, .tabs, .seg, .nodo-n, .dlg-nombre, .sep, .cap-txt, .tarj-cab b, .uc-nv, .chip-cl, .h-tag, .precio, .prev-tit, .heroe-dat h2 { font-family: 'Cinzel', serif !important; letter-spacing: .3px; }
+button { color: var(--texto); background: linear-gradient(180deg, #2c2219, #120e0a) !important; border: 1px solid var(--borde) !important; border-radius: 6px !important;
+  box-shadow: inset 0 1px 0 rgba(255,230,170,.14), inset 0 0 0 2px rgba(0,0,0,.35), 0 2px 0 rgba(0,0,0,.6) !important; font-weight: 600; }
+button.ok { background: linear-gradient(180deg, #7a5420, #3a2608) !important; border-color: #f0c870 !important; color: #fff3d0 !important; }
+button.sec { background: linear-gradient(180deg, #24201c, #0e0c0a) !important; border-color: #6a5a40 !important; }
+button.peligro { background: linear-gradient(180deg, #6a1a14, #2a0806) !important; border-color: #c86a50 !important; }
+.ventana, .panel, .tarj, .previa, .modal .ventana, .hoja, .dlg-caja, .art, .hab-f, .eq-op, .ucard, .prod, .clase2, .hab2, .tendero, .heroe, .itile, .slot, .ranura, .art.oferta {
+  background: linear-gradient(180deg, rgba(40,30,22,.96), rgba(16,12,9,.96)) !important; border: 1px solid var(--borde) !important;
+  box-shadow: inset 0 0 0 2px rgba(0,0,0,.45), inset 0 0 0 3px rgba(230,193,106,.12), 0 4px 14px rgba(0,0,0,.55) !important; }
+.itile, .slot.lleno, .prod { border-color: var(--rc, var(--borde)) !important; }
+.ucard { background: linear-gradient(170deg, color-mix(in srgb, var(--cc, #5a4a3a) 30%, #1e1610), #0e0b08 75%) !important; }
+.heroe { background: linear-gradient(135deg, color-mix(in srgb, var(--cc) 35%, #1e1610), #0e0b08) !important; }
+.cab, #bt-top, .pb-cab { background: linear-gradient(180deg, #241a12, #0e0b08) !important; border-bottom: 1px solid var(--borde) !important; box-shadow: 0 1px 0 rgba(0,0,0,.6), 0 3px 0 rgba(230,193,106,.10); }
+#bt-panel { background: linear-gradient(180deg, #1e1610, #0b0907) !important; border-top: 1px solid var(--borde) !important; }
+#bt-obj { background: #0e0b08 !important; color: var(--sub); font-family: 'Cinzel', serif; }
+.seg { background: rgba(0,0,0,.5) !important; border: 1px solid #4a3a26 !important; }
+.seg button { background: transparent !important; border: none !important; box-shadow: none !important; color: var(--sub) !important; }
+.seg button.on { background: linear-gradient(180deg, #e8c46a, #9a6a22) !important; color: #1e1206 !important; box-shadow: 0 0 10px rgba(230,193,106,.35) !important; }
+.tabs button.on, .chip-b.on { background: linear-gradient(180deg, #e8c46a, #9a6a22) !important; color: #1e1206 !important; }
+.sep { color: var(--oro) !important; border-bottom: 1px solid rgba(230,193,106,.35) !important; }
+.sub, .art-dat small, .uc-cl { color: var(--sub) !important; }
+.precio { background: linear-gradient(180deg, #e8c46a, #9a6a22) !important; color: #1e1206 !important; border-color: #fff0c0 !important; }
+.precio.vender { background: linear-gradient(180deg, #8ac07a, #2a5a22) !important; color: #081a06 !important; }
+.boton-a { background: radial-gradient(circle at 35% 30%, #7a5420, #2a1a08) !important; border: 2px solid var(--oro) !important; box-shadow: 0 4px 0 rgba(0,0,0,.5), 0 0 18px rgba(230,193,106,.4) !important; }
+.uc-nv, .num { background: linear-gradient(180deg, #f0d080, #b07a2a) !important; color: #1e1206 !important; }
+.dlg-caja { border: 1px solid var(--oro) !important; }
+.dlg-retrato img { background: radial-gradient(#3a2a1a, #0e0a06) !important; border: 1px solid var(--oro) !important; }
+.titulo h1 { font-family: 'Cinzel', serif !important; font-weight: 800; color: #f0d890 !important; text-shadow: 0 2px 0 #3a2008, 0 0 24px rgba(230,180,90,.5) !important; }
+.ord { border-radius: 4px !important; background: rgba(0,0,0,.6) !important; }
+.chipi, .chip-b { background: rgba(0,0,0,.4) !important; border: 1px solid #4a3a26 !important; }
+.hoja-asa { background: rgba(230,193,106,.5) !important; }
+.toast { background: #1e1610 !important; border: 1px solid var(--borde) !important; }
+.toast.bien { background: #1e2a14 !important; }
+.nodo { background: none !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
+.nodo-n { font-size: .62rem !important; padding: 1px 5px !important; }
+.dialogo.en-escena .dlg-fondo { background: linear-gradient(0deg, rgba(5,4,2,.7), rgba(5,4,2,0) 45%) !important; }
+.dialogo.en-escena { pointer-events: auto; }

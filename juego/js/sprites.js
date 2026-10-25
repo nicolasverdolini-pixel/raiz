@@ -114,7 +114,7 @@ const SPR = (() => {
     return {
       ojos: c.ojos ?? Math.floor(r(1) * 5), iris: c.iris ?? IRIS[Math.floor(r(2) * IRIS.length)], cejas: c.cejas ?? Math.floor(r(3) * 5), boca: c.boca ?? Math.floor(r(4) * 5),
       pecas: c.pecas ?? r(5) < 0.22, pestanas: c.pestanas ?? (look.estilo === 2 && r(6) < 0.7), cicatriz: c.cicatriz ?? r(7) < 0.08, lunar: c.lunar ?? r(8) < 0.12,
-      arrugas: c.arrugas ?? false, parche: c.parche ?? false, lentes: c.lentes ?? r(9) < 0.07, bigote: c.bigote ?? false, rubor: c.rubor ?? (0.1 + r(10) * 0.15),
+      arrugas: c.arrugas ?? false, parche: c.parche ?? false, lentes: c.lentes ?? r(9) < 0.07, bigote: c.bigote ?? false, rubor: (c.rubor ?? (0.1 + r(10) * 0.15)) * 0.35,
     };
   }
   // Cabeza: centro (50, 19.5). Ojos en y≈20, a 3.4 del centro.
@@ -241,7 +241,7 @@ const SPR = (() => {
       }
       case 'sombrero':
         ctx.beginPath(); ctx.ellipse(50, 13.6, 15.5, 3.8, -0.04, 0, Math.PI * 2); trazo(ctx, cil(ctx, 34, 66, luz(P.C, -0.1)));
-        ctx.beginPath(); ctx.moveTo(42, 13.4); ctx.bezierCurveTo(44, 4, 50, -2, 61, -7); ctx.bezierCurveTo(57, -1, 58, 6, 58.4, 13.4); ctx.quadraticCurveTo(50, 15.6, 42, 13.4); trazo(ctx, cil(ctx, 42, 60, P.C));
+        ctx.beginPath(); ctx.moveTo(42, 13.4); ctx.bezierCurveTo(44, 6, 50, 2, 61, -1); ctx.bezierCurveTo(57, 3, 58, 8, 58.4, 13.4); ctx.quadraticCurveTo(50, 15.6, 42, 13.4); trazo(ctx, cil(ctx, 42, 60, P.C));
         ctx.beginPath(); ctx.moveTo(42.4, 11.6); ctx.quadraticCurveTo(50, 13.6, 58.2, 11.4); ctx.lineTo(58.4, 13.2); ctx.quadraticCurveTo(50, 15.4, 42.2, 13.3); ctx.closePath(); ctx.fillStyle = P.A; ctx.fill();
         break;
       case 'boina':
@@ -285,6 +285,11 @@ const SPR = (() => {
     const pesado = PESADOS.includes(clase), tunica = TUNICAS2.includes(clase), capa = CAPAS.includes(clase);
     const M = asp.metal || (clase === 'paladin' ? '#e8e0c8' : clase === 'draconiana' ? '#b84a3a' : '#c8ccd6');
     const g = asp.g || 'ninguno';
+    // Proporción de táctico clásico: cabeza grande y cuerpo corto y robusto.
+    const cuerpoT = () => { ctx.translate(50, 93); ctx.scale(1.26, 0.78); ctx.translate(-50, -93); };
+    const cabezaT = () => { ctx.translate(50, 41.6); ctx.scale(1.66, 1.66); ctx.translate(-50, -29.2); };
+    ctx.save(); ctx.translate(50, 93); ctx.scale(0.9, 0.9); ctx.translate(-50, -93);
+    ctx.save(); cuerpoT();
 
     // Alas (demonios con forma humana)
     if (asp.alas) [[-1], [1]].forEach(([s]) => { ctx.beginPath(); ctx.moveTo(50 + s * 6, 36); ctx.bezierCurveTo(50 + s * 18, 18, 50 + s * 34, 16, 50 + s * 40, 24); ctx.quadraticCurveTo(50 + s * 32, 30, 50 + s * 30, 42); ctx.quadraticCurveTo(50 + s * 24, 38, 50 + s * 20, 46); ctx.quadraticCurveTo(50 + s * 14, 42, 50 + s * 8, 46); ctx.closePath(); trazo(ctx, cil(ctx, 50 - 40, 50 + 40, P.D)); });
@@ -296,7 +301,9 @@ const SPR = (() => {
       for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(-1.6 + i * 1.6, -10); ctx.lineTo(-2 + i * 1.6, -14); ctx.lineTo(-0.6 + i * 1.6, -13); ctx.closePath(); ctx.fillStyle = '#e8e0c8'; ctx.fill(); }
       ctx.restore();
     }
-    if (!asp.calvo && (estilo === 2 || atras)) peloAtras(ctx, P, estilo);
+    ctx.restore();
+    if (!asp.calvo && (estilo === 2 || atras)) { ctx.save(); cabezaT(); peloAtras(ctx, P, estilo); ctx.restore(); }
+    ctx.save(); cuerpoT();
 
     // Piernas y botas
     if (!tunica) {
@@ -355,6 +362,8 @@ const SPR = (() => {
 
     // Cuello y cabeza
     rr(ctx, 47, 25.6, 6, 6.6, 1.6); trazo(ctx, cil(ctx, 47, 53, luz(P.S, -0.12)), 0.8);
+    ctx.restore();
+    ctx.save(); cabezaT();
     if (!atras) { circulo(ctx, 42.2, 20.6, 1.4); trazo(ctx, P.S, 0.7); circulo(ctx, 57.8, 20.6, 1.4); trazo(ctx, P.S, 0.7); }
     ctx.beginPath(); ctx.moveTo(42.2, 16); ctx.bezierCurveTo(42, 8.6, 58, 8.6, 57.8, 16); ctx.lineTo(57.6, 21); ctx.bezierCurveTo(57.2, 26, 53.4, 29, 50, 29.2); ctx.bezierCurveTo(46.6, 29, 42.8, 26, 42.4, 21); ctx.closePath();
     trazo(ctx, cil(ctx, 42, 58, P.S), 1.1);
@@ -366,6 +375,8 @@ const SPR = (() => {
       else dibujarCara(ctx, P, caraDe(look), expr, look);
     }
     if (g !== 'campana' && g !== 'ninguno') gorro(ctx, g, P, vista);
+    ctx.restore();
+    ctx.save(); cuerpoT();
 
     // Brazo derecho con el arma
     const hx = 65 - paso * 1.4, hy = 58.4;
@@ -373,6 +384,8 @@ const SPR = (() => {
     if (!atras && vis.arma) { ctx.save(); ctx.translate(hx, hy); ctx.scale(0.82, 0.82); dibujarArma(ctx, vis.arma, 0, 0, P); ctx.restore(); }
     if (pesado || clase === 'monje' || clase === 'espadachin') { circulo(ctx, hx, hy - 2.6, 3.2); trazo(ctx, pesado ? metal(ctx, hx - 3, hx + 3, M) : P.A, 0.8); }
     circulo(ctx, hx, hy, 2.5); trazo(ctx, P.S, 0.8);
+    ctx.restore();
+    ctx.restore();
   }
 
   // ---------- Monstruos (estilo realista) ----------
@@ -847,7 +860,7 @@ const SPR = (() => {
     if (humanoide) {
       // En el retrato se ve la cara: el yelmo cerrado pasa a ser un casco abierto.
       if (P.asp.g === 'yelmo') P.asp = Object.assign({}, P.asp, { g:'casco' });
-      ctx.scale(U * 2.45, U * 2.45); ctx.translate(-29.6, -4.6); dibujarVis(ctx, Object.assign({}, vis, { arma:null }), 'f', 0, expr, C, P);
+      ctx.scale(U * 1.62, U * 1.62); ctx.translate(-19.2, -7); dibujarVis(ctx, Object.assign({}, vis, { arma:null }), 'f', 0, expr, C, P);
     }
     else { ctx.scale(U, U); dibujarVis(ctx, vis, 'f', 0, expr, C, P); }
     cache.set(key, cv);
@@ -856,21 +869,21 @@ const SPR = (() => {
 
   // ---------- Terreno ----------
   const TERRENO = {
-    g: { top:['#62ad4e', '#78c25e', '#4f9440'], side:['#8a6440', '#6e4e30'], pasa:true, pasto:true },
-    f: { top:['#62ad4e', '#78c25e', '#4f9440'], side:['#8a6440', '#6e4e30'], pasa:true, pasto:true, flores:true },
-    d: { top:['#d2ae72', '#e0be86', '#bc9a60'], side:['#9a744a', '#7e5c38'], pasa:true },
-    c: { top:['#b4b4ac', '#c8c8c0', '#8e8e88'], side:['#76766e', '#5e5e58'], pasa:true, adoquin:true },
-    s: { top:['#9a9aa4', '#aeaeb8', '#80808a'], side:['#686872', '#50505a'], pasa:true, piedra:true },
-    k: { top:['#545066', '#625e76', '#46425a'], side:['#34303e', '#28242f'], pasa:true, adoquin:true },
-    p: { top:['#6a4c8e', '#7c5ca2', '#583e78'], side:['#36244c', '#2a1c3c'], pasa:true, adoquin:true, brillo:true },
-    b: { top:['#b07c44', '#c48c52', '#94663a'], side:['#744a26', '#5e3c1e'], pasa:true, tablas:true },
-    a: { top:['#e6d496', '#f0e0a8', '#d4c084'], side:['#bca268', '#a48c56'], pasa:true },
-    n: { top:['#f2f6fc', '#ffffff', '#dce4f0'], side:['#a4b2c4', '#8c9aac'], pasa:true, nieve:true },
-    w: { top:['#4a8ad8', '#6aa8ee', '#3a74c0'], side:['#2e62a8', '#24508c'], pasa:true, costo:2, agua:true },
-    W: { top:['#2e62b4', '#3e74cc', '#24529c'], side:['#204892', '#1a3c7c'], pasa:false, agua:true },
-    t: { top:['#58a046', '#6eb658', '#468a3a'], side:['#8a6440', '#6e4e30'], pasa:false, deco:'arbol', pasto:true },
-    r: { top:['#62ad4e', '#78c25e', '#4f9440'], side:['#8a6440', '#6e4e30'], pasa:false, deco:'roca', pasto:true },
-    R: { top:['#c0503e', '#d4644e', '#963a2c'], side:['#efe2c6', '#dccaa8'], pasa:false, techo:true },
+    g: { top:['#4e6e34', '#5e7e3c', '#40602a'], side:['#5a4430', '#4a3826'], pasa:true, pasto:true },
+    f: { top:['#4e6e34', '#5e7e3c', '#40602a'], side:['#5a4430', '#4a3826'], pasa:true, pasto:true, flores:true },
+    d: { top:['#8a7250', '#9a8058', '#76603e'], side:['#5e4a34', '#4e3e2a'], pasa:true },
+    c: { top:['#86827a', '#96928a', '#6e6c66'], side:['#5a5852', '#4a4844'], pasa:true, adoquin:true },
+    s: { top:['#74747c', '#84848c', '#606068'], side:['#4c4c54', '#3c3c44'], pasa:true, piedra:true },
+    k: { top:['#3e3a48', '#4a4656', '#322e3c'], side:['#26222e', '#1e1a26'], pasa:true, adoquin:true },
+    p: { top:['#4e3a66', '#5c4676', '#3e2e56'], side:['#2a1c3a', '#20142e'], pasa:true, adoquin:true, brillo:true },
+    b: { top:['#7a5634', '#8a6440', '#68482a'], side:['#4e341e', '#40291a'], pasa:true, tablas:true },
+    a: { top:['#b0a070', '#bcac7c', '#9c8c5e'], side:['#857650', '#756640'], pasa:true },
+    n: { top:['#d4dae4', '#e4eaf2', '#c0c8d4'], side:['#848ea0', '#747e90'], pasa:true, nieve:true },
+    w: { top:['#2e5a8a', '#3e6a9a', '#244c78'], side:['#1e3e66', '#18345a'], pasa:true, costo:2, agua:true },
+    W: { top:['#20446e', '#2c527e', '#1a3a62'], side:['#163460', '#122c52'], pasa:false, agua:true },
+    t: { top:['#46642e', '#547436', '#3a5626'], side:['#5a4430', '#4a3826'], pasa:false, deco:'arbol', pasto:true },
+    r: { top:['#4e6e34', '#5e7e3c', '#40602a'], side:['#5a4430', '#4a3826'], pasa:false, deco:'roca', pasto:true },
+    R: { top:['#8a3a2e', '#9a4636', '#70302a'], side:['#bcae90', '#ac9e80'], pasa:false, techo:true },
     x: { pasa:false, vacio:true },
   };
   function rnd(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
@@ -984,11 +997,11 @@ const SPR = (() => {
       rr(ctx, 43, 90, 14, 40, 5); relleno(ctx, grad(ctx, 90, 130, '#9a6a3c', '#5e3c1e'));
       const bolas = [[50, 40, 30], [28, 66, 24], [72, 66, 24], [50, 74, 28], [36, 44, 18], [66, 46, 18]];
       bolas.forEach(([x, y, r2]) => { circulo(ctx, x, y, r2 + 1.4); ctx.fillStyle = '#163a1c'; ctx.fill(); });
-      bolas.forEach(([x, y, r2]) => { circulo(ctx, x, y, r2); ctx.fillStyle = gradR(ctx, x, y, r2, '#8ad06a', '#2e7434'); ctx.fill(); });
-      [[42, 30, 6], [62, 54, 5], [30, 60, 4]].forEach(([x, y, r2]) => { circulo(ctx, x, y, r2); ctx.fillStyle = 'rgba(220,255,190,.35)'; ctx.fill(); });
+      bolas.forEach(([x, y, r2]) => { circulo(ctx, x, y, r2); ctx.fillStyle = gradR(ctx, x, y, r2, '#6a8a4a', '#1e3618'); ctx.fill(); });
+      [[42, 30, 6], [62, 54, 5], [30, 60, 4]].forEach(([x, y, r2]) => { circulo(ctx, x, y, r2); ctx.fillStyle = 'rgba(200,230,170,.15)'; ctx.fill(); });
     } else if (tipo === 'roca') {
       ctx.beginPath(); ctx.moveTo(18, 128); ctx.bezierCurveTo(10, 100, 30, 84, 52, 86); ctx.bezierCurveTo(78, 86, 92, 104, 84, 128); ctx.closePath();
-      relleno(ctx, gradR(ctx, 50, 104, 40, '#c8c8d0', '#6a6a74'), true, 3);
+      relleno(ctx, gradR(ctx, 50, 104, 40, '#9a968e', '#4a4844'), true, 3);
       ctx.strokeStyle = '#5a5a64'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(44, 92); ctx.lineTo(50, 106); ctx.lineTo(46, 118); ctx.stroke();
       circulo(ctx, 36, 98, 5); ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fill();
     }

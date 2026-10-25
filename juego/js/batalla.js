@@ -61,7 +61,7 @@ const Batalla = (() => {
   // opts: { def, ids: [ids de personajes], onFin(resultado) }
   function iniciar(opts) {
     const def = opts.def;
-    B = { def, mapa:parsearMapa(def.mapa), us:[], fin:null, onFin:opts.onFin, ui:{ modo:'espera' }, activo:null, vel:1, cargas:[], ganado:{ oro:0, mat:{}, obj:{}, gemas:{}, equipo:[] }, log:[] };
+    B = { escena:opts.escena || null, def, mapa:parsearMapa(def.mapa), us:[], fin:null, onFin:opts.onFin, ui:{ modo:'espera' }, activo:null, vel:1, cargas:[], ganado:{ oro:0, mat:{}, obj:{}, gemas:{}, equipo:[] }, log:[] };
     try { B.vel = +(localStorage.getItem('cb:vel') || 1); } catch (e) {}
     opts.ids.forEach((id, i) => {
       const u = G.unidades.find(v => v.id === id);
@@ -90,6 +90,7 @@ const Batalla = (() => {
           <div id="bt-orden"></div>
           <button id="bt-auto" class="mini">🤖</button>
           <button id="bt-vel" class="mini">⏩ x${B.vel}</button>
+          <button id="bt-zoom" class="mini">🔍</button>
           <button id="bt-pausa" class="mini">☰</button>
         </div>
         <div id="bt-obj">${esc(B.def.objetivo || 'Derrotá a todos los enemigos')}</div>
@@ -101,10 +102,11 @@ const Batalla = (() => {
     medir();
     window.addEventListener('resize', medir);
     if (window.ResizeObserver) new ResizeObserver(() => medir()).observe(cv);
-    cv.addEventListener('pointerdown', alTocar);
+    gestos();
     $('#bt-menu').addEventListener('click', alBoton);
     $('#bt-vel').onclick = () => { B.vel = B.vel === 1 ? 2 : B.vel === 2 ? 3 : 1; try { localStorage.setItem('cb:vel', B.vel); } catch (e) {} $('#bt-vel').innerHTML = `${ICO.html('velocidad', 18)} x${B.vel}`; Sonido.fx('sel'); };
     $('#bt-pausa').onclick = menuPausa;
+    $('#bt-zoom').onclick = () => { const z = [1, 1.5, 2.2]; const i = z.findIndex(v => Math.abs(v - B.zoom) < 0.05); B.zoom = z[(i + 1) % z.length]; B.seguir = true; medir(); Sonido.fx('sel'); };
     $('#bt-auto').onclick = () => {
       B.auto = !B.auto; $('#bt-auto').classList.toggle('on', B.auto); Sonido.fx('sel');
       if (B.auto && finJugador && B.ui.modo !== 'animando') { const f = finJugador; finJugador = null; B.ui = { modo:'espera' }; turnoIA(B.activo).then(f); }
@@ -116,14 +118,84 @@ const Batalla = (() => {
     dpr = Math.min(3, window.devicePixelRatio || 1);
     L.W = r.width; L.H = r.height;
     cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
-    const m = B.mapa;
-    const TW = Math.floor(Math.min(L.W / (m.w + 0.3), L.H / (m.h * 0.62 + m.maxH * 0.3 + 1.9)));
-    L.TW = Math.max(16, TW); L.HS = Math.round(L.TW * 0.3); L.k = L.TW / 16;
-    // La profundidad de cada casilla se estira para aprovechar el alto de la pantalla.
-    L.TD = Math.round(clamp((L.H - m.maxH * L.HS - L.TW * 1.5 - L.HS * 2) / m.h, L.TW * 0.6, L.TW * 0.92));
-    L.ox = Math.round((L.W - m.w * L.TW) / 2);
-    const altoMapa = m.h * L.TD + m.maxH * L.HS + L.HS * 2;
-    L.oy = Math.round(m.maxH * L.HS + L.TW * 1.2 + Math.max(0, (L.H - altoMapa - L.TW * 1.2) / 2));
+    const m = B.mapa, n = m.w + m.h;
+    // Ancho de cada rombo para que entre todo el mapa; después se multiplica por el zoom.
+    const ajuste = Math.min(L.W * 0.96 / (n / 2), L.H * 0.94 / (n / 4 + m.maxH * 0.24 + 1.3));
+    B.zoom = clamp(B.zoom || 1.5, 0.9, 2.8);
+    L.T = Math.max(24, ajuste * B.zoom);
+    L.HS = L.T * 0.24;            // alto de cada escalón
+    L.k = L.T / 21;               // escala de los personajes
+    L.TW = L.T * 0.6; L.TD = L.T * 0.3;
+    L.ox0 = m.h * L.T / 2 + L.T * 0.2;
+    L.oy0 = m.maxH * L.HS + L.T * 1.2;
+    L.mundoW = n * L.T / 2 + L.T * 0.4;
+    L.mundoH = n * L.T / 4 + m.maxH * L.HS + L.T * 1.7;
+    if (!B.cam) B.cam = { x:L.mundoW / 2, y:L.mundoH / 2 };
+    fijarCamara();
+  }
+  // Coordenadas del mundo (sin cámara) del centro de una casilla.
+  function mundoDe(x, y, h) { return { x:L.ox0 + (x - y) * L.T / 2, y:L.oy0 + (x + y) * L.T / 4 - h * L.HS }; }
+  function limitarCamara() {
+    const mx = L.W / 2, my = L.H / 2;
+    B.cam.x = L.mundoW <= L.W ? L.mundoW / 2 : clamp(B.cam.x, mx, L.mundoW - mx);
+    B.cam.y = L.mundoH <= L.H ? L.mundoH / 2 : clamp(B.cam.y, my - L.T, L.mundoH - my + L.T);
+  }
+  function fijarCamara() {
+    limitarCamara();
+    const nox = L.W / 2 - B.cam.x, noy = L.H / 2 - B.cam.y;
+    // Lo que ya está en pantalla (partículas, números) se mueve junto con la cámara.
+    if (L.ox !== undefined) { const dx = nox - L.ox, dy = noy - L.oy; if (dx || dy) { parts.forEach(p => { p.x += dx; p.y += dy; }); popups.forEach(p => { p.x += dx; p.y += dy; }); } }
+    L.ox = nox; L.oy = noy;
+  }
+  function moverCamara() {
+    if (!B) return;
+    let obj = null;
+    const ui = B.ui;
+    if (B.camObj) obj = B.camObj;
+    else if (B.seguir !== false) {
+      const u = B.activo;
+      if ((ui.modo === 'confirmar' || ui.modo === 'iaObjetivo') && u) {
+        const c = ui.cx !== undefined ? [ui.cx, ui.cy] : (ui.area && ui.area[0]) || [u.x, u.y];
+        const a = mundoDe(u.rx + 0.5, u.ry + 0.5, u.rh), b = mundoDe(c[0] + 0.5, c[1] + 0.5, alt(c[0], c[1]));
+        obj = { x:(a.x + b.x) / 2, y:(a.y + b.y) / 2 };
+      } else if (u) obj = mundoDe(u.rx + 0.5, u.ry + 0.5, u.rh);
+    }
+    if (obj) { B.cam.x += (obj.x - B.cam.x) * 0.12; B.cam.y += (obj.y - L.T * 0.4 - B.cam.y) * 0.12; }
+    fijarCamara();
+  }
+  function gestos() {
+    const dedos = new Map();
+    let arrastre = null, pellizco = null;
+    cv.addEventListener('pointerdown', ev => {
+      Sonido.iniciar();
+      cv.setPointerCapture(ev.pointerId);
+      dedos.set(ev.pointerId, { x:ev.clientX, y:ev.clientY });
+      if (dedos.size === 1) arrastre = { x0:ev.clientX, y0:ev.clientY, cx:B.cam.x, cy:B.cam.y, movio:false };
+      if (dedos.size === 2) { const [a, b] = [...dedos.values()]; pellizco = { d:Math.hypot(a.x - b.x, a.y - b.y), z:B.zoom }; arrastre = null; }
+    });
+    cv.addEventListener('pointermove', ev => {
+      if (!dedos.has(ev.pointerId)) return;
+      dedos.set(ev.pointerId, { x:ev.clientX, y:ev.clientY });
+      if (pellizco && dedos.size === 2) {
+        const [a, b] = [...dedos.values()];
+        const z = clamp(pellizco.z * Math.hypot(a.x - b.x, a.y - b.y) / pellizco.d, 0.9, 2.8);
+        if (Math.abs(z - B.zoom) > 0.02) { const fx = B.cam.x / L.T, fy = B.cam.y / L.T; B.zoom = z; medir(); B.cam.x = fx * L.T; B.cam.y = fy * L.T; fijarCamara(); }
+        return;
+      }
+      if (!arrastre) return;
+      const dx = ev.clientX - arrastre.x0, dy = ev.clientY - arrastre.y0;
+      if (!arrastre.movio && Math.hypot(dx, dy) > 9) { arrastre.movio = true; B.seguir = false; }
+      if (arrastre.movio) { B.cam.x = arrastre.cx - dx; B.cam.y = arrastre.cy - dy; fijarCamara(); }
+    });
+    const soltar = ev => {
+      if (!dedos.has(ev.pointerId)) return;
+      dedos.delete(ev.pointerId);
+      if (pellizco) { if (dedos.size === 0) pellizco = null; return; }
+      if (arrastre && !arrastre.movio && ev.type === 'pointerup') alTocar(ev);
+      arrastre = null;
+    };
+    cv.addEventListener('pointerup', soltar);
+    cv.addEventListener('pointercancel', soltar);
   }
   function salir() {
     cancelAnimationFrame(raf); raf = 0;
@@ -133,6 +205,7 @@ const Batalla = (() => {
 
   // ---------- Bucle de turnos ----------
   async function bucle() {
+    if (B.escena && B.escena.length) await correrEscena(B.escena);
     await mostrarBanner(B.def.n, 1400);
     while (!B.fin) {
       const sig = siguienteTurno();
@@ -141,6 +214,64 @@ const Batalla = (() => {
       chequearFin();
     }
     await terminar();
+  }
+  // ---------- Escenas animadas de la historia ----------
+  // La cámara recorre el mapa, los enemigos aparecen, el grupo entra caminando y los diálogos enfocan a quien habla.
+  async function correrEscena(lineas) {
+    const m = B.mapa;
+    const aliados = B.us.filter(u => u.eq === 'A'), enemigos = B.us.filter(u => u.eq === 'E');
+    const destino = new Map(aliados.map(u => [u, [u.x, u.y]]));
+    aliados.forEach(u => { u.rx = u.x; u.ry = m.h + 1.5; u.rh = 0; u.alpha = 0; u.dir = 2; });
+    enemigos.forEach(u => { u.alpha = 0; });
+    let entraron = false, aparecieron = false;
+    const enfocar = (x, y, h) => { const w = mundoDe(x + 0.5, y + 0.5, h); B.camObj = { x:w.x, y:w.y - L.T * 0.4 }; };
+    const centro = (us) => { const xs = us.map(u => u.x), ys = us.map(u => u.y); return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2]; };
+    const aparecer = async () => {
+      if (aparecieron) return; aparecieron = true;
+      const [cx, cy] = centro(enemigos); enfocar(cx, cy, 2);
+      await esperar(500);
+      Sonido.fx('bruma');
+      enemigos.forEach(u => humo(u));
+      await tween(600, p => enemigos.forEach(u => { u.alpha = p; }));
+    };
+    const entrar = async () => {
+      if (entraron) return; entraron = true;
+      const [cx, cy] = centro(aliados); enfocar(cx, cy, 1);
+      aliados.forEach(u => { u.alpha = 1; u.caminando = true; });
+      const pasos = aliados.map(u => ({ u, y0:u.ry, y1:destino.get(u)[1] }));
+      await tween(1400, p => pasos.forEach(({ u, y0, y1 }) => { u.ry = y0 + (y1 - y0) * p; u.rh = alt(u.x, Math.min(m.h - 1, Math.round(u.ry))) * Math.min(1, p * 1.6); if (Math.random() < 0.04) Sonido.fx('paso'); }));
+      aliados.forEach(u => { u.caminando = false; u.rx = u.x; u.ry = u.y; u.rh = alt(u.x, u.y); u.dir = 2; });
+    };
+    // Empieza mostrando el lugar
+    const ini = centro(B.us); enfocar(ini[0], 0, m.maxH); await esperar(300);
+    window._saltarEscena = false;
+    for (const [quien, txt] of lineas) {
+      if (!B || window._saltarEscena) break;
+      const pj = typeof quien === 'string' ? PJ[quien] : null;
+      let hablante = null;
+      if (pj) {
+        hablante = aliados.find(u => u.u.unico === quien) || enemigos.find(u => (u.defE && u.defE.n === pj.n) || u.nombre === pj.n || u.u.clase === pj.clase && u.jefe);
+        if (!hablante && pj.t) hablante = enemigos.find(u => u.u.t === pj.t);
+      }
+      if (hablante && hablante.eq === 'E') await aparecer();
+      if (hablante && hablante.eq === 'A') await entrar();
+      if (hablante) {
+        enfocar(hablante.x, hablante.y, alt(hablante.x, hablante.y));
+        hablante.alpha = 1;
+        // Saltito al empezar a hablar
+        tween(260, p => { hablante.off.z = -Math.sin(p * Math.PI) * L.T * 0.18; }).then(() => { hablante.off.z = 0; });
+      } else if (!quien) {
+        // Narración: la cámara pasea lentamente por el mapa
+        const x = Math.random() * (m.w - 1), y = Math.random() * (m.h - 1); enfocar(x, y, 1);
+      }
+      await esperar(350);
+      await new Promise(res => dialogo([[quien, txt]], res, { escena:true }));
+    }
+    window._saltarEscena = false;
+    if (!B) return;
+    await aparecer(); await entrar();
+    enemigos.forEach(u => { u.alpha = 1; });
+    B.camObj = null; B.seguir = true;
   }
   function multCT(u) { return (u.est.prisa ? 1.5 : 1) * (u.est.lento ? 0.5 : 1) * (u.est.detenido ? 0 : 1) * (u.cargando ? 0 : 1); }
   // Devuelve la próxima unidad que actúa, o { carga } si antes sale un hechizo que se estaba cargando.
@@ -209,6 +340,7 @@ const Batalla = (() => {
 
   async function turno(u) {
     B.activo = u;
+    B.seguir = true;
     u.movio = false; u.actuo = false; u.x0 = u.x; u.y0 = u.y;
     pintarOrden();
     await inicioTurno(u);
@@ -775,15 +907,16 @@ const Batalla = (() => {
   function puntoEnUnidad(px, py, u) {
     const { cx, fy } = pantallaUnidad(u);
     const k = L.k * (CLASES[u.vis.clase]?.tam || 1) * 1.3;
-    return px > cx - 8 * k && px < cx + 8 * k && py > fy - 17 * k && py < fy + 1 * k;
+    return px > cx - 7 * k && px < cx + 7 * k && py > fy - 17 * k && py < fy + 1 * k;
   }
+  // Casilla bajo un punto de la pantalla (primero las de adelante).
   function tileEn(px, py, soloTapa = false) {
     const m = B.mapa;
-    for (let y = m.h - 1; y >= 0; y--) for (let x = 0; x < m.w; x++) {
-      const t = tile(x, y); if (terreno(t).vacio) continue;
-      const sx = L.ox + x * L.TW, sy = L.oy + y * L.TD - t.h * L.HS;
-      const abajo = soloTapa ? sy + L.TD : sy + L.TD + t.h * L.HS + L.HS;
-      if (px >= sx && px < sx + L.TW && py >= sy && py < abajo) return [x, y];
+    for (let sm = m.w + m.h - 2; sm >= 0; sm--) for (let x = Math.min(m.w - 1, sm); x >= Math.max(0, sm - m.h + 1); x--) {
+      const y = sm - x, t = tile(x, y); if (!t || terreno(t).vacio) continue;
+      const c = centroPx(x, y, t.h), dx = px - c.x, dy = py - c.y;
+      if (Math.abs(dx) / (L.T / 2) + Math.abs(dy) / (L.T / 4) <= 1) return [x, y];
+      if (!soloTapa && Math.abs(dx) <= L.T / 2) { const yb = L.T / 4 - Math.abs(dx) / 2; if (dy >= yb && dy <= yb + (t.h + 0.6) * L.HS) return [x, y]; }
     }
     return null;
   }
@@ -793,7 +926,7 @@ const Batalla = (() => {
     const r = cv.getBoundingClientRect();
     const px = ev.clientX - r.left, py = ev.clientY - r.top;
     const ui = B.ui, u = B.activo;
-    const delante = B.us.filter(v => !v.oculto).sort((a, b) => b.ry - a.ry);
+    const delante = B.us.filter(v => !v.oculto).sort((a, b) => (b.rx + b.ry) - (a.rx + a.ry));
     if (ui.modo === 'mover') {
       const t = tileEn(px, py, true) || tileEn(px, py);
       if (t && ui.alc.destinos.has(t[0] + ',' + t[1])) {
@@ -903,7 +1036,7 @@ const Batalla = (() => {
         <div class="botones"><button data-a="confirmar" class="ok">✔ Confirmar</button><button data-a="cancelar" class="sec">✖ Volver</button></div>`;
     } else if (ui.modo === 'dir') {
       m = `<div class="aviso">¿Hacia dónde mira? (la espalda es el punto débil)</div>
-        <div class="cruz"><button data-a="dir" data-d="2">▲</button><button data-a="dir" data-d="3">◀</button><button data-a="listo" class="ok">✔</button><button data-a="dir" data-d="1">▶</button><button data-a="dir" data-d="0">▼</button></div>`;
+        <div class="cruz"><button data-a="dir" data-d="3">↖</button><button data-a="dir" data-d="2">↗</button><button data-a="listo" class="ok">✔</button><button data-a="dir" data-d="0">↙</button><button data-a="dir" data-d="1">↘</button></div>`;
     }
     info.innerHTML = infoHTML;
     menu.innerHTML = m;
@@ -1063,9 +1196,9 @@ const Batalla = (() => {
 
   // ---------- Animaciones ----------
   async function animEmbestida(u, x, y) {
-    const dx = (x - u.x), dy = (y - u.y), n = Math.hypot(dx, dy) || 1;
-    await tween(110, p => { u.off.x = dx / n * 0.35 * L.TW * p; u.off.y = dy / n * 0.35 * L.TD * p; });
-    await tween(130, p => { u.off.x = dx / n * 0.35 * L.TW * (1 - p); u.off.y = dy / n * 0.35 * L.TD * (1 - p); });
+    const [dx, dy] = dirPantalla(u.x, u.y, x, y), d = L.T * 0.28;
+    await tween(110, p => { u.off.x = dx * d * p; u.off.y = dy * d * p; });
+    await tween(130, p => { u.off.x = dx * d * (1 - p); u.off.y = dy * d * (1 - p); });
     u.off.x = 0; u.off.y = 0;
   }
   async function animSalto(u, x, y) {
@@ -1099,15 +1232,15 @@ const Batalla = (() => {
     p.vida = 0;
   }
   function animEsquive(t, u) {
-    const dx = t.x - u.x, dy = t.y - u.y, n = Math.hypot(dx, dy) || 1;
-    tween(120, p => { t.off.x = dx / n * 0.3 * L.TW * Math.sin(p * Math.PI); t.off.y = dy / n * 0.3 * L.TD * Math.sin(p * Math.PI); }).then(() => { t.off.x = 0; t.off.y = 0; });
+    const [dx, dy] = dirPantalla(u.x, u.y, t.x, t.y), d = L.T * 0.25;
+    tween(120, p => { t.off.x = dx * d * Math.sin(p * Math.PI); t.off.y = dy * d * Math.sin(p * Math.PI); }).then(() => { t.off.x = 0; t.off.y = 0; });
   }
   function golpeVisual(t, u) {
     t.flash = 1;
     t.dolor = performance.now() + 500;
     shake = Math.max(shake, 4);
-    const dx = t.x - u.x, dy = t.y - u.y, n = Math.hypot(dx, dy) || 1;
-    tween(220, p => { t.off.x = dx / n * 0.15 * L.TW * Math.sin(p * Math.PI); t.off.y = dy / n * 0.15 * L.TD * Math.sin(p * Math.PI); t.flash = 1 - p; })
+    const [dx, dy] = dirPantalla(u.x, u.y, t.x, t.y), d = L.T * 0.12;
+    tween(220, p => { t.off.x = dx * d * Math.sin(p * Math.PI); t.off.y = dy * d * Math.sin(p * Math.PI); t.flash = 1 - p; })
       .then(() => { t.off.x = 0; t.off.y = 0; t.flash = 0; });
   }
   async function animKO(t) {
@@ -1116,11 +1249,12 @@ const Batalla = (() => {
   }
 
   // ---------- Partículas y efectos ----------
-  function centroPx(x, y, h) { return { x:L.ox + (x + 0.5) * L.TW, y:L.oy + y * L.TD - h * L.HS + L.TD / 2 }; }
+  function iso(x, y, h) { return { x:L.ox + L.ox0 + (x - y) * L.T / 2, y:L.oy + L.oy0 + (x + y) * L.T / 4 - h * L.HS }; }
+  function centroPx(x, y, h) { return iso(x + 0.5, y + 0.5, h); }
+  function dirPantalla(ax, ay, bx, by) { const dx = (bx - ax) - (by - ay), dy = ((bx - ax) + (by - ay)) / 2, n = Math.hypot(dx, dy) || 1; return [dx / n, dy / n]; }
   function pantallaUnidad(u) {
-    const cx = L.ox + (u.rx + 0.5) * L.TW + u.off.x;
-    const fy = L.oy + u.ry * L.TD - u.rh * L.HS + L.TD * 0.62 + u.off.y + u.off.z;
-    return { cx, fy };
+    const c = iso(u.rx + 0.5, u.ry + 0.5, u.rh);
+    return { cx:c.x + u.off.x, fy:c.y + L.T * 0.06 + u.off.y + u.off.z };
   }
   function popup(u, txt, color, grande = false, dy = 0) {
     const { cx, fy } = pantallaUnidad(u.rx !== undefined ? u : u);
@@ -1167,7 +1301,7 @@ const Batalla = (() => {
   function iniciarAmbiente() {
     amb = [];
     const tipo = AMBIENTE[B.def.mapa];
-    const n = tipo === 'nieve' ? 50 : tipo === 'bruma' ? 14 : 22;
+    const n = tipo === 'lluvia' ? 90 : tipo === 'nieve' ? 50 : tipo === 'bruma' ? 14 : 22;
     for (let i = 0; i < n; i++) amb.push({ x:Math.random(), y:Math.random(), v:azar(0.3, 1), f:Math.random() * 6, tipo });
   }
 
@@ -1175,6 +1309,7 @@ const Batalla = (() => {
   function cuadro(t) {
     raf = requestAnimationFrame(cuadro);
     if (!B || !ctx) return;
+    moverCamara();
     dibujar(t);
   }
   function dibujar(t) {
@@ -1183,8 +1318,8 @@ const Batalla = (() => {
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     // Fondo con degradé
     const gr = ctx.createLinearGradient(0, 0, 0, L.H);
-    gr.addColorStop(0, SPR.oscurecer(FONDOS[m.nombre] || '#1c2a3a', 1.5));
-    gr.addColorStop(1, FONDOS[m.nombre] || '#1c2a3a');
+    gr.addColorStop(0, SPR.luz(FONDOS[m.nombre] || '#1c2a3a', -0.2));
+    gr.addColorStop(1, '#05040a');
     ctx.fillStyle = gr; ctx.fillRect(0, 0, L.W, L.H);
     ctx.save();
     if (shake > 0.3) { ctx.translate(azar(-shake, shake), azar(-shake, shake)); shake *= 0.85; } else shake = 0;
@@ -1197,58 +1332,59 @@ const Batalla = (() => {
     if ((ui.modo === 'confirmar' || ui.modo === 'iaObjetivo') && ui.area) ui.area.forEach(([x, y]) => marcas.set(x + ',' + y, 'rgba(255,220,80,'));
     const pulso = 0.28 + Math.sin(t / 220) * 0.1;
 
-    const porFila = Array.from({ length:m.h }, () => []);
-    B.us.forEach(v => { if (!v.oculto || v.alpha > 0.02) porFila[clamp(Math.ceil(v.ry - 0.001), 0, m.h - 1)].push(v); });
-
-    for (let y = 0; y < m.h; y++) {
-      for (let x = 0; x < m.w; x++) {
-        const c = tile(x, y), tr = terreno(c);
-        if (tr.vacio) continue;
-        const sx = L.ox + x * L.TW, sy = L.oy + y * L.TD - c.h * L.HS;
-        // Lado (de la tapa hasta el piso), con una sombra que oscurece hacia abajo
-        const lado = SPR.texturaLado(c.t), altoLado = L.HS * (c.h + 1);
-        for (let i = 0; i <= c.h; i++) ctx.drawImage(lado, sx, sy + L.TD + i * L.HS, L.TW + 0.5, L.HS + 0.5);
-        const gs = ctx.createLinearGradient(0, sy + L.TD, 0, sy + L.TD + altoLado);
-        gs.addColorStop(0, 'rgba(0,0,0,.05)'); gs.addColorStop(1, 'rgba(0,0,0,.45)');
-        ctx.fillStyle = gs; ctx.fillRect(sx, sy + L.TD, L.TW + 0.5, altoLado);
-        // Tapa
-        ctx.drawImage(SPR.texturaTop(c.t, (x * 7 + y * 3) % 2), sx, sy, L.TW + 0.5, L.TD + 0.5);
-        if (tr.agua) {
-          ctx.fillStyle = `rgba(255,255,255,${0.07 + Math.sin(t / 500 + x * 0.9 + y * 1.7) * 0.06})`; ctx.fillRect(sx, sy, L.TW + 0.5, L.TD + 0.5);
-          ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.2; ctx.beginPath();
-          const ox2 = ((t / 40 + x * 13) % L.TW);
-          ctx.moveTo(sx + ox2 * 0.6, sy + L.TD * 0.4); ctx.quadraticCurveTo(sx + ox2 * 0.6 + 5, sy + L.TD * 0.33, sx + ox2 * 0.6 + 10, sy + L.TD * 0.4); ctx.stroke();
+    // Unidades agrupadas por la casilla donde están (para dibujarlas en el orden correcto)
+    const enCasilla = new Map();
+    B.us.forEach(v => { if (!v.oculto || v.alpha > 0.02) { const k = clamp(Math.round(v.rx), 0, m.w - 1) + ',' + clamp(Math.round(v.ry), 0, m.h - 1); (enCasilla.get(k) || enCasilla.set(k, []).get(k)).push(v); } });
+    const TX = 96, TY = 72;
+    const rombo = (c, f = 1) => { ctx.beginPath(); ctx.moveTo(c.x, c.y - L.T / 4 * f); ctx.lineTo(c.x + L.T / 2 * f, c.y); ctx.lineTo(c.x, c.y + L.T / 4 * f); ctx.lineTo(c.x - L.T / 2 * f, c.y); ctx.closePath(); };
+    const cara = (p1, p2, prof, tex, sombra) => {
+      ctx.save();
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p2.x, p2.y + prof); ctx.lineTo(p1.x, p1.y + prof); ctx.closePath(); ctx.clip();
+      for (let i = 0; i * L.HS < prof; i++) { ctx.save(); ctx.transform((p2.x - p1.x) / TX, (p2.y - p1.y) / TX, 0, L.HS / 30, p1.x, p1.y + i * L.HS); ctx.drawImage(tex, 0, 0); ctx.restore(); }
+      const g = ctx.createLinearGradient(0, Math.min(p1.y, p2.y), 0, Math.max(p1.y, p2.y) + prof);
+      g.addColorStop(0, `rgba(0,0,0,${sombra})`); g.addColorStop(1, `rgba(0,0,0,${sombra + 0.35})`);
+      ctx.fillStyle = g; ctx.fillRect(Math.min(p1.x, p2.x), Math.min(p1.y, p2.y), Math.abs(p2.x - p1.x) + 1, Math.abs(p2.y - p1.y) + prof + 1);
+      ctx.restore();
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.lineWidth = 1; ctx.stroke();
+    };
+    for (let sm = 0; sm <= m.w + m.h - 2; sm++) {
+      for (let x = Math.max(0, sm - m.h + 1); x <= Math.min(m.w - 1, sm); x++) {
+        const y = sm - x, c = tile(x, y), tr = terreno(c);
+        if (!c || tr.vacio) { (enCasilla.get(x + ',' + y) || []).forEach(v => dibujarUnidad(v, t, v === u)); continue; }
+        const top = iso(x, y, c.h), der = iso(x + 1, y, c.h), aba = iso(x + 1, y + 1, c.h), izq = iso(x, y + 1, c.h), cen = centroPx(x, y, c.h);
+        const prof = (c.h + 0.7) * L.HS;
+        const lado = SPR.texturaLado(c.t);
+        cara(izq, aba, prof, lado, 0.42);
+        cara(aba, der, prof, lado, 0.2);
+        // Tapa con la textura deformada al rombo
+        ctx.save();
+        ctx.transform((der.x - top.x) / TX, (der.y - top.y) / TX, (izq.x - top.x) / TY, (izq.y - top.y) / TY, top.x, top.y);
+        ctx.drawImage(SPR.texturaTop(c.t, (x * 7 + y * 3) % 2), -0.6, -0.6, TX + 1.2, TY + 1.2);
+        ctx.restore();
+        if (tr.agua || tr.lava) {
+          rombo(cen); ctx.fillStyle = tr.lava ? `rgba(255,200,80,${0.12 + Math.sin(t / 400 + x + y * 1.3) * 0.1})` : `rgba(255,255,255,${0.06 + Math.sin(t / 500 + x * 0.9 + y * 1.7) * 0.06})`; ctx.fill();
+          if (tr.lava && Math.random() < 0.02) parts.push({ tipo:'cuad', x:cen.x + azar(-L.T / 4, L.T / 4), y:cen.y, vy:-0.8, vida:1, dec:0.02, c:'#ffb040', s:2 });
         }
-        // Sombras suaves de las casillas más altas que están al lado o atrás
-        const hAtras = tile(x, y - 1), hIzq = tile(x - 1, y), hDer = tile(x + 1, y);
-        if (hAtras && !terreno(hAtras).vacio && hAtras.h > c.h) { const g2 = ctx.createLinearGradient(0, sy, 0, sy + L.TD * 0.55); g2.addColorStop(0, 'rgba(0,0,0,.38)'); g2.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g2; ctx.fillRect(sx, sy, L.TW + 0.5, L.TD * 0.55); }
-        if (hIzq && !terreno(hIzq).vacio && hIzq.h > c.h) { const g2 = ctx.createLinearGradient(sx, 0, sx + L.TW * 0.4, 0); g2.addColorStop(0, 'rgba(0,0,0,.3)'); g2.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g2; ctx.fillRect(sx, sy, L.TW * 0.4, L.TD); }
-        if (hDer && !terreno(hDer).vacio && hDer.h > c.h) { const g2 = ctx.createLinearGradient(sx + L.TW, 0, sx + L.TW * 0.6, 0); g2.addColorStop(0, 'rgba(0,0,0,.3)'); g2.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g2; ctx.fillRect(sx + L.TW * 0.6, sy, L.TW * 0.4 + 0.5, L.TD); }
-        // Borde iluminado donde la casilla de adelante es más baja, y pasto que cuelga
-        const hAdel = tile(x, y + 1);
-        if (!hAdel || terreno(hAdel).vacio || hAdel.h < c.h) {
-          ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillRect(sx, sy + L.TD - 1.5, L.TW + 0.5, 1.5);
-          if (tr.pasto) ctx.drawImage(SPR.flecos(tr.top[0]), sx, sy + L.TD - 1, L.TW + 0.5, L.HS * 0.45);
-        }
+        // Luz desde arriba a la izquierda: borde claro atrás, oscuro adelante
+        ctx.beginPath(); ctx.moveTo(izq.x, izq.y); ctx.lineTo(top.x, top.y); ctx.lineTo(der.x, der.y); ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(izq.x, izq.y); ctx.lineTo(aba.x, aba.y); ctx.lineTo(der.x, der.y); ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.stroke();
+        // Sombra si la casilla de atrás es más alta
+        const atrasA = tile(x - 1, y), atrasB = tile(x, y - 1);
+        if ((atrasA && !terreno(atrasA).vacio && atrasA.h > c.h) || (atrasB && !terreno(atrasB).vacio && atrasB.h > c.h)) { rombo(cen); ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fill(); }
         const mk = marcas.get(x + ',' + y);
-        if (mk) {
-          redondo(sx + 2, sy + 2, L.TW - 4, L.TD - 4, 5);
-          ctx.fillStyle = mk + pulso + ')'; ctx.fill();
-          ctx.strokeStyle = mk + '0.95)'; ctx.lineWidth = 1.6; ctx.stroke();
+        if (mk) { rombo(cen, 0.86); ctx.fillStyle = mk + pulso + ')'; ctx.fill(); ctx.strokeStyle = mk + '0.95)'; ctx.lineWidth = 1.6; ctx.stroke(); }
+        if (ui.modo === 'confirmar' && ui.cx === x && ui.cy === y) { rombo(cen, 0.92); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.4; ctx.stroke(); }
+        if (tr.deco) {
+          const img = SPR.deco(tr.deco), w = L.T * (tr.deco === 'arbol' ? 1.0 : 0.8), h = w * 22 / 16;
+          ctx.drawImage(img, cen.x - w / 2, cen.y + L.T * 0.12 - h, w, h);
         }
-        if (ui.modo === 'confirmar' && ui.cx === x && ui.cy === y) { redondo(sx + 3, sy + 3, L.TW - 6, L.TD - 6, 5); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke(); }
+        (enCasilla.get(x + ',' + y) || []).forEach(v => dibujarUnidad(v, t, v === u));
       }
-      // Decoraciones de esta fila
-      for (let x = 0; x < m.w; x++) {
-        const c = tile(x, y), tr = terreno(c);
-        if (!tr.deco) continue;
-        const sx = L.ox + x * L.TW, sy = L.oy + y * L.TD - c.h * L.HS;
-        const img = SPR.deco(tr.deco);
-        ctx.drawImage(img, sx, sy + L.TD * 0.75 - 22 * L.k, 16 * L.k, 22 * L.k);
-      }
-      // Unidades de esta fila
-      porFila[y].sort((a, b) => a.rx - b.rx).forEach(v => dibujarUnidad(v, t, v === u));
     }
+    // Viñeta: bordes oscuros para dar clima
+    const vg = ctx.createRadialGradient(L.W / 2, L.H / 2, Math.min(L.W, L.H) * 0.35, L.W / 2, L.H / 2, Math.max(L.W, L.H) * 0.75);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)');
+    ctx.fillStyle = vg; ctx.fillRect(-20, -20, L.W + 40, L.H + 40);
     dibujarParticulas();
     dibujarAmbiente(t);
     ctx.restore();
@@ -1267,22 +1403,24 @@ const Batalla = (() => {
     ctx.globalAlpha = v.alpha;
     // Sombra y anillo de equipo
     if (!v.oculto) {
-      ctx.save(); ctx.translate(cx, fy - v.off.z); ctx.scale(1, 0.4);
+      ctx.save(); ctx.translate(cx, fy - v.off.z); ctx.scale(1, 0.5);
       const gsom = ctx.createRadialGradient(0, 0, 0, 0, 0, 7 * k);
       gsom.addColorStop(0, 'rgba(0,0,0,.45)'); gsom.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = gsom; ctx.beginPath(); ctx.arc(0, 0, 7 * k, 0, Math.PI * 2); ctx.fill(); ctx.restore();
       ctx.strokeStyle = v.eq === 'A' ? 'rgba(110,190,255,.85)' : 'rgba(255,100,100,.85)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.ellipse(cx, fy - v.off.z, 6.5 * k, 2.6 * k, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(cx, fy - v.off.z, 6.5 * k, 3.2 * k, 0, 0, Math.PI * 2); ctx.stroke();
       // Flechita de hacia dónde mira
-      const [dx, dy] = DIRS[v.dir];
+      const [ddx, ddy] = DIRS[v.dir];
+      const [dx, dy] = dirPantalla(0, 0, ddx, ddy);
       ctx.fillStyle = v.eq === 'A' ? '#5ab0ff' : '#ff5a5a';
       ctx.beginPath();
-      const ax = cx + dx * 7.5 * k, ay = fy - v.off.z + dy * 3 * k;
-      ctx.moveTo(ax + dx * 2 * k, ay + dy * 1 * k); ctx.lineTo(ax - dy * 1.6 * k, ay + dx * 0.8 * k); ctx.lineTo(ax + dy * 1.6 * k, ay - dx * 0.8 * k); ctx.fill();
+      const ax = cx + dx * 8 * k, ay = fy - v.off.z + dy * 8 * k;
+      ctx.moveTo(ax + dx * 2.4 * k, ay + dy * 2.4 * k); ctx.lineTo(ax - dy * 1.8 * k, ay + dx * 1.8 * k); ctx.lineTo(ax + dy * 1.8 * k, ay - dx * 1.8 * k); ctx.fill();
     }
     const humano = !C.spr || C.spr === 'humano';
-    const vista = humano && v.dir === 2 ? 'b' : 'f';
-    const espejo = humano ? v.dir === 3 : (v.dir === 2 || v.dir === 3);
+    // En isométrico: 0 abajo-izq, 1 abajo-der, 2 arriba-der, 3 arriba-izq.
+    const vista = humano && (v.dir === 2 || v.dir === 3) ? 'b' : 'f';
+    const espejo = humano ? (v.dir === 0 || v.dir === 3) : (v.dir === 0 || v.dir === 3);
     const frame = v.caminando ? 1 + Math.floor(t / 120) % 2 : 0;
     // Gestos: parpadea cada tanto, hace mueca al recibir un golpe y cierra los ojos al caer.
     const semilla = (v.id.charCodeAt(0) * 37 + v.id.charCodeAt(1) * 11) % 3000;
@@ -1322,7 +1460,7 @@ const Batalla = (() => {
       ctx.fillStyle = '#5ab0ff'; ctx.fillRect(bx, by + 1.5, bw * (v.mp / Math.max(1, v.st.mpMax)), 1);
       // Estados como puntitos
       Object.keys(v.est).forEach((e, i) => { ctx.fillStyle = ESTADOS[e].c; ctx.fillRect(cx - 9 * k + i * 4, fy - 19 * k, 3, 3); });
-      if (v.est.dormido && Math.floor(t / 500) % 2) { ctx.fillStyle = '#cfd8ff'; ctx.font = `bold ${Math.round(5 * L.k)}px Fredoka, sans-serif`; ctx.fillText('z', cx + 5 * k, fy - 17 * k); }
+      if (v.est.dormido && Math.floor(t / 500) % 2) { ctx.fillStyle = '#cfd8ff'; ctx.font = `bold ${Math.round(5 * L.k)}px Cinzel, serif`; ctx.fillText('z', cx + 5 * k, fy - 17 * k); }
     }
     // Aura de carga
     if (v.cargando && !v.ko) {
@@ -1388,7 +1526,7 @@ const Batalla = (() => {
           const ang = (1 - a) * Math.PI * 6; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(ang) * r * 0.8, p.y + Math.sin(ang) * r * 0.8); ctx.stroke(); break;
         }
         case 'nota': ctx.fillStyle = p.c; ctx.font = `bold ${Math.round(L.TW * 0.45)}px serif`; ctx.fillText('♪', p.x, p.y); break;
-        case 'texto': ctx.fillStyle = p.c; ctx.font = `bold ${Math.round(L.TW * 0.35)}px Fredoka, sans-serif`; ctx.fillText(p.txt, p.x, p.y); break;
+        case 'texto': ctx.fillStyle = p.c; ctx.font = `bold ${Math.round(L.TW * 0.35)}px Cinzel, serif`; ctx.fillText(p.txt, p.x, p.y); break;
         case 'proy': {
           ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang);
           if (p.sub === 'flecha') { ctx.fillStyle = '#e8d8b0'; ctx.fillRect(-L.TW * 0.3, -1, L.TW * 0.6, 2); ctx.fillStyle = '#dfe4ec'; ctx.fillRect(L.TW * 0.25, -2, 4, 4); }
@@ -1403,6 +1541,12 @@ const Batalla = (() => {
   }
   function dibujarAmbiente(t) {
     for (const a of amb) {
+      if (a.tipo === 'lluvia') {
+        a.y += 0.02 * a.v; a.x -= 0.004 * a.v;
+        if (a.y > 1) { a.y = -0.05; a.x = Math.random() * 1.2; }
+        ctx.strokeStyle = 'rgba(180,200,230,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x * L.W, a.y * L.H); ctx.lineTo(a.x * L.W - 4, a.y * L.H + 14); ctx.stroke();
+        continue;
+      }
       if (a.tipo === 'nieve') {
         a.y += 0.0015 * a.v; a.x += Math.sin(t / 900 + a.f) * 0.0006;
         if (a.y > 1) { a.y = 0; a.x = Math.random(); }
@@ -1427,7 +1571,7 @@ const Batalla = (() => {
       const salto = e < 0.2 ? Math.sin(e / 0.2 * Math.PI) * 8 : 0;
       const y = p.y - e * 18 - salto;
       const tam = Math.round((p.grande ? 1.25 : 1) * Math.max(13, L.TW * 0.42));
-      ctx.font = `bold ${tam}px Fredoka, sans-serif`;
+      ctx.font = `bold ${tam}px Cinzel, serif`;
       ctx.textAlign = 'center';
       ctx.globalAlpha = e > 0.75 ? (1 - e) / 0.25 : 1;
       ctx.lineWidth = 3; ctx.strokeStyle = '#1a1420'; ctx.strokeText(p.txt, p.x, y);
@@ -1450,7 +1594,7 @@ const Batalla = (() => {
     ctx.fillStyle = g; ctx.fillRect(0, y - h / 2, L.W, h);
     ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(L.W * 0.15, y - h / 2, L.W * 0.7, 1); ctx.fillRect(L.W * 0.15, y + h / 2 - 1, L.W * 0.7, 1);
     ctx.globalAlpha = a;
-    ctx.font = `bold ${banner.chico ? 15 : 22}px Fredoka, sans-serif`;
+    ctx.font = `bold ${banner.chico ? 15 : 22}px Cinzel, serif`;
     ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
     const x = L.W / 2 + (1 - a) * 30;
     ctx.strokeText(banner.txt, x, y + (banner.chico ? 5 : 8)); ctx.fillText(banner.txt, x, y + (banner.chico ? 5 : 8));

@@ -203,9 +203,10 @@ function pintarMundo(region = 'norte') {
     h = h * (1 - cerca * 0.85) + 0.55 * cerca * 0.85 + 0.06;
     alto[y * W + x] = h; hum[y * W + x] = ruido(grid2, nx, ny, 5);
   }
+  // Pergamino: el agua es un lavado más oscuro y la tierra papel claro con un toque de color.
   const PAL = region === 'sur'
-    ? { mar:[34, 18, 40], marClaro:[60, 34, 66], costa:[20, 10, 24], arena:[120, 96, 88], pasto:[118, 104, 104], bosque:[98, 84, 86], monte:[74, 62, 70], nieve:[52, 40, 50] }
-    : { mar:[54, 104, 178], marClaro:[96, 150, 212], costa:[30, 40, 60], arena:[232, 214, 150], pasto:[124, 186, 92], bosque:[92, 158, 80], monte:[150, 140, 128], nieve:[244, 246, 252] };
+    ? { mar:[116, 70, 52], marClaro:[138, 90, 66], costa:[48, 24, 16], arena:[212, 182, 140], pasto:[204, 172, 132], bosque:[186, 152, 112], monte:[176, 136, 104], nieve:[160, 112, 90] }
+    : { mar:[168, 150, 112], marClaro:[184, 166, 126], costa:[66, 46, 28], arena:[228, 212, 168], pasto:[218, 206, 156], bosque:[196, 196, 136], monte:[204, 186, 148], nieve:[238, 230, 204] };
   const tierra = h => h >= 0.42;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const k = y * W + x, h = alto[k];
@@ -229,7 +230,7 @@ function pintarMundo(region = 'norte') {
   }
   ctx.putImageData(img, 0, 0);
   // Olas
-  ctx.strokeStyle = region === 'sur' ? 'rgba(200,120,220,.25)' : 'rgba(255,255,255,.35)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(70,46,26,.45)'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
   for (let i = 0; i < 70; i++) {
     const x = r() * W, y = r() * H;
     if (tierra(alto[Math.floor(y) * W + Math.floor(x)])) continue;
@@ -239,17 +240,21 @@ function pintarMundo(region = 'norte') {
   const libre = (x, y) => nodos.every(n => Math.hypot(x - n.x / 100 * W, y - n.y / 100 * H) > 46);
   const arbol = (x, y, s) => {
     ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(x, y + s * 0.9, s * 0.7, s * 0.25, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = region === 'sur' ? '#3a2a2a' : '#6a4428'; ctx.fillRect(x - s * 0.12, y + s * 0.2, s * 0.24, s * 0.7);
-    ctx.beginPath(); ctx.arc(x, y, s * 0.62, 0, 7); ctx.fillStyle = region === 'sur' ? '#5a4a4e' : '#3e8a3a'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = region === 'sur' ? '#241a1e' : '#1e4a20'; ctx.stroke();
-    ctx.beginPath(); ctx.arc(x - s * 0.2, y - s * 0.2, s * 0.22, 0, 7); ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fill();
+    ctx.strokeStyle = '#3e2a18'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x, y + s * 0.9); ctx.lineTo(x, y + s * 0.2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y - s * 0.8); ctx.lineTo(x + s * 0.55, y + s * 0.3); ctx.lineTo(x - s * 0.55, y + s * 0.3); ctx.closePath();
+    ctx.fillStyle = region === 'sur' ? 'rgba(120,80,60,.55)' : 'rgba(110,130,70,.55)'; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = '#3e2a18'; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - s * 0.15, y - s * 0.3); ctx.lineTo(x - s * 0.35, y + s * 0.2); ctx.lineWidth = 0.8; ctx.stroke();
   };
   const monte = (x, y, s, volcan) => {
     ctx.beginPath(); ctx.moveTo(x - s, y + s * 0.7); ctx.lineTo(x - s * 0.1, y - s * 0.8); ctx.lineTo(x + s, y + s * 0.7); ctx.closePath();
-    const g = ctx.createLinearGradient(x - s, 0, x + s, 0); g.addColorStop(0, volcan ? '#6a4a46' : '#c8c0b4'); g.addColorStop(0.5, volcan ? '#4a3434' : '#9a9286'); g.addColorStop(1, volcan ? '#2a1e1e' : '#6e665c');
-    ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 2.2; ctx.strokeStyle = '#2a2420'; ctx.stroke();
+    ctx.fillStyle = volcan ? 'rgba(150,70,50,.35)' : 'rgba(150,130,100,.25)'; ctx.fill(); ctx.lineWidth = 1.8; ctx.strokeStyle = '#3e2a18'; ctx.stroke();
+    // Sombreado a rayitas del lado derecho, como en los mapas dibujados a mano
+    ctx.save(); ctx.clip(); ctx.lineWidth = 0.9; ctx.strokeStyle = 'rgba(62,42,24,.6)';
+    for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(x - s * 0.05 + i * s * 0.18, y - s * 0.6 + i * s * 0.2); ctx.lineTo(x + i * s * 0.18 - s * 0.3, y + s * 0.7); ctx.stroke(); }
+    ctx.restore();
     ctx.beginPath(); ctx.moveTo(x - s * 0.36, y - s * 0.22); ctx.lineTo(x - s * 0.1, y - s * 0.8); ctx.lineTo(x + s * 0.26, y - s * 0.22); ctx.lineTo(x, y - s * 0.32); ctx.closePath();
-    ctx.fillStyle = volcan ? '#ff6a1a' : '#ffffff'; ctx.fill();
-    if (volcan) { ctx.fillStyle = 'rgba(255,140,40,.35)'; ctx.beginPath(); ctx.arc(x - s * 0.1, y - s * 0.9, s * 0.4, 0, 7); ctx.fill(); }
+    ctx.fillStyle = volcan ? 'rgba(200,60,30,.75)' : 'rgba(255,252,240,.85)'; ctx.fill();
+    if (volcan) { ctx.strokeStyle = 'rgba(62,42,24,.6)'; ctx.lineWidth = 1; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(x - s * 0.1 + i * 3, y - s * 1.1 - i * 5, 3 + i, 0, 7); ctx.stroke(); } }
   };
   for (let gy = 16; gy < H; gy += 30) for (let gx = 16; gx < W; gx += 30) {
     const x = gx + (r() - 0.5) * 14, y = gy + (r() - 0.5) * 14;
@@ -257,14 +262,19 @@ function pintarMundo(region = 'norte') {
     if (!tierra(h) || !libre(x, y)) continue;
     if (h > 0.66) { if (r() < (h > 0.72 ? 0.55 : 0.3)) monte(x, y, 13 + r() * 6, region === 'sur' && r() < 0.35); }
     else if (hum[k] > 0.56 && h > 0.46) { if (r() < 0.8) arbol(x, y, 9 + r() * 3); }
-    else if (region === 'sur' && r() < 0.06) { ctx.strokeStyle = '#ff6a1a'; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(x - 8, y); ctx.lineTo(x - 2, y + 3); ctx.lineTo(x + 6, y - 2); ctx.stroke(); }
+    else if (region === 'sur' && r() < 0.06) { ctx.strokeStyle = 'rgba(180,50,30,.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 8, y); ctx.lineTo(x - 2, y + 3); ctx.lineTo(x + 6, y - 2); ctx.stroke(); }
   }
   // Niebla al norte (Aldmora) o el Abismo al sur
   const g = ctx.createLinearGradient(0, region === 'sur' ? H : 0, 0, region === 'sur' ? H * 0.62 : H * 0.3);
-  g.addColorStop(0, region === 'sur' ? 'rgba(90,20,90,.55)' : 'rgba(200,190,235,.55)'); g.addColorStop(1, 'rgba(200,190,235,0)');
+  g.addColorStop(0, region === 'sur' ? 'rgba(60,10,10,.35)' : 'rgba(120,110,140,.28)'); g.addColorStop(1, 'rgba(120,110,140,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // Manchas del papel y bordes quemados
+  for (let i = 0; i < 26; i++) { const x = r() * W, y = r() * H, rad = 20 + r() * 70; const m = ctx.createRadialGradient(x, y, 0, x, y, rad); m.addColorStop(0, 'rgba(120,80,40,.10)'); m.addColorStop(1, 'rgba(120,80,40,0)'); ctx.fillStyle = m; ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
+  const q = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.62);
+  q.addColorStop(0, 'rgba(60,30,10,0)'); q.addColorStop(0.8, 'rgba(70,40,15,.35)'); q.addColorStop(1, 'rgba(40,18,6,.85)');
+  ctx.fillStyle = q; ctx.fillRect(0, 0, W, H);
   // Marco y rosa de los vientos
-  ctx.lineWidth = 8; ctx.strokeStyle = '#2a2016'; ctx.strokeRect(4, 4, W - 8, H - 8);
+  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(62,42,24,.8)'; ctx.strokeRect(14, 14, W - 28, H - 28); ctx.strokeRect(20, 20, W - 40, H - 40);
   const rx = W - 60, ry = H - 70;
   ctx.fillStyle = 'rgba(255,248,230,.9)'; ctx.beginPath(); ctx.arc(rx, ry, 30, 0, 7); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#2a2016'; ctx.stroke();
   ctx.fillStyle = '#c83a3a'; ctx.beginPath(); ctx.moveTo(rx, ry - 26); ctx.lineTo(rx + 7, ry); ctx.lineTo(rx - 7, ry); ctx.fill();
@@ -386,10 +396,10 @@ function jugarPaso(i) {
           if (prox && prox.seguida) jugarPaso(i + 1); else pantallaMapa();
         });
       });
-    }));
+    }, paso.antes));
   };
   const conTitulo = cb => paso.cap ? tarjetaCapitulo(paso.cap, cb) : cb();
-  conTitulo(() => dialogo(paso.antes, seguir));
+  conTitulo(seguir);
 }
 function jugarSecreta(id) {
   const S = SECRETAS[id], def = S.batalla;
@@ -413,8 +423,8 @@ function patrullar(id) {
     pantallaResultados(aplicarPremios(def, res), pantallaMapa);
   }));
 }
-function batallar(def, ids, alTerminar) {
-  Batalla.iniciar({ def, ids, onFin: res => { guardar(); alTerminar(res); } });
+function batallar(def, ids, alTerminar, escena) {
+  Batalla.iniciar({ def, ids, escena, onFin: res => { guardar(); alTerminar(res); } });
 }
 function aplicarPremios(def, res) {
   const g = res.ganado;
@@ -484,12 +494,12 @@ function gestoDe(quien, txt) {
   if (typeof quien === 'string' && malos.includes(quien)) return 'enojo';
   return '';
 }
-function dialogo(lineas, cb) {
+function dialogo(lineas, cb, opts = {}) {
   if (!lineas || !lineas.length) { cb(); return; }
   let i = 0, escribiendo = null, terminado = false;
   const fin = () => { if (terminado) return; terminado = true; clearInterval(escribiendo); clearInterval(caja._anim); document.querySelector('.dialogo')?.remove(); cb(); };
   const caja = document.createElement('div');
-  caja.className = 'dialogo';
+  caja.className = 'dialogo' + (opts.escena ? ' en-escena' : '');
   caja.innerHTML = `<div class="dlg-fondo"></div><div class="dlg-caja"><div class="dlg-retrato"></div><div class="dlg-cuerpo"><div class="dlg-nombre"></div><div class="dlg-texto"></div></div><div class="dlg-sig">▼</div></div><button class="dlg-saltar mini">Saltar ⏭</button>`;
   document.body.appendChild(caja);
   const mostrar = () => {
@@ -526,7 +536,7 @@ function dialogo(lineas, cb) {
   };
   caja.addEventListener('click', e => {
     Sonido.iniciar();
-    if (e.target.closest('.dlg-saltar')) { fin(); return; }
+    if (e.target.closest('.dlg-saltar')) { if (opts.escena) window._saltarEscena = true; fin(); return; }
     if (escribiendo) { clearInterval(escribiendo); escribiendo = null; caja.querySelector('.dlg-texto').textContent = lineas[i][1]; return; }
     i++;
     if (i >= lineas.length) fin(); else mostrar();

@@ -370,7 +370,7 @@ const Pueblo = (() => {
         if (im) ctx.drawImage(im, cx - s / 2, by - s, s, s);
       }
       if (cercano) {
-        ctx.font = `600 ${Math.round(TS * 0.24)}px Fredoka, sans-serif`; ctx.textAlign = 'center';
+        ctx.font = `600 ${Math.round(TS * 0.24)}px Cinzel, serif`; ctx.textAlign = 'center';
         ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(10,12,30,.85)'; ctx.strokeText(p.n, cx, fy + TS * 0.38);
         ctx.fillStyle = '#fff'; ctx.fillText(p.n, cx, fy + TS * 0.38); ctx.textAlign = 'left';
       }

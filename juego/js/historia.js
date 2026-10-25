@@ -143,7 +143,7 @@ const FONDOS = {
   campanario:'#2a2438', paso:'#2c3448', fortaleza:'#22222e', puente:'#120e1c', catedral:'#140f1e', voz:'#0c0814',
 };
 // Partículas de ambiente: niebla, nieve, hojas, ceniza.
-const AMBIENTE = { brezal:'bruma', molino:'hojas', bosque:'ceniza', ruinas:'bruma', muelles:'gaviota', campanario:'bruma', paso:'nieve', fortaleza:'ceniza', puente:'bruma', catedral:'bruma', voz:'bruma' };
+const AMBIENTE = { brezal:'bruma', molino:'hojas', bosque:'ceniza', ruinas:'lluvia', muelles:'lluvia', campanario:'bruma', paso:'nieve', fortaleza:'lluvia', puente:'bruma', catedral:'bruma', voz:'bruma' };
 
 const A = (x, y) => [x, y];
 // Las batallas de la historia. e: enemigos { c: clase, nv, x, y, n: nombre, jefe, t: tinte, habs }.
