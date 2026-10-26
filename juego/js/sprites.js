@@ -938,7 +938,19 @@ const SPR = (() => {
     ctx.drawImage(SUELO_IMG, cc * 32, rr * 32, 32, alto, 0, 0, sz, sz * alto / 32);
     ctx.restore();
   }
+  const MADERA = new Image(); MADERA.src = 'arte/props/inside.png';
+  function maderaLPC(una) {
+    if (!(MADERA.complete && MADERA.naturalWidth)) return null;
+    const key = 'Lb' + (una ? '1' : '');
+    if (cache.has(key)) return cache.get(key);
+    const cv = lienzo(TX, TY), ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
+    const n = una ? 1 : 2, sz = TX / n;
+    for (let i = 0; i < n * n; i++) ctx.drawImage(MADERA, 0, 128, 32, 32, (i % n) * sz, Math.floor(i / n) * sz, sz, sz);
+    cache.set(key, cv);
+    return cv;
+  }
   function sueloLPC(letra, variante, una) {
+    if (letra === 'b') return maderaLPC(una);
     const def = SUELO[letra]; if (!sueloListo || def === undefined) return null;
     const key = 'L' + letra + variante + (una ? '1' : '');
     if (cache.has(key)) return cache.get(key);
@@ -1024,6 +1036,13 @@ const SPR = (() => {
     return cv;
   }
   function texturaLado(letra) {
+    if (letra === 'b' && MADERA.complete && MADERA.naturalWidth) {
+      if (cache.has('Sb')) return cache.get('Sb');
+      const cv = lienzo(TX, 32), c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
+      c.drawImage(MADERA, 0, 128, 32, 16, 0, 0, 64, 32); c.drawImage(MADERA, 0, 136, 32, 16, 64, 0, 64, 32);
+      c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(0, 0, TX, 32);
+      cache.set('Sb', cv); return cv;
+    }
     if (sueloListo && !TERRENO[letra]?.techo && letra !== 'b') {
       const kl = 'S' + letra;
       if (cache.has(kl)) return cache.get(kl);

@@ -417,5 +417,6 @@ const LPC = (() => {
   // Precarga la caminata de una lista de vis (para que los menús ya la tengan).
   function precargar(lista) { lista.forEach(v => { const r = recetaDe(v); if (r) capasListas(r, 'walk'); }); }
   function alCargar(fn) { avisar = fn; }
-  return { dibujar, animDe, recetaDe, frames, esHumano, precargar, alCargar, receta, sexo, dibujarBestia, esBestia:v => !!bestiaDe(v), dibujarMascota, esMascota:id => !!MASC[id], tenida };
+  return { dibujar, animDe, recetaDe, frames, esHumano, precargar, alCargar, receta, sexo, dibujarBestia, esBestia:v => !!bestiaDe(v), dibujarMascota, esMascota:id => !!MASC[id], tenida,
+    agregarMonstruo:(id, def) => { MON[id] = def; cache.clear(); }, tinteBestia:(id, hex) => { TINTE_BESTIA[id] = hex; } };
 })();

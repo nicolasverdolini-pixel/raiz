@@ -201,11 +201,12 @@ function mostrarAyuda() {
 // ---------- Mapa del mundo ----------
 // Mapa del mundo ilustrado: costas marcadas, bosques, montañas y volcanes dibujados como íconos.
 const imgMundo = {};
+const REGIONES = { norte:'Aldmora', sur:'Tierras del Sur', este:'Islas del Eco' };
 function pintarMundo(region = 'norte') {
   if (imgMundo[region]) return imgMundo[region];
   const W = 720, H = 1120, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d'), img = ctx.createImageData(W, H);
-  const semilla = region === 'sur' ? 777 : 12345;
+  const semilla = region === 'sur' ? 777 : region === 'este' ? 4242 : 12345;
   const r = (() => { let s = semilla; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; })();
   const G0 = 16, grid = Array.from({ length:(G0 + 1) * (G0 + 1) }, r), grid2 = Array.from({ length:(G0 + 1) * (G0 + 1) }, r);
   const ruido = (g, x, y, f) => {
@@ -226,7 +227,9 @@ function pintarMundo(region = 'norte') {
     alto[y * W + x] = h; hum[y * W + x] = ruido(grid2, nx, ny, 5);
   }
   // Pergamino: el agua es un lavado más oscuro y la tierra papel claro con un toque de color.
-  const PAL = region === 'sur'
+  const PAL = region === 'este'
+    ? { mar:[112, 138, 148], marClaro:[132, 160, 166], costa:[30, 46, 54], arena:[226, 214, 176], pasto:[206, 210, 172], bosque:[176, 196, 150], monte:[196, 192, 176], nieve:[236, 236, 228] }
+    : region === 'sur'
     ? { mar:[116, 70, 52], marClaro:[138, 90, 66], costa:[48, 24, 16], arena:[212, 182, 140], pasto:[204, 172, 132], bosque:[186, 152, 112], monte:[176, 136, 104], nieve:[160, 112, 90] }
     : { mar:[168, 150, 112], marClaro:[184, 166, 126], costa:[66, 46, 28], arena:[228, 212, 168], pasto:[218, 206, 156], bosque:[196, 196, 136], monte:[204, 186, 148], nieve:[238, 230, 204] };
   const tierra = h => h >= 0.42;
@@ -305,7 +308,8 @@ function pintarMundo(region = 'norte') {
   imgMundo[region] = cv.toDataURL('image/jpeg', 0.9);
   return imgMundo[region];
 }
-function nodoVisible(id) { return G.paso >= NODOS[id].desde || (G.flags.fin && true); }
+function regionSig(r) { const l = G.paso >= 28 ? ['norte', 'sur', 'este'] : ['norte', 'sur']; return l[(l.indexOf(r) + 1) % l.length]; }
+function nodoVisible(id) { return G.paso >= NODOS[id].desde || (G.flags.fin && !NODOS[id].acto); }
 // Los lugares secretos aparecen cuando algún vecino te cuenta de ellos.
 function nodosSecretos(region) {
   return Object.entries(SECRETAS).filter(([id, S]) => G.flags['sec_' + id] && (S.region || 'norte') === region).map(([id, S]) => [id, { n:S.n, tipo:'secreto', x:S.x, y:S.y, secreto:id, region:S.region || 'norte' }]);
@@ -325,9 +329,9 @@ function pantallaMapa(region) {
   const ids = new Set(nodos.map(([id]) => id));
   const caminos = CAMINOS.filter(([a, b]) => ids.has(a) && ids.has(b)).map(([a, b]) => `<line x1="${NODOS[a].x}" y1="${NODOS[a].y}" x2="${NODOS[b].x}" y2="${NODOS[b].y}" />`).join('');
   const sigAca = sig && NODOS[sig].region === region;
-  const titulo = region === 'sur' ? 'Tierras del Sur' : 'Aldmora';
+  const titulo = REGIONES[region] || 'Aldmora';
   montar(`
-    ${cabecera(G.flags.fin ? titulo + ' (epílogo)' : titulo + ' — Capítulo ' + capituloActual(), false)}
+    ${cabecera(G.flags.fin && !pasoActual() ? titulo + ' (epílogo)' : titulo + ' — Capítulo ' + capituloActual(), false)}
     <div class="mundo ${region}">
       <img class="mundo-img" src="${pintarMundo(region)}" alt="">
       <svg class="mundo-caminos" viewBox="0 0 100 100" preserveAspectRatio="none">${caminos.replace(/<line/g, '<line class="sombra"')}${caminos}</svg>
@@ -337,17 +341,17 @@ function pantallaMapa(region) {
         </button>`).join('')}
     </div>
     <div class="mapa-pie">
-      ${paso ? `<div class="mision">Siguiente: <b>${esc(BATALLAS[paso.b].n)}</b> en ${esc(NODOS[paso.nodo].n)}${sigAca ? '' : ` <i>(${NODOS[paso.nodo].region === 'sur' ? 'en el sur' : 'en Aldmora'})</i>`}</div>` : '<div class="mision">La historia terminó. ¡Seguí entrenando!</div>'}
+      ${paso ? `<div class="mision">Siguiente: <b>${esc(BATALLAS[paso.b].n)}</b> en ${esc(NODOS[paso.nodo].n)}${sigAca ? '' : ` <i>(en ${REGIONES[NODOS[paso.nodo].region]})</i>`}</div>` : '<div class="mision">La historia terminó. ¡Seguí entrenando!</div>'}
       <div class="fila">
         <button data-x="grupo">👥 Grupo</button>
         ${paso ? `<button data-x="ir" class="ok">❗ Ir</button>` : ''}
-        ${G.paso >= 12 ? `<button data-x="region" class="sec">🗺️ ${region === 'sur' ? 'Norte' : 'Sur'}</button>` : ''}
+        ${G.paso >= 12 ? `<button data-x="region" class="sec">🗺️ ${REGIONES[regionSig(region)]}</button>` : ''}
         <button data-x="ajustes" class="sec">⚙️</button>
       </div>
     </div>`, {
     nodo: d => tocarNodo(d.id),
     ir: () => { if (!sigAca) pantallaMapa(NODOS[sig].region); else tocarNodo(sig); },
-    region: () => pantallaMapa(region === 'sur' ? 'norte' : 'sur'),
+    region: () => pantallaMapa(regionSig(region)),
     grupo: () => pantallaGrupo(() => pantallaMapa(region)),
     ajustes: pantallaAjustes,
   });
