@@ -135,10 +135,11 @@ function mostrarCreditos() {
 function elegirRanura() {
   const fila = i => {
     const r = resumenSlot(i);
-    return `<div class="ranura"><div class="ran-dat"><b>Partida ${i + 1}${r && r.nombre ? ' · ' + esc(r.nombre) : ''}</b><small>${r ? (r.fin ? 'Historia terminada' : 'Capítulo ' + [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 5, 5][Math.min(r.paso, 11)]) + ` · nivel ${r.nv} · ${r.oro} oro` : 'Vacía'}</small></div>
+    return `<div class="ranura"><div class="ran-dat"><b>Partida ${i + 1}${r && r.nombre ? ' · ' + esc(r.nombre) : ''}</b><small>${r ? (r.paso >= HISTORIA.length ? 'Historia terminada' : 'Capítulo ' + (() => { const g = G; G = { paso:r.paso }; try { return capituloActual(); } finally { G = g; } })()) + ` · nivel ${r.nv} · ${r.oro} oro` : 'Vacía'}</small></div>
       ${r ? `<button data-x="cont" data-i="${i}" class="ok mini">Seguir</button><button data-x="borrar" data-i="${i}" class="peligro mini">🗑</button>` : `<button data-x="nueva" data-i="${i}" class="mini">Nueva</button>`}</div>`;
   };
-  modal(`<h3>Elegí tu partida</h3><p class="sub centro">Cada partida se guarda aparte en este celular. Si jugás con amigos, cada uno usa la suya (o juega en su propio teléfono).</p>${[0, 1, 2].map(fila).join('')}<button data-x="cerrar" class="sec">Volver</button>`, {
+  modal(`<h3>Elegí tu partida</h3><p class="sub centro">Cada partida se guarda aparte en este celular. Si jugás con amigos, cada uno usa la suya (o juega en su propio teléfono).</p>${[0, 1, 2].map(fila).join('')}<button data-x="importar">📥 Cargar una partida con código</button><button data-x="cerrar" class="sec">Volver</button>`, {
+    importar: (d, c) => { c(); cargarCodigo(); },
     cont: (d, c) => { c(); usarSlot(+d.i); cargar(); pantallaMapa(); },
     nueva: (d, c) => {
       c(); usarSlot(+d.i);
@@ -319,6 +320,7 @@ function pasoActual() { return HISTORIA[G.paso] || null; }
 function batallaGanada(bid) { const i = HISTORIA.findIndex(p => p.b === bid); return i >= 0 && i < G.paso; }
 
 function pantallaMapa(region) {
+  if (G.batallas - (G.flags.respaldo ?? 0) >= 25) { G.flags.respaldo = G.batallas; guardar(); setTimeout(() => toast('Hace rato que no guardás un respaldo. Ajustes ⚙️ → 💾 Respaldo de la partida.'), 1200); }
   Sonido.musica('mapa');
   const paso = pasoActual();
   const sig = paso ? paso.nodo : null;
@@ -378,16 +380,71 @@ function tocarNodo(id) {
     secreta: (d, c) => { c(); jugarSecreta(id); },
   });
 }
+// ---------- Respaldo: la partida como un código de texto para guardarla fuera del celular ----------
+const b64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); };
+const desB64 = txt => Uint8Array.from(atob(txt), c => c.charCodeAt(0));
+async function codigoPartida(g) {
+  const datos = new TextEncoder().encode(JSON.stringify(g));
+  if (window.CompressionStream) {
+    try { const comp = await new Response(new Blob([datos]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer(); return 'CB2:' + b64(new Uint8Array(comp)); } catch (e) {}
+  }
+  return 'CB1:' + b64(datos);
+}
+async function leerCodigo(txt) {
+  txt = (txt || '').replace(/\s+/g, '');
+  const m = /^(CB[12]):(.+)$/.exec(txt); if (!m) throw new Error('formato');
+  let datos = desB64(m[2]);
+  if (m[1] === 'CB2') datos = new Uint8Array(await new Response(new Blob([datos]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+  const g = JSON.parse(new TextDecoder().decode(datos));
+  if (!g || !Array.isArray(g.unidades) || typeof g.paso !== 'number') throw new Error('datos');
+  return g;
+}
+async function pantallaRespaldo() {
+  guardar();
+  const cod = await codigoPartida(G);
+  const cerrar = modal(`<h3>Respaldo de la partida</h3>
+    <p class="sub">Tu avance vive solo en este celular. Copiá este código y guardalo en Notas o mandatelo por WhatsApp: con él recuperás la partida si se borra, o la pasás a otro teléfono.</p>
+    <textarea class="codigo" readonly>${cod}</textarea>
+    <button data-x="copiar" class="ok">📋 Copiar código</button>
+    ${navigator.share ? '<button data-x="compartir">📤 Compartir</button>' : ''}
+    <button data-x="cerrar" class="sec">Cerrar</button>`, {
+    copiar: async () => {
+      try { await navigator.clipboard.writeText(cod); toast('Código copiado. Pegalo en Notas o en WhatsApp.', 'bien'); }
+      catch (e) { const t = document.querySelector('.codigo'); t.select(); document.execCommand('copy'); toast('Código copiado.', 'bien'); }
+      G.flags.respaldo = G.batallas; guardar();
+    },
+    compartir: async () => { try { await navigator.share({ title:'Campanas de Bruma — partida', text:cod }); G.flags.respaldo = G.batallas; guardar(); } catch (e) {} },
+  });
+  setTimeout(() => document.querySelector('.codigo')?.select(), 50);
+  return cerrar;
+}
+function cargarCodigo(volver = elegirRanura) {
+  modal(`<h3>Cargar una partida</h3>
+    <p class="sub">Pegá el código de respaldo (empieza con CB1: o CB2:) y elegí en qué lugar guardarla.</p>
+    <textarea class="codigo" placeholder="CB2:..."></textarea>
+    <div class="fila">${[0, 1, 2].map(i => `<button data-x="en" data-i="${i}">${hayPartida(i) ? '⚠️ ' : ''}Partida ${i + 1}</button>`).join('')}</div>
+    <button data-x="cerrar" class="sec">Volver</button>`, {
+    en: async (d, c) => {
+      const txt = document.querySelector('.codigo').value;
+      let g; try { g = await leerCodigo(txt); } catch (e) { toast('Ese código no sirve. Fijate que esté completo.'); Sonido.fx('error'); return; }
+      const ok = () => { try { localStorage.setItem(claveSlot(+d.i), JSON.stringify(g)); } catch (e) { toast('No se pudo guardar.'); return; } c(); toast(`Partida cargada en la ${+d.i + 1}.`, 'bien'); Sonido.fx('nivel'); volver(); };
+      if (hayPartida(+d.i)) confirmar(`La partida ${+d.i + 1} ya tiene datos. ¿Reemplazarla por la del código?`, ok); else ok();
+    },
+  });
+}
+
 function pantallaAjustes() {
   modal(`<h3>Ajustes</h3>
     <button data-x="musica">${Sonido.musicaOn ? '🔊 Música: sí' : '🔇 Música: no'}</button>
     <button data-x="fx">${Sonido.fxOn ? '🔔 Efectos: sí' : '🔕 Efectos: no'}</button>
+    <button data-x="respaldo">💾 Respaldo de la partida</button>
     <button data-x="ayuda">❓ Cómo se juega</button>
     <button data-x="titulo">🏁 Ir al título</button>
     <button data-x="borrar" class="peligro">🗑 Borrar partida</button>
     <button data-x="cerrar" class="ok">Cerrar</button>`, {
     musica: (d, c) => { Sonido.setMusica(!Sonido.musicaOn); c(); pantallaAjustes(); },
     fx: (d, c) => { Sonido.setFx(!Sonido.fxOn); c(); pantallaAjustes(); },
+    respaldo: (d, c) => { c(); pantallaRespaldo(); },
     ayuda: (d, c) => { c(); mostrarAyuda(); },
     titulo: (d, c) => { c(); guardar(); pantallaTitulo(); },
     borrar: (d, c) => { c(); confirmar('¿Borrar esta partida para siempre?', () => { borrarSlot(SLOT); pantallaTitulo(); }); },
