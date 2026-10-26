@@ -115,7 +115,7 @@ const HAB = {
   canto_alba:     { carga:26, n:'Canto del alba', d:'Cura a los aliados cercanos.', tipo:'cura', mp:10, r:[0,0], a:2, af:'a', p:15, pc:150, fx:'cura' },
   eco_protector:  { n:'Eco protector', d:'Protección y Coraza a los cercanos.', tipo:'apoyo', mp:12, r:[0,0], a:2, af:'a', est:[{id:'protegido',prob:100,dur:3},{id:'coraza',prob:100,dur:3}], pc:200, fx:'escudo' },
   campanada:      { carga:20, n:'Campanada', d:'Golpe de sonido que puede aturdir.', tipo:'mag', mp:16, r:[1,4], a:1, p:28, el:'sonido', est:[{id:'aturdido',prob:30,dur:1}], pc:300, fx:'sonido' },
-  cancion_memoria:{ carga:14, n:'Canción de la memoria', d:'La canción que devuelve lo olvidado.', tipo:'mag', mp:30, r:[0,0], a:3, p:42, el:'sonido', historia:true, pc:0, fx:'sonido' },
+  cancion_memoria:{ carga:20, n:'Canción de la memoria', d:'La canción que devuelve lo olvidado. Se apunta a distancia.', tipo:'mag', mp:30, r:[0,4], a:2, p:42, el:'sonido', historia:true, pc:0, fx:'sonido' },
   resonancia:     { n:'Resonancia', d:'Pasiva: recupera 5 de magia por turno.', tipo:'pasiva', pv:'resonancia', pc:300 },
 
   // Monstruos y jefes (no se aprenden)

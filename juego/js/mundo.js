@@ -143,7 +143,7 @@ const PUEBLOS = {
       { tipo:'castillo', x:3, y:1, w:6, h:3, techo:'#4a4a7a', pared:'#d8d8e0' },
       { tipo:'tienda',   x:1, y:5, w:3, h:3, puerta:[2, 7], techo:'#7a7a8a', pared:'#efe8d8', cartel:'pocion', n:'Tienda' },
       { tipo:'herreria', x:8, y:5, w:3, h:3, puerta:[9, 7], techo:'#5a5a6a', pared:'#c8b8a0', cartel:'herreria', n:'Herrería' },
-      { tipo:'taberna',  x:4, y:9, w:4, h:3, puerta:[5, 11], techo:'#8a5a2a', pared:'#e8d8b8', cartel:'taberna', n:'Taberna' },
+      { tipo:'taberna',  x:4, y:9, w:3, h:3, puerta:[5, 11], techo:'#8a5a2a', pared:'#e8d8b8', cartel:'taberna', n:'Taberna' },
       { tipo:'joyeria',  x:1, y:10, w:3, h:3, puerta:[2, 12], techo:'#6a4a9a', pared:'#efe8d8', cartel:'joyeria', n:'Joyería' },
       { tipo:'criadero', x:8, y:10, w:3, h:3, puerta:[9, 12], techo:'#3a8a6a', pared:'#f0e8d0', cartel:'criadero', n:'Criadero' },
     ],

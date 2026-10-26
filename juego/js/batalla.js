@@ -1097,7 +1097,8 @@ const Batalla = (() => {
         else txt = H.n;
         return `<div class="prev"><b>${esc(t.nombre)}</b> ${t.hp}/${t.st.hpMax} → ${txt}</div>`;
       }).join('') + (ts.length > 3 ? `<div class="prev">y ${ts.length - 3} más</div>` : '');
-      const aviso = H.carga ? `<div class="prev carga-aviso">⏳ Tarda en salir (${H.carga >= 25 ? 'rápido' : H.carga >= 18 ? 'medio' : 'lento'}): si se mueven, pueden esquivarlo.</div>` : '';
+      const vacio = !ts.length ? `<div class="prev carga-aviso">⚠️ No hay ${(H.af || 'e') === 'e' ? 'enemigos' : 'aliados'} en el área${H.r && H.r[1] === 0 ? ': esta habilidad pega alrededor de quien la usa. Acercate primero' : ''}.</div>` : '';
+      const aviso = vacio + (H.carga ? `<div class="prev carga-aviso">⏳ Tarda en salir (${H.carga >= 25 ? 'rápido' : H.carga >= 18 ? 'medio' : 'lento'}): si se mueven, pueden esquivarlo.</div>` : '');
       m = `<div class="previa"><div class="prev-tit">${esc(H.n)}</div>${prev || '<div class="prev">No hay a quién afectar ahí.</div>'}${aviso}</div>
         <div class="botones"><button data-a="confirmar" class="ok">✔ Confirmar</button><button data-a="cancelar" class="sec">✖ Volver</button></div>`;
     } else if (ui.modo === 'dir') {

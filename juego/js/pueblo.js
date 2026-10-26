@@ -4,7 +4,7 @@
 const Pueblo = (() => {
   let P = null, cv = null, ctx = null, raf = 0, dpr = 1, TS = 56, W = 0, H = 0;
   const ultimaPuerta = {};
-  const SOLIDO = new Set(['t', 'r', 'm', 'w']);
+  const SOLIDO = new Set(['t', 'r', 'm', 'w', 'W', 'l']);
   const VEL = 3.3, VEL_PNJ = 1.3, RADIO = 0.3;
   const imgs = {};
   // Piezas LPC para las casas: ladrillo, puertas, ventanas y tejas (arte/props/house.png).
