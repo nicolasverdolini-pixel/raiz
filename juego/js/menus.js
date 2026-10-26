@@ -321,12 +321,12 @@ function batallaGanada(bid) { const i = HISTORIA.findIndex(p => p.b === bid); re
 
 function pantallaMapa(region) {
   if (G.batallas - (G.flags.respaldo ?? 0) >= 25) { G.flags.respaldo = G.batallas; guardar(); setTimeout(() => toast('Hace rato que no guardás un respaldo. Ajustes ⚙️ → 💾 Respaldo de la partida.'), 1200); }
-  Sonido.musica('mapa');
   const paso = pasoActual();
   const sig = paso ? paso.nodo : null;
   region = region || G.region || (sig && NODOS[sig].region) || 'norte';
   if (sig && !region) region = NODOS[sig].region;
   G.region = region;
+  Sonido.musica(region === 'este' ? 'mar' : 'mapa');
   const nodos = Object.entries(NODOS).filter(([id, n]) => n.region === region && nodoVisible(id)).concat(nodosSecretos(region));
   const ids = new Set(nodos.map(([id]) => id));
   const caminos = CAMINOS.filter(([a, b]) => ids.has(a) && ids.has(b)).map(([a, b]) => `<line x1="${NODOS[a].x}" y1="${NODOS[a].y}" x2="${NODOS[b].x}" y2="${NODOS[b].y}" />`).join('');

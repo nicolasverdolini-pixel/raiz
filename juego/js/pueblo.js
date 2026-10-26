@@ -38,7 +38,7 @@ const Pueblo = (() => {
     // Sacamos de la lista a los vecinos que todavía no conocen al grupo (no hay ninguno por ahora) y validamos posiciones.
     P.pnj.forEach(v => { if (esSolido(v.cx, v.cy)) console.warn('Vecino en lugar sólido', id, v.id); });
     montarDOM();
-    Sonido.musica('pueblo');
+    Sonido.musica(P.def.musica || 'pueblo');
     precargar().then(() => { if (P) { P.edCache = {}; } });
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(cuadro);

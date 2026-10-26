@@ -1257,7 +1257,8 @@ const Batalla = (() => {
     await esperar(400);
     Sonido.musica(gano ? 'victoria' : 'derrota');
     await mostrarBanner(gano ? '¡Victoria!' : 'Derrota...', 1800);
-    const resultado = { gano, ganado:B.ganado, participantes:B.us.filter(u => u.eq === 'A').map(u => ({ id:u.u.id, ko:u.ko })) };
+    const resultado = { gano, ganado:B.ganado, participantes:B.us.filter(u => u.eq === 'A').map(u => ({ id:u.u.id, ko:u.ko })),
+      derrotados:B.us.filter(u => u.eq === 'E' && u.ko).map(u => u.u.clase), sinBajas:!B.us.some(u => u.eq === 'A' && (u.ko || u.revivio)) };
     const onFin = B.onFin;
     salir();
     onFin(resultado);
