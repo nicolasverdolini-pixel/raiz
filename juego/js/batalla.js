@@ -61,7 +61,7 @@ const Batalla = (() => {
   // opts: { def, ids: [ids de personajes], onFin(resultado) }
   function iniciar(opts) {
     const def = opts.def;
-    B = { escena:opts.escena || null, def, mapa:parsearMapa(def.mapa), us:[], fin:null, onFin:opts.onFin, ui:{ modo:'espera' }, activo:null, vel:1, rot:0, cargas:[], ganado:{ oro:0, mat:{}, obj:{}, gemas:{}, equipo:[] }, log:[] };
+    B = { escena:opts.escena || null, def, mapa:parsearMapa(def.mapa), us:[], fin:null, onFin:opts.onFin, ui:{ modo:'espera' }, activo:null, vel:1, ang:0, cargas:[], ganado:{ oro:0, mat:{}, obj:{}, gemas:{}, equipo:[] }, log:[] };
     try { B.vel = +(localStorage.getItem('cb:vel') || 1); } catch (e) {}
     opts.ids.forEach((id, i) => {
       const u = G.unidades.find(v => v.id === id);
@@ -109,6 +109,7 @@ const Batalla = (() => {
     $('#bt-pausa').onclick = menuPausa;
     $('#bt-zoom').onclick = () => { const z = [1, 1.5, 2.2]; const i = z.findIndex(v => Math.abs(v - B.zoom) < 0.05); B.zoom = z[(i + 1) % z.length]; B.seguir = true; medir(); Sonido.fx('sel'); };
     $('#bt-rot').onclick = () => girarCamara(1);
+    try { if (!localStorage.getItem('cb:tipGiro')) { localStorage.setItem('cb:tipGiro', '1'); setTimeout(() => toast('Tip: girá dos dedos sobre el mapa para rotar la cámara 360°. Pellizcá para el zoom.'), 2500); } } catch (e) {}
     $('#bt-auto').onclick = () => {
       B.auto = !B.auto; $('#bt-auto').classList.toggle('on', B.auto); Sonido.fx('sel');
       if (B.auto && finJugador && B.ui.modo !== 'animando') { const f = finJugador; finJugador = null; B.ui = { modo:'espera' }; turnoIA(B.activo).then(f); }
@@ -120,41 +121,39 @@ const Batalla = (() => {
     dpr = Math.min(3, window.devicePixelRatio || 1);
     L.W = r.width; L.H = r.height;
     cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
-    const m = B.mapa, n = m.w + m.h;
+    const m = B.mapa, R = Math.hypot(m.w, m.h) / 2; // radio del mapa: entra entero con cualquier giro
     // Ancho de cada rombo para que entre todo el mapa; después se multiplica por el zoom.
-    const ajuste = Math.min(L.W * 0.96 / (n / 2), L.H * 0.94 / (n / 4 + m.maxH * 0.24 + 1.3));
+    const ajuste = Math.min(L.W * 0.96 / (R * Math.SQRT2), L.H * 0.94 / (R / Math.SQRT2 + m.maxH * 0.24 + 1.3));
     B.zoom = clamp(B.zoom || 1.5, 0.9, 2.8);
     L.T = Math.max(24, ajuste * B.zoom);
     L.HS = L.T * 0.24;            // alto de cada escalón
     L.k = L.T / 21;               // escala de los personajes
     L.TW = L.T * 0.6; L.TD = L.T * 0.3;
-    L.ox0 = (B.rot % 2 ? m.w : m.h) * L.T / 2 + L.T * 0.2;
-    L.oy0 = m.maxH * L.HS + L.T * 1.2;
-    L.mundoW = n * L.T / 2 + L.T * 0.4;
-    L.mundoH = n * L.T / 4 + m.maxH * L.HS + L.T * 1.7;
+    L.mundoW = R * Math.SQRT2 * L.T + L.T * 0.4;
+    L.mundoH = R / Math.SQRT2 * L.T + m.maxH * L.HS + L.T * 1.7;
+    L.ox0 = L.mundoW / 2;
+    L.oy0 = m.maxH * L.HS + L.T * 1.2 + R / Math.SQRT2 * L.T / 2;
     if (!B.cam) B.cam = { x:L.mundoW / 2, y:L.mundoH / 2 };
     fijarCamara();
   }
-  // Coordenadas del mundo (sin cámara) del centro de una casilla.
-  // Rotación de cámara (0-3, de a 90°): las cuentas de juego usan la grilla real (x, y);
-  // solo el dibujo y los toques pasan por la grilla "vista" (vx, vy).
-  function rotP(x, y) {
-    const m = B.mapa;
-    switch (B.rot) { case 1: return [m.h - y, x]; case 2: return [m.w - x, m.h - y]; case 3: return [y, m.w - x]; default: return [x, y]; }
+  // Cámara con giro libre (B.ang, en radianes): la grilla se rota alrededor del centro del mapa y
+  // después se aplasta en isométrico. Las cuentas del juego siguen usando la grilla real (x, y).
+  function proy(x, y) {
+    const m = B.mapa, dx = x - m.w / 2, dy = y - m.h / 2, c = Math.cos(B.ang), s = Math.sin(B.ang);
+    const rx = dx * c - dy * s, ry = dx * s + dy * c;
+    return [(rx - ry) * L.T / 2, (rx + ry) * L.T / 4, rx + ry];
   }
-  function dimsVista() { return B.rot % 2 ? [B.mapa.h, B.mapa.w] : [B.mapa.w, B.mapa.h]; }
-  // Casilla de la grilla real que se ve en la casilla (vx, vy) de la vista.
-  function tileDeVista(vx, vy) {
-    const m = B.mapa;
-    switch (B.rot) { case 1: return [vy, m.h - 1 - vx]; case 2: return [m.w - 1 - vx, m.h - 1 - vy]; case 3: return [m.w - 1 - vy, vx]; default: return [vx, vy]; }
+  // Hacia dónde mira en pantalla la dirección d: 0 abajo-izq, 1 abajo-der, 2 arriba-der, 3 arriba-izq.
+  function dirVista(d) {
+    const [dx, dy] = dirPantalla(0, 0, DIRS[d][0], DIRS[d][1]);
+    return dy >= 0 ? (dx < 0 ? 0 : 1) : (dx >= 0 ? 2 : 3);
   }
-  function dirVista(d) { return (d + 4 * 4 - B.rot) % 4; }
-  function profVista(x, y) { const [a, b] = rotP(x, y); return a + b; }
-  function mundoDe(x, y, h) { [x, y] = rotP(x, y); return { x:L.ox0 + (x - y) * L.T / 2, y:L.oy0 + (x + y) * L.T / 4 - h * L.HS }; }
+  function profVista(x, y) { return proy(x, y)[2]; }
+  function mundoDe(x, y, h) { const [px, py] = proy(x, y); return { x:L.ox0 + px, y:L.oy0 + py - h * L.HS }; }
   function girarCamara(paso) {
-    B.rot = ((B.rot || 0) + paso + 4) % 4;
-    B.cam = null; medir(); B.seguir = true;
-    Sonido.fx('sel');
+    const a0 = B.ang, a1 = a0 + paso * Math.PI / 2;
+    B.seguir = true; Sonido.fx('sel');
+    tween(260, p => { B.ang = a0 + (a1 - a0) * (1 - (1 - p) * (1 - p)); });
   }
   function limitarCamara() {
     const mx = L.W / 2, my = L.H / 2;
@@ -192,13 +191,17 @@ const Batalla = (() => {
       cv.setPointerCapture(ev.pointerId);
       dedos.set(ev.pointerId, { x:ev.clientX, y:ev.clientY });
       if (dedos.size === 1) arrastre = { x0:ev.clientX, y0:ev.clientY, cx:B.cam.x, cy:B.cam.y, movio:false };
-      if (dedos.size === 2) { const [a, b] = [...dedos.values()]; pellizco = { d:Math.hypot(a.x - b.x, a.y - b.y), z:B.zoom }; arrastre = null; }
+      if (dedos.size === 2) { const [a, b] = [...dedos.values()]; pellizco = { d:Math.hypot(a.x - b.x, a.y - b.y), z:B.zoom, a:Math.atan2(b.y - a.y, b.x - a.x), ang:B.ang }; arrastre = null; }
     });
     cv.addEventListener('pointermove', ev => {
       if (!dedos.has(ev.pointerId)) return;
       dedos.set(ev.pointerId, { x:ev.clientX, y:ev.clientY });
       if (pellizco && dedos.size === 2) {
         const [a, b] = [...dedos.values()];
+        // Girar los dos dedos rota la cámara (360°); abrirlos o cerrarlos hace zoom.
+        let da = Math.atan2(b.y - a.y, b.x - a.x) - pellizco.a;
+        if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
+        B.ang = pellizco.ang + da; B.seguir = true;
         const z = clamp(pellizco.z * Math.hypot(a.x - b.x, a.y - b.y) / pellizco.d, 0.9, 2.8);
         if (Math.abs(z - B.zoom) > 0.02) { const fx = B.cam.x / L.T, fy = B.cam.y / L.T; B.zoom = z; medir(); B.cam.x = fx * L.T; B.cam.y = fy * L.T; fijarCamara(); }
         return;
@@ -945,15 +948,34 @@ const Batalla = (() => {
     const k = L.k * (CLASES[u.vis.clase]?.tam || 1) * 1.3;
     return px > cx - 7 * k && px < cx + 7 * k && py > fy - 17 * k && py < fy + 1 * k;
   }
+  // Casillas de atrás hacia adelante según el giro de la cámara.
+  let ordenCache = { ang:null, lista:[] };
+  function ordenCasillas() {
+    if (ordenCache.ang === B.ang) return ordenCache.lista;
+    const m = B.mapa, lista = [];
+    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) lista.push([x, y, profVista(x + 0.5, y + 0.5)]);
+    lista.sort((a, b) => a[2] - b[2]);
+    ordenCache = { ang:B.ang, lista };
+    return lista;
+  }
+  // Caras de los costados que se ven con este giro: [esquina A, esquina B, normal].
+  const CARAS = [[[1, 0], [1, 1], [1, 0]], [[0, 1], [1, 1], [0, 1]], [[0, 0], [0, 1], [-1, 0]], [[0, 0], [1, 0], [0, -1]]];
+  function carasVisibles() {
+    const c = Math.cos(B.ang), s = Math.sin(B.ang);
+    return CARAS.map(([a, b, [nx, ny]]) => { const rx = nx * c - ny * s, ry = nx * s + ny * c; return { a, b, ve:rx + ry, lado:rx - ry }; }).filter(f => f.ve > 0.01);
+  }
+  const dentro = (p, poli) => { let sg = 0; for (let i = 0; i < poli.length; i++) { const a = poli[i], b = poli[(i + 1) % poli.length], cr = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x); if (cr) { if (sg && Math.sign(cr) !== sg) return false; sg = Math.sign(cr); } } return true; };
   // Casilla bajo un punto de la pantalla (primero las de adelante).
   function tileEn(px, py, soloTapa = false) {
-    const m = B.mapa;
-    const [VW, VH] = dimsVista();
-    for (let sm = VW + VH - 2; sm >= 0; sm--) for (let vx = Math.min(VW - 1, sm); vx >= Math.max(0, sm - VH + 1); vx--) {
-      const [x, y] = tileDeVista(vx, sm - vx), t = tile(x, y); if (!t || terreno(t).vacio) continue;
-      const c = centroPx(x, y, t.h), dx = px - c.x, dy = py - c.y;
-      if (Math.abs(dx) / (L.T / 2) + Math.abs(dy) / (L.T / 4) <= 1) return [x, y];
-      if (!soloTapa && Math.abs(dx) <= L.T / 2) { const yb = L.T / 4 - Math.abs(dx) / 2; if (dy >= yb && dy <= yb + (t.h + 0.6) * L.HS) return [x, y]; }
+    const lista = ordenCasillas(), vis = carasVisibles(), p = { x:px, y:py };
+    for (let i = lista.length - 1; i >= 0; i--) {
+      const [x, y] = lista[i], t = tile(x, y); if (!t || terreno(t).vacio) continue;
+      const q = [iso(x, y, t.h), iso(x + 1, y, t.h), iso(x + 1, y + 1, t.h), iso(x, y + 1, t.h)];
+      if (dentro(p, q)) return [x, y];
+      if (!soloTapa) for (const f of vis) {
+        const A = iso(x + f.a[0], y + f.a[1], t.h), Bq = iso(x + f.b[0], y + f.b[1], t.h), pr = (t.h + 0.6) * L.HS;
+        if (dentro(p, [A, Bq, { x:Bq.x, y:Bq.y + pr }, { x:A.x, y:A.y + pr }])) return [x, y];
+      }
     }
     return null;
   }
@@ -1295,10 +1317,9 @@ const Batalla = (() => {
   }
 
   // ---------- Partículas y efectos ----------
-  function isoV(x, y, h) { return { x:L.ox + L.ox0 + (x - y) * L.T / 2, y:L.oy + L.oy0 + (x + y) * L.T / 4 - h * L.HS }; }
-  function iso(x, y, h) { const [a, b] = rotP(x, y); return isoV(a, b, h); }
+  function iso(x, y, h) { const [px, py] = proy(x, y); return { x:L.ox + L.ox0 + px, y:L.oy + L.oy0 + py - h * L.HS }; }
   function centroPx(x, y, h) { return iso(x + 0.5, y + 0.5, h); }
-  function dirPantalla(ax, ay, bx, by) { [ax, ay] = rotP(ax, ay); [bx, by] = rotP(bx, by); const dx = (bx - ax) - (by - ay), dy = ((bx - ax) + (by - ay)) / 2, n = Math.hypot(dx, dy) || 1; return [dx / n, dy / n]; }
+  function dirPantalla(ax, ay, bx, by) { const [x0, y0] = proy(ax, ay), [x1, y1] = proy(bx, by), dx = x1 - x0, dy = y1 - y0, n = Math.hypot(dx, dy) || 1; return [dx / n, dy / n]; }
   function pantallaUnidad(u) {
     const c = iso(u.rx + 0.5, u.ry + 0.5, u.rh);
     return { cx:c.x + u.off.x, fy:c.y + L.T * 0.06 + u.off.y + u.off.z };
@@ -1394,42 +1415,40 @@ const Batalla = (() => {
       ctx.restore();
       ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.lineWidth = 1; ctx.stroke();
     };
-    const [VW, VH] = dimsVista();
-    for (let sm = 0; sm <= VW + VH - 2; sm++) {
-      for (let vx = Math.max(0, sm - VH + 1); vx <= Math.min(VW - 1, sm); vx++) {
-        const vy = sm - vx, [x, y] = tileDeVista(vx, vy), c = tile(x, y), tr = terreno(c);
+    const vis = carasVisibles();
+    // Rombo (o paralelogramo, según el giro) de una casilla, achicado f veces hacia el centro.
+    const quad = (x, y, h, f = 1) => {
+      const cen = iso(x + 0.5, y + 0.5, h);
+      const q = [iso(x, y, h), iso(x + 1, y, h), iso(x + 1, y + 1, h), iso(x, y + 1, h)];
+      ctx.beginPath(); q.forEach((p, i) => { const px = cen.x + (p.x - cen.x) * f, py = cen.y + (p.y - cen.y) * f; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); ctx.closePath();
+    };
+    for (const [x, y] of ordenCasillas()) {
+        const c = tile(x, y), tr = terreno(c);
         if (!c || tr.vacio) { (enCasilla.get(x + ',' + y) || []).forEach(v => dibujarUnidad(v, t, v === u)); continue; }
-        const top = isoV(vx, vy, c.h), der = isoV(vx + 1, vy, c.h), aba = isoV(vx + 1, vy + 1, c.h), izq = isoV(vx, vy + 1, c.h), cen = isoV(vx + 0.5, vy + 0.5, c.h);
+        const c00 = iso(x, y, c.h), c10 = iso(x + 1, y, c.h), c01 = iso(x, y + 1, c.h), cen = iso(x + 0.5, y + 0.5, c.h);
         const prof = (c.h + 0.7) * L.HS;
         const lado = SPR.texturaLado(c.t);
-        cara(izq, aba, prof, lado, 0.42);
-        cara(aba, der, prof, lado, 0.2);
-        // Tapa con la textura deformada al rombo
+        for (const f of vis) cara(iso(x + f.a[0], y + f.a[1], c.h), iso(x + f.b[0], y + f.b[1], c.h), prof, lado, 0.31 - 0.13 * Math.sign(f.lado) * Math.min(1, Math.abs(f.lado) * 2));
+        // Tapa con la textura deformada a la casilla
         ctx.save();
-        ctx.transform((der.x - top.x) / TX, (der.y - top.y) / TX, (izq.x - top.x) / TY, (izq.y - top.y) / TY, top.x, top.y);
+        ctx.transform((c10.x - c00.x) / TX, (c10.y - c00.y) / TX, (c01.x - c00.x) / TY, (c01.y - c00.y) / TY, c00.x, c00.y);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(SPR.texturaTop(c.t, (x * 7 + y * 3) % 4), -0.6, -0.6, TX + 1.2, TY + 1.2);
         ctx.imageSmoothingEnabled = true;
         ctx.restore();
         if (tr.agua || tr.lava) {
-          rombo(cen); ctx.fillStyle = tr.lava ? `rgba(255,200,80,${0.12 + Math.sin(t / 400 + x + y * 1.3) * 0.1})` : `rgba(255,255,255,${0.06 + Math.sin(t / 500 + x * 0.9 + y * 1.7) * 0.06})`; ctx.fill();
+          quad(x, y, c.h); ctx.fillStyle = tr.lava ? `rgba(255,200,80,${0.12 + Math.sin(t / 400 + x + y * 1.3) * 0.1})` : `rgba(255,255,255,${0.06 + Math.sin(t / 500 + x * 0.9 + y * 1.7) * 0.06})`; ctx.fill();
           if (tr.lava && Math.random() < 0.02) parts.push({ tipo:'cuad', x:cen.x + azar(-L.T / 4, L.T / 4), y:cen.y, vy:-0.8, vida:1, dec:0.02, c:'#ffb040', s:2 });
         }
-        // Luz desde arriba a la izquierda: borde claro atrás, oscuro adelante
-        ctx.beginPath(); ctx.moveTo(izq.x, izq.y); ctx.lineTo(top.x, top.y); ctx.lineTo(der.x, der.y); ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(izq.x, izq.y); ctx.lineTo(aba.x, aba.y); ctx.lineTo(der.x, der.y); ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.stroke();
-        // Sombra si la casilla de atrás es más alta
-        const atrasA = vx > 0 ? tile(...tileDeVista(vx - 1, vy)) : null, atrasB = vy > 0 ? tile(...tileDeVista(vx, vy - 1)) : null;
-        if ((atrasA && !terreno(atrasA).vacio && atrasA.h > c.h) || (atrasB && !terreno(atrasB).vacio && atrasB.h > c.h)) { rombo(cen); ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fill(); }
+        quad(x, y, c.h); ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = 1; ctx.stroke();
         const mk = marcas.get(x + ',' + y);
-        if (mk) { rombo(cen, 0.86); ctx.fillStyle = mk + pulso + ')'; ctx.fill(); ctx.strokeStyle = mk + '0.95)'; ctx.lineWidth = 1.6; ctx.stroke(); }
-        if (ui.modo === 'confirmar' && ui.cx === x && ui.cy === y) { rombo(cen, 0.92); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.4; ctx.stroke(); }
+        if (mk) { quad(x, y, c.h, 0.86); ctx.fillStyle = mk + pulso + ')'; ctx.fill(); ctx.strokeStyle = mk + '0.95)'; ctx.lineWidth = 1.6; ctx.stroke(); }
+        if (ui.modo === 'confirmar' && ui.cx === x && ui.cy === y) { quad(x, y, c.h, 0.92); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.4; ctx.stroke(); }
         if (tr.deco) {
           const img = SPR.deco(tr.deco, (x * 3 + y * 5) % 4), w = L.T * (tr.deco === 'arbol' ? 1.0 : 0.8), h = w * 22 / 16;
           ctx.drawImage(img, cen.x - w / 2, cen.y + L.T * 0.12 - h, w, h);
         }
         (enCasilla.get(x + ',' + y) || []).forEach(v => dibujarUnidad(v, t, v === u));
-      }
     }
     // Viñeta: bordes oscuros para dar clima
     const vg = ctx.createRadialGradient(L.W / 2, L.H / 2, Math.min(L.W, L.H) * 0.35, L.W / 2, L.H / 2, Math.max(L.W, L.H) * 0.75);
