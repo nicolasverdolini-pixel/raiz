@@ -886,7 +886,13 @@ const Batalla = (() => {
     const dif = nvObj - u.u.nivel;
     const exp = clamp(10 + dif * 3, 2, 30) + (mato ? 15 : 0);
     const pc = clamp(10 + dif * 2, 4, 24) + (mato ? 6 : 0);
+    const antes = dominada(u.u, u.u.clase);
     const msgs = darExp(u.u, exp, pc);
+    if (!antes && dominada(u.u, u.u.clase)) { // llegó a la maestría peleando
+      msgs.push({ t:'nivel', txt:`★ ${nombreClase(u.u)}` });
+      u.vis = Object.assign({}, u.vis, { maestro:true });
+      setTimeout(() => B && toast(`★ ¡${u.nombre} ahora es ${nombreClase(u.u)}! Se abren las habilidades de maestría.`, 'bien'), 1200);
+    }
     popup(u, `+${pc} PC`, '#9df', false, -26);
     msgs.forEach((m, i) => setTimeout(() => {
       if (!B) return;
@@ -1487,7 +1493,9 @@ const Batalla = (() => {
       if (v.flash > 0.05) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = v.flash * 0.7; LPC.dibujarBestia(ctx, v.vis, acc, fila, t + v.rx * 97, prog, cx, fy + flota, esc); ctx.restore(); }
       return true;
     }
-    if (!LPC.dibujar(ctx, v.vis, anim, fila, f, cx, fy + flota, esc, { t })) return false;
+    const semilla = (v.id.charCodeAt(0) * 37 + v.id.charCodeAt(1) * 11) % 3000;
+    const expr = v.dolor > t ? 'dolor' : ((t + semilla) % 3600) < 140 ? 'parpadeo' : '';
+    if (!LPC.dibujar(ctx, v.vis, anim, fila, f, cx, fy + flota, esc, { t, expr })) return false;
     if (v.flash > 0.05) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = v.flash * 0.7;
       LPC.dibujar(ctx, v.vis, anim, fila, f, cx, fy + flota, esc, { t, sinBrillo:true });

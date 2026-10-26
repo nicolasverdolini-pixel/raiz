@@ -291,7 +291,8 @@ const LPC = (() => {
     const av = armaVis(eqv.arma) || (vis.arma ? (POR_TIPO[vis.arma] || [])[0] : null);
     if (av && av !== 'laud') pon(av, null, null);
     const ra = eqv.arma?.r || 0, rr = eqv.armadura?.r || 0;
-    return { cuerpo:sx, capas, arma:av, rarezaArma:ra, rarezaArmadura:rr };
+    const cabeza = vis.clase === 'vesper' ? null : viejo ? 'elderly' : sx === 'f' ? 'female' : 'male';
+    return { cuerpo:sx, capas, arma:av, rarezaArma:ra, rarezaArmadura:rr, cara:cabeza && { tipo:cabeza, piel, iris:(cara.iris || '#4a3020') } };
   }
 
   // Animación para cada acción, según si el arma la tiene.
@@ -324,6 +325,28 @@ const LPC = (() => {
     return out.sort((a, b) => a.z - b.z);
   }
 
+  // Gestos de la cara (solo para la caminata, que es lo que usan los retratos).
+  const GESTO = { enojo:'anger', dolor:'anger', feliz:'happy', triste:'sad', sorpresa:'shock', parpadeo:'closed' };
+  const OJOS = ['#293d4b', '#5187b3', '#50d4ec'];
+  const caras = new Map();
+  function capaGesto(rec, expr) {
+    const g = GESTO[expr]; if (!g || !rec.cara) return null;
+    const f = 'head/faces/' + rec.cara.tipo + '/' + g + '/walk.png';
+    const k = f + '|' + rec.cara.piel.join('') + rec.cara.iris;
+    if (caras.has(k)) return caras.get(k);
+    const im = img(f); if (!im) return im;
+    const base = D.paletas.body[D.base.body];
+    const mapa = new Map(base.map((c, i) => [hex2(c).join(','), hex2(rec.cara.piel[i])]));
+    const ir = [SPR.luz(rec.cara.iris, -0.45), rec.cara.iris, SPR.luz(rec.cara.iris, 0.35)];
+    OJOS.forEach((c, i) => mapa.set(hex2(c).join(','), hex2(ir[i])));
+    const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height;
+    const c = cv.getContext('2d'); c.drawImage(im, 0, 0);
+    const id = c.getImageData(0, 0, cv.width, cv.height), p = id.data;
+    for (let i = 0; i < p.length; i += 4) { if (!p[i + 3]) continue; const t = mapa.get(p[i] + ',' + p[i + 1] + ',' + p[i + 2]); if (t) { p[i] = t[0]; p[i + 1] = t[1]; p[i + 2] = t[2]; } }
+    c.putImageData(id, 0, 0);
+    caras.set(k, cv);
+    return cv;
+  }
   const FILA = { n:0, w:1, s:2, e:3 };
   const cache = new Map();
   function recetaDe(vis) {
@@ -338,6 +361,10 @@ const LPC = (() => {
     let capas = capasListas(rec, anim);
     if (!capas && anim !== 'walk') { anim = 'walk'; frame = 0; capas = capasListas(rec, 'walk'); }
     if (!capas) return false;
+    if (opts.expr && anim === 'walk') {
+      const cg = capaGesto(rec, opts.expr);
+      if (cg) capas = capas.concat([{ z:101, im:cg, s:64 }]).sort((a, b) => a.z - b.z);
+    }
     const r = anim === 'hurt' ? 0 : FILA[fila] ?? 2;
     frame = Math.max(0, Math.min(FR[anim] - 1, frame));
     const t = opts.t || 0;

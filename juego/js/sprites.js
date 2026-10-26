@@ -883,11 +883,12 @@ const SPR = (() => {
   function retrato(vis, expr = '') {
     if (typeof LPC !== 'undefined' && LPC.esHumano(vis)) {
       // Busto en pixel art: cabeza y hombros del sprite, sin arma, con casco abierto.
-      const kl = 'R' + JSON.stringify([vis.clase, vis.look, vis.t, vis.unico, vis.eqv?.armadura, vis.asp]);
+      const e2 = expr === 'habla' ? '' : expr;
+      const kl = 'R' + JSON.stringify([vis.clase, vis.look, vis.t, vis.unico, vis.eqv?.armadura, vis.asp, vis.maestro, e2]);
       if (cache.has(kl)) return cache.get(kl);
       const cv = lienzo(S, S), c = cv.getContext("2d"), esc = S / 40;
       const v2 = Object.assign({}, vis, { arma:null, eqv:{ armadura:vis.eqv?.armadura || null }, retrato:true });
-      if (LPC.dibujar(c, v2, 'walk', 's', 0, S / 2, S / 2 + 33 * esc, esc, { sinBrillo:true })) { cache.set(kl, cv); return cv; }
+      if (LPC.dibujar(c, v2, 'walk', 's', 0, S / 2, S / 2 + 33 * esc, esc, { sinBrillo:true, expr:e2 })) { cache.set(kl, cv); return cv; }
     }
     const key = 'r' + JSON.stringify(vis) + expr;
     if (cache.has(key)) return cache.get(key);

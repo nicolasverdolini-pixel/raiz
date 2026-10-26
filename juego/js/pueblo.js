@@ -9,6 +9,10 @@ const Pueblo = (() => {
   const imgs = {};
   // Piezas LPC para las casas: ladrillo, puertas, ventanas y tejas (arte/props/house.png).
   const CASA = new Image(); CASA.src = 'arte/props/house.png';
+  const CASTILLO = new Image(); CASTILLO.src = 'arte/props/castle_outside.png';
+  const BARRIL = new Image(); BARRIL.src = 'arte/props/barrel.png';
+  const COFRE = new Image(); COFRE.src = 'arte/props/chests.png';
+  const ok = im => im.complete && im.naturalWidth > 0;
   const recorte = (x, y, w, h, tinte) => {
     const k = [x, y, w, h, tinte].join(',');
     if (recorte.c[k]) return recorte.c[k];
@@ -401,16 +405,46 @@ const Pueblo = (() => {
     const c = ctx, s = TS;
     c.save(); c.translate(sx, sy); c.lineJoin = 'round';
     const borde = () => { c.lineWidth = 2; c.strokeStyle = '#1e1a2a'; c.stroke(); };
-    if (o.tipo === 'pozo') {
+    if (o.tipo === 'pozo' && ok(CASA)) {
+      c.imageSmoothingEnabled = false;
+      c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(s / 2, s * 0.85, s * 0.45, s * 0.15, 0, 0, 7); c.fill();
+      c.save(); c.beginPath(); c.rect(s * 0.1, s * 0.5, s * 0.8, s * 0.32); c.clip();
+      const pie = recorte(96, 96, 32, 32);
+      for (let x = s * 0.1; x < s * 0.9; x += s * 0.4) c.drawImage(pie, x, s * 0.5, s * 0.4, s * 0.4);
+      c.restore(); c.beginPath(); c.rect(s * 0.1, s * 0.5, s * 0.8, s * 0.32); borde();
+      c.fillStyle = '#1e3a6a'; c.fillRect(s * 0.16, s * 0.5, s * 0.68, s * 0.06);
+      c.fillStyle = '#5e3c1e'; c.fillRect(s * 0.14, s * 0.05, s * 0.07, s * 0.47); c.fillRect(s * 0.79, s * 0.05, s * 0.07, s * 0.47);
+      c.save(); c.beginPath(); c.moveTo(s * 0.02, s * 0.14); c.lineTo(s / 2, -s * 0.18); c.lineTo(s * 0.98, s * 0.14); c.closePath(); c.clip();
+      const teja = recorte(32, 176, 32, 32, '#a8402e');
+      for (let y = -s * 0.2; y < s * 0.15; y += s * 0.3) for (let x = 0; x < s; x += s * 0.3) c.drawImage(teja, x, y, s * 0.3, s * 0.3);
+      c.restore(); c.beginPath(); c.moveTo(s * 0.02, s * 0.14); c.lineTo(s / 2, -s * 0.18); c.lineTo(s * 0.98, s * 0.14); c.closePath(); borde();
+    } else if (o.tipo === 'pozo') {
       c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(s / 2, s * 0.85, s * 0.45, s * 0.15, 0, 0, 7); c.fill();
       c.beginPath(); c.ellipse(s / 2, s * 0.62, s * 0.4, s * 0.2, 0, 0, 7); c.fillStyle = '#9a9aa8'; c.fill(); borde();
       c.beginPath(); c.ellipse(s / 2, s * 0.6, s * 0.28, s * 0.12, 0, 0, 7); c.fillStyle = '#2a4a8a'; c.fill();
       c.fillStyle = '#7a4a28'; c.fillRect(s * 0.12, s * 0.05, s * 0.07, s * 0.58); c.fillRect(s * 0.81, s * 0.05, s * 0.07, s * 0.58);
       c.beginPath(); c.moveTo(s * 0.02, s * 0.12); c.lineTo(s / 2, -s * 0.2); c.lineTo(s * 0.98, s * 0.12); c.closePath(); c.fillStyle = '#b04a3a'; c.fill(); borde();
+    } else if (o.tipo === 'fuente' && ok(CASA)) {
+      c.imageSmoothingEnabled = false;
+      c.save(); c.beginPath(); c.ellipse(s / 2, s * 0.6, s * 0.48, s * 0.28, 0, 0, 7); c.clip();
+      const pie = recorte(96, 96, 32, 32); for (let x = 0; x < s; x += s * 0.34) for (let y = s * 0.3; y < s; y += s * 0.34) c.drawImage(pie, x, y, s * 0.34, s * 0.34);
+      c.restore(); c.beginPath(); c.ellipse(s / 2, s * 0.6, s * 0.48, s * 0.28, 0, 0, 7); borde();
+      c.save(); c.beginPath(); c.ellipse(s / 2, s * 0.56, s * 0.38, s * 0.2, 0, 0, 7); c.clip();
+      c.drawImage(SPR.texturaTop('w', Math.floor(t / 500) % 4, true), s * 0.1, s * 0.34, s * 0.8, s * 0.44);
+      c.restore();
+      c.fillStyle = 'rgba(220,240,255,.85)'; for (let i = 0; i < 4; i++) { const a = t / 300 + i * 1.6; c.fillRect(s / 2 + Math.cos(a) * s * 0.12, s * 0.3 + Math.sin(a * 2) * 3, 2.5, 2.5); }
     } else if (o.tipo === 'fuente') {
       c.beginPath(); c.ellipse(s / 2, s * 0.6, s * 0.48, s * 0.28, 0, 0, 7); c.fillStyle = '#b0b0bc'; c.fill(); borde();
       c.beginPath(); c.ellipse(s / 2, s * 0.56, s * 0.38, s * 0.2, 0, 0, 7); c.fillStyle = `hsl(210,60%,${48 + Math.sin(t / 300) * 4}%)`; c.fill();
       c.fillStyle = 'rgba(220,240,255,.85)'; for (let i = 0; i < 4; i++) { const a = t / 300 + i * 1.6; c.fillRect(s / 2 + Math.cos(a) * s * 0.12, s * 0.3 + Math.sin(a * 2) * 3, 2.5, 2.5); }
+    } else if (o.tipo === 'barril' && ok(BARRIL)) {
+      c.imageSmoothingEnabled = false;
+      c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(s / 2, s * 0.86, s * 0.3, s * 0.1, 0, 0, 7); c.fill();
+      c.drawImage(BARRIL, 2, 10, 28, 38, s * 0.18, s * 0.9 - s * 0.64 * 38 / 28, s * 0.64, s * 0.64 * 38 / 28);
+    } else if (o.tipo === 'caja' && ok(COFRE)) {
+      c.imageSmoothingEnabled = false;
+      c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(s * 0.15, s * 0.8, s * 0.7, s * 0.1);
+      c.drawImage(COFRE, 0, 0, 32, 32, s * 0.1, s * 0.1, s * 0.8, s * 0.8);
     } else if (o.tipo === 'barril') {
       c.beginPath(); c.ellipse(s / 2, s * 0.85, s * 0.3, s * 0.1, 0, 0, 7); c.fillStyle = 'rgba(0,0,0,.25)'; c.fill();
       c.beginPath(); c.moveTo(s * 0.25, s * 0.2); c.quadraticCurveTo(s * 0.18, s * 0.5, s * 0.25, s * 0.82); c.lineTo(s * 0.75, s * 0.82); c.quadraticCurveTo(s * 0.82, s * 0.5, s * 0.75, s * 0.2); c.closePath();
@@ -516,14 +550,31 @@ const Pueblo = (() => {
       const g = c.createRadialGradient(L + ancho - TS * 0.5, h - TS * 0.35, 2, L + ancho - TS * 0.5, h - TS * 0.35, TS * 0.4);
       g.addColorStop(0, 'rgba(255,170,60,.7)'); g.addColorStop(1, 'rgba(255,120,40,0)'); c.fillStyle = g; c.fillRect(L + ancho - TS, h - TS * 0.8, TS, TS * 0.8);
     }
-    if (e.tipo === 'campanario') {
+    if (e.tipo === 'campanario' && lpc && ok(CASTILLO)) {
+      // Torre de piedra con techo cónico (LPC) y la campana en el arco.
+      const bx = w / 2, top = h - e.h * TS - extra, tw = TS * 1.5, th = tw * 350 / 96;
+      c.save(); c.imageSmoothingEnabled = false;
+      c.drawImage(CASTILLO, 32, 2, 96, 350, bx - tw / 2, Math.min(top, techoAbajo - th + TS * 0.4), tw, th);
+      c.restore();
+      const ay = Math.min(top, techoAbajo - th + TS * 0.4) + th * 0.66;
+      c.beginPath(); c.moveTo(bx - TS * 0.3, ay + TS * 0.4); c.lineTo(bx - TS * 0.3, ay); c.arc(bx, ay, TS * 0.3, Math.PI, 0); c.lineTo(bx + TS * 0.3, ay + TS * 0.4); c.closePath(); c.fillStyle = '#1e1a2a'; c.fill();
+      if (G.paso >= 11) { c.beginPath(); c.moveTo(bx - TS * 0.17, ay + TS * 0.32); c.quadraticCurveTo(bx - TS * 0.17, ay - TS * 0.05, bx, ay - TS * 0.05); c.quadraticCurveTo(bx + TS * 0.17, ay - TS * 0.05, bx + TS * 0.17, ay + TS * 0.32); c.closePath(); c.fillStyle = '#e8c86a'; c.fill(); }
+    } else if (e.tipo === 'campanario') {
       const bx = w / 2, top = h - e.h * TS - extra;
       c.beginPath(); c.rect(bx - TS * 0.6, top + TS * 0.9, TS * 1.2, techoArriba - top - TS * 0.6); c.fillStyle = lin(top, techoArriba, '#e8dcc4', '#bcae94'); c.fill(); borde();
       c.beginPath(); c.moveTo(bx - TS * 0.35, top + TS * 1.75); c.lineTo(bx - TS * 0.35, top + TS * 1.3); c.arc(bx, top + TS * 1.3, TS * 0.35, Math.PI, 0); c.lineTo(bx + TS * 0.35, top + TS * 1.75); c.closePath(); c.fillStyle = '#2a2438'; c.fill();
       if (G.paso >= 11) { c.beginPath(); c.moveTo(bx - TS * 0.2, top + TS * 1.65); c.quadraticCurveTo(bx - TS * 0.2, top + TS * 1.25, bx, top + TS * 1.25); c.quadraticCurveTo(bx + TS * 0.2, top + TS * 1.25, bx + TS * 0.2, top + TS * 1.65); c.closePath(); c.fillStyle = '#e8c86a'; c.fill(); borde(1.6); }
       c.beginPath(); c.moveTo(bx - TS * 0.8, top + TS * 0.95); c.lineTo(bx, top); c.lineTo(bx + TS * 0.8, top + TS * 0.95); c.closePath(); c.fillStyle = lin(top, top + TS, SPR.luz(e.techo, 0.2), SPR.luz(e.techo, -0.2)); c.fill(); borde(2.4);
     }
-    if (e.tipo === 'castillo') {
+    if (e.tipo === 'castillo' && lpc && ok(CASTILLO)) {
+      // Torres con techo cónico y portón de castillo (LPC).
+      const top = h - e.h * TS - extra, tw = TS * 1.1, th = Math.min(h - top + TS * 0.3, tw * 350 / 96);
+      c.save(); c.imageSmoothingEnabled = false;
+      [TS * 0.5, w - TS * 0.5].forEach(x => c.drawImage(CASTILLO, 32, 2, 96, 350 * th / (tw * 350 / 96), x - tw / 2, h - th, tw, th));
+      const pw = TS * 0.9, ph = pw * 95 / 50;
+      c.drawImage(CASTILLO, 200, 145, 50, 95, w / 2 - pw / 2, h - ph, pw, ph);
+      c.restore();
+    } else if (e.tipo === 'castillo') {
       const top = h - e.h * TS - extra;
       [TS * 0.5, w - TS * 0.5].forEach(x => {
         c.beginPath(); c.rect(x - TS * 0.45, top + TS * 0.7, TS * 0.9, h - top - TS * 0.7); c.fillStyle = lin(top, h, '#e8e8f0', '#a8a8b8'); c.fill(); borde();

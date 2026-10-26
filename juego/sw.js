@@ -1,5 +1,5 @@
 // Guarda el juego para que abra rápido y funcione sin conexión.
-const CACHE = 'campanas-v11';
+const CACHE = 'campanas-v12';
 const ARCHIVOS = ['./', 'index.html', 'estilos.css', 'manifest.webmanifest', 'icono.png',
   'js/datos.js', 'js/historia.js', 'js/mundo.js', 'js/sprites.js', 'js/iconos.js', 'js/acto2.js', 'js/oficios.js', 'js/maestria.js', 'js/lpc_datos.js', 'js/lpc.js', 'js/pueblo.js', 'js/audio.js', 'js/reglas.js', 'js/batalla.js', 'js/menus.js', 'js/interfaz.js', 'js/main.js'];
 
