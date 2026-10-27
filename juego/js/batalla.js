@@ -46,7 +46,7 @@ const Batalla = (() => {
       ct: azar(0, 25) + st.spd * 3, est:{}, ko:false, rx:x, ry:y, rh:0, off:{ x:0, y:0, z:0 }, alpha:1, flash:0,
       mascota:m, jefe:!!u.jefe, revivio:false, vis:{ clase:u.clase, look:u.look, t:u.t, unico:u.unico, eqv:eqVisual(u), maestro: eq === 'A' && dominada(u, u.clase), arma: ARMAS_DIBUJABLES.includes(st.armaTipo) ? st.armaTipo : null } };
     bu.rh = alt(x, y);
-    if (st.pasiva === 'prisa_ini' || st.rasgos.has('prisa_ini')) bu.est.prisa = 4;
+    if (st.pvs?.has('prisa_ini') || st.rasgos.has('prisa_ini')) bu.est.prisa = 4;
     if (st.rasgos.has('escudo')) bu.est.protegido = 3;
     return bu;
   }
@@ -385,12 +385,12 @@ const Batalla = (() => {
     const s = u.st;
     if (u.est.veneno) { const d = Math.max(3, Math.round(s.hpMax * 0.08)); popup(u, d, '#9f6'); await aplicarDanio(null, u, d, true); await esperar(350); }
     let cura = 0;
-    if (s.pasiva === 'regen' || u.est.regen) cura += Math.round(s.hpMax * 0.06);
+    if (s.pvs?.has('regen') || u.est.regen) cura += Math.round(s.hpMax * 0.06);
     if (s.efectos.regen) cura += Math.round(s.hpMax * [0, 0.03, 0.05, 0.08][Math.min(3, s.efectos.regen)]);
     if (u.mascota && MASCOTAS[u.mascota.id].accion === 'cura') cura += Math.round(s.hpMax * (0.03 + u.mascota.nivel * 0.005));
     if (cura && !u.ko && u.hp < s.hpMax) { u.hp = Math.min(s.hpMax, u.hp + cura); popup(u, cura, '#6f9'); chispas(u, '#8f8', 6); await esperar(300); }
     let mpMas = 0;
-    if (s.pasiva === 'resonancia') mpMas += 5;
+    if (s.pvs?.has('resonancia')) mpMas += 5;
     if (s.rasgos.has('mp_regen')) mpMas += 4;
     if (u.mascota && MASCOTAS[u.mascota.id].accion === 'mp') mpMas += 2 + u.mascota.nivel;
     if (mpMas && u.mp < s.mpMax) u.mp = Math.min(s.mpMax, u.mp + mpMas);
@@ -512,7 +512,7 @@ const Batalla = (() => {
     if (acc.tipo === 'obj') { const o = OBJ[acc.id]; return Object.assign({ n:o.n, r:o.r, a:o.a || 0, af: o.uso.danio ? 'e' : 'a', obj:true, fx: o.uso.danio ? 'fuego' : o.uso.revive ? 'revivir' : 'cura' }, { uso:o.uso }); }
     return HAB[acc.id];
   }
-  function costoMP(u, H) { return Math.round((H.mp || 0) * (u.st.pasiva === 'ahorro' ? 0.75 : 1)); }
+  function costoMP(u, H) { return Math.round((H.mp || 0) * (u.st.pvs?.has('ahorro') ? 0.75 : 1)); }
   function rangoDe(u, H) {
     const r = H.r === 'arma' ? u.st.rango : H.r;
     if (u.st.vista && r[1] > 1) return [r[0], r[1] + 1];
@@ -577,18 +577,18 @@ const Batalla = (() => {
     const ang = angulo(ax, ay, t);
     d *= ang === 'espalda' ? 1.25 : ang === 'lado' ? 1.1 : 1;
     if (H.espalda && ang === 'espalda') d *= 1.3;
-    if (s.pasiva === 'critico') d *= 1.2;
+    if (s.pvs?.has('critico')) d *= 1.2;
     if (s.rasgos.has('critico')) d *= 1.15;
     if (ts.raza === 'demonio' && s.rasgos.has('antidemonio')) d *= 1.3;
     if (ts.raza === 'dragon' && s.rasgos.has('antidragon')) d *= 1.4;
-    if (ts.raza === 'demonio') { if (s.pasiva === 'cazador') d *= 1.3; if (H.antidemonio) d *= 2; }
+    if (ts.raza === 'demonio') { if (s.pvs?.has('cazador')) d *= 1.3; if (H.antidemonio) d *= 2; }
     const dh = alt(ax, ay) - alt(t.x, t.y);
     d *= 1 + clamp(dh, -3, 5) * 0.05;
     const el = H.el || (H.sinArma ? null : s.armaEl);
     d *= mElem(t, el);
     if (el && el === s.armaEl && s.armaElNv) d *= 1 + 0.05 * s.armaElNv;
     d *= ts.resFis;
-    if (ts.pasiva === 'ferrea') d *= 0.85;
+    if (ts.pvs?.has('ferrea')) d *= 0.85;
     let prob;
     if (H.precisa || t.est.dormido || t.est.detenido) prob = 100;
     else {
@@ -601,13 +601,13 @@ const Batalla = (() => {
   }
   function calcMagico(u, t, H) {
     const s = u.st, ts = t.st;
-    const mag = s.mag * (u.est.foco ? 1.3 : 1) * (s.pasiva === 'magia' ? 1.2 : 1);
+    const mag = s.mag * (u.est.foco ? 1.3 : 1) * (s.pvs?.has('magia') ? 1.2 : 1);
     const raw = H.p * (0.5 + mag / 14);
     const res = ts.res * (t.est.coraza ? 1.35 : 1);
     let d = Math.max(raw * 0.1, raw - res * 0.5);
     d *= mElem(t, H.el);
-    if (ts.raza === 'demonio') { if (s.pasiva === 'cazador') d *= 1.3; if (H.antidemonio) d *= 2; if (s.rasgos.has('antidemonio')) d *= 1.3; }
-    if (ts.pasiva === 'ferrea') d *= 0.85;
+    if (ts.raza === 'demonio') { if (s.pvs?.has('cazador')) d *= 1.3; if (H.antidemonio) d *= 2; if (s.rasgos.has('antidemonio')) d *= 1.3; }
+    if (ts.pvs?.has('ferrea')) d *= 0.85;
     return { d:Math.max(1, Math.round(d)), prob:100, el:H.el };
   }
   function calcCura(u, H) { return Math.round(H.p * (0.5 + u.st.mag / 14)); }
@@ -695,7 +695,7 @@ const Batalla = (() => {
         Sonido.fx('mascota'); await mostrarBanner(`${m.nombre}: ¡cascabel!`, 600, true);
         u.est.aturdido = 1; popup(u, 'Aturdido', '#ffd84a');
       }
-      const pc = (t.st.pasiva === 'contra' ? 50 : 0) + [0, 20, 35, 50][Math.min(3, t.st.efectos.contra || 0)];
+      const pc = (t.st.pvs?.has('contra') ? 50 : 0) + [0, 20, 35, 50][Math.min(3, t.st.efectos.contra || 0)];
       if (pc && !t.est.dormido && !t.est.detenido && Math.random() * 100 < pc && t.st.rango[0] <= 1) {
         await mostrarBanner(`${t.nombre}: ¡Contraataque!`, 600, true);
         mirarHacia(t, u.x, u.y);
@@ -719,7 +719,7 @@ const Batalla = (() => {
     if (H.obj) {
       const o = H.uso;
       if (o.revive) { t.ko = false; t.hp = Math.round(t.st.hpMax * o.revive); t.alpha = 1; popup(t, 'Revive', '#ffe680'); chispas(t, '#ffe680', 14); }
-      const dosis = u.st.pasiva === 'farmacia' ? 1.5 : 1;
+      const dosis = u.st.pvs?.has('farmacia') ? 1.5 : 1;
       if (o.cura) { const c = Math.min(Math.round(o.cura * dosis), t.st.hpMax - t.hp); t.hp += c; popup(t, c, '#6f9'); }
       if (o.mp) { const m = Math.round(o.mp * dosis); t.mp = Math.min(t.st.mpMax, t.mp + m); popup(t, m + ' MP', '#8cf'); }
       if (o.limpia) { quitarMalos(t); popup(t, 'Limpio', '#cfe'); }
@@ -849,7 +849,7 @@ const Batalla = (() => {
     t.hp = Math.max(0, t.hp - d);
     if (t.est.dormido && d > 0) { delete t.est.dormido; }
     if (t.hp > 0) return false;
-    if ((t.st.pasiva === 'revive' || t.st.rasgos.has('fenix')) && !t.revivio) {
+    if ((t.st.pvs?.has('revive') || t.st.rasgos.has('fenix')) && !t.revivio) {
       t.revivio = true; t.hp = Math.round(t.st.hpMax * 0.25);
       await esperar(300); popup(t, '¡Última voluntad!', '#ffe680'); chispas(t, '#ffe680', 18); Sonido.fx('revivir');
       return false;

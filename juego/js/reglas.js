@@ -43,6 +43,19 @@ function eqVisual(u) {
   const g = s => { const v = u._eq ? u._eq[s] : (u.eq && u.eq[s] ? item(u.eq[s]) : null); return v && EQ[v.id] ? { id:v.id, r:v.rareza || 0 } : null; };
   return { arma:g('arma'), armadura:g('armadura') };
 }
+// Pasivas puestas: u.pasivas (lista); las partidas viejas tenían una sola en u.pasiva.
+function pasivasDe(u) { return u.pasivas || (u.pasiva ? [u.pasiva] : []); }
+function oficioDeHab(h) { return Object.keys(CLASES).find(c => CLASES[c].habs.includes(h)); }
+// Pone o saca una pasiva. Si es de otro oficio que las que ya tiene, reemplaza a todas.
+function alternarPasiva(u, h) {
+  let l = pasivasDe(u).slice();
+  let cambio = false;
+  if (l.includes(h)) l = l.filter(x => x !== h);
+  else if (l.length && oficioDeHab(l[0]) !== oficioDeHab(h)) { l = [h]; cambio = true; }
+  else l.push(h);
+  u.pasivas = l; u.pasiva = l[0] || null;
+  return cambio;
+}
 function nuevoItem(id, mejora = 0, rareza = 0) {
   const def = EQ[id], R = RAREZAS[rareza];
   const it = { uid:uid(), id, mejora, rareza, bonos:{}, gemas: Array(Math.min(3, (def.gemas || 0) + R.gemas)).fill(null) };
@@ -231,29 +244,33 @@ function calcStats(u) {
   // Mascota
   const m = u._mascota !== undefined ? u._mascota : (u.mascota ? mascota(u.mascota) : null);
   if (m) {
-    const M = MASCOTAS[m.id], k = (1 + (m.nivel - 1) * 0.25) * (u.pasiva && HAB[u.pasiva]?.pv === 'bestias' ? 2 : 1);
+    const M = MASCOTAS[m.id], k = (1 + (m.nivel - 1) * 0.25) * (pasivasDe(u).some(h => HAB[h]?.pv === 'bestias') ? 2 : 1);
     for (const [st, v] of Object.entries(M.bon)) {
       if (st === 'mov') s.mov += v; else if (st === 'eva') s.eva += Math.round(v * k); else if (st === 'hp') s.hp += v * k; else s[st] += v * k;
     }
     if (M.accion === 'vista') s.vista = true;
     s.mascotaAccion = M.accion;
   }
-  // Pasiva equipada
-  const pv = u.pasiva ? HAB[u.pasiva]?.pv : null;
+  // Pasivas equipadas (pueden ser varias, siempre del mismo oficio)
+  const lpas = pasivasDe(u);
+  s.pvs = new Set(lpas.map(h => HAB[h]?.pv).filter(Boolean));
+  for (const h of lpas) {
+  const pv = HAB[h]?.pv;
   if (pv === 'aguante') hpMult += 0.15;
   if (pv === 'mente') s.mp *= 1.2;
   if (pv === 'mov1') s.mov += 1;
   if (pv === 'salto') { s.salto += 2; s.mov += 1; }
   if (pv === 'halcon' && s.armaTipo === 'arco') s.rango[1] += 1;
   if (pv === 'inmune') ['veneno', 'dormido', 'ciego'].forEach(e => s.inmune.add(e));
-  const bon = u.pasiva ? HAB[u.pasiva]?.bon : null;
+  const bon = HAB[h]?.bon;
   if (bon) for (const [k, v] of Object.entries(bon)) { if (k === 'eva') s.eva += v; else if (k === 'hp') hpMult += v; else s[k] *= 1 + v; }
   if (pv === 'voz') { s.inmune.add('silencio'); s.mp *= 1.1; }
   if (pv === 'sexto') s.eva += 10;
   if (pv === 'vampiro') s.efectos.vampiro = (s.efectos.vampiro || 0) + 1;
   if (pv === 'rabia') { s.atk *= 1.15; s.def *= 0.9; }
   if (pv === 'sangre') { hpMult += 0.1; s.resEl.fuego = Math.min(0.9, (s.resEl.fuego || 0) + 0.5); }
-  s.pasiva = pv;
+  }
+  s.pasiva = [...s.pvs][0] || null;
   s.hp = (s.hp + hpExtra) * hpMult;
   if (u.jefe) s.hp *= 1.5;
   s.hpMax = Math.round(s.hp); s.mpMax = Math.round(s.mp);
@@ -343,12 +360,12 @@ function detalleHab(id, u) {
   const s = u ? calcStats(u) : null;
   const alcance = H.r === 'arma' ? (s ? s.rango.join('–') : 'del arma') : (H.r[1] === 0 ? 'sobre sí' : `${H.r[0]}–${H.r[1]}`);
   if (H.tipo === 'fis') {
-    const fuerza = s ? Math.round(((s.atk + (H.sinArma ? 3 : s.armaPoder)) * 1.6) * (H.p || 1) * (s.pasiva === 'critico' ? 1.2 : 1)) : null;
+    const fuerza = s ? Math.round(((s.atk + (H.sinArma ? 3 : s.armaPoder)) * 1.6) * (H.p || 1) * (s.pvs?.has('critico') ? 1.2 : 1)) : null;
     p.push(`Daño físico ×${H.p}${H.golpes ? ` (${H.golpes} golpes)` : ''}${fuerza ? ` ≈ ${fuerza * (H.golpes || 1)} antes de defensa` : ''}`);
     if (H.precisa) p.push('nunca falla');
     if (H.espalda) p.push('×1.6 por la espalda');
   } else if (H.tipo === 'mag') {
-    const f = s ? Math.round(H.p * (0.5 + s.mag / 14) * (s.pasiva === 'magia' ? 1.2 : 1)) : null;
+    const f = s ? Math.round(H.p * (0.5 + s.mag / 14) * (s.pvs?.has('magia') ? 1.2 : 1)) : null;
     p.push(`Daño mágico ${H.p}${f ? ` ≈ ${f} antes de resistencia` : ''}`);
     if (H.antidemonio) p.push('×2 contra demonios');
     if (H.drena) p.push(`te cura ${Math.round(H.drena * 100)}% del daño`);

@@ -188,7 +188,7 @@ function mostrarAyuda() {
     <p><b>Batallas por turnos.</b> Cada personaje actúa cuando le llega el turno (los más rápidos, más seguido). En tu turno podés <b>mover</b> y <b>actuar</b> una vez cada cosa, en el orden que quieras.</p>
     <p><b>Alturas y espaldas.</b> Pegarle a alguien por la espalda hace más daño y casi nunca falla. Al terminar el turno elegís para dónde mira tu personaje. Desde lo alto los arcos llegan más lejos.</p>
     <p><b>Clases.</b> Cada acción da <b>EXP</b> (nivel del personaje) y <b>PC</b> (puntos de la clase que tiene puesta). Con PC aprendés habilidades, y subiendo de nivel las clases se destraban clases nuevas.</p>
-    <p><b>Secundaria y pasiva.</b> Además de su clase, cada personaje puede usar las habilidades de otra clase (secundaria) y llevar una habilidad pasiva aprendida.</p>
+    <p><b>Secundaria y pasiva.</b> Además de su clase, cada personaje puede usar las habilidades de otra clase (secundaria) y llevar habilidades pasivas aprendidas: varias a la vez si son del mismo oficio, pero no mezcladas entre oficios.</p>
     <p><b>Herrería.</b> Mejorá armas y armaduras con oro y minerales, engarzá <b>gemas</b> (dan elemento, atributos o una habilidad extra) y forjá equipo especial.</p>
     <p><b>Mascotas.</b> Acompañan a su dueño, le suben atributos y a veces actúan solas. Suben de nivel con las batallas.</p>
     <p><b>Patrullas.</b> En las zonas que ya ganaste podés volver a pelear para juntar experiencia, oro y materiales.</p>

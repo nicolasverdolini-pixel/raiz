@@ -132,7 +132,7 @@ function pantallaFicha(uidU, tab, volver) {
         ${Object.entries(s.resEl).map(([e, v]) => `<span class="chipi">Resiste ${ELEMENTOS[e].n} ${Math.round(v * 100)}%</span>`).join('')}
         ${Object.entries(s.efectos).map(([e, v]) => `<span class="chipi esp">${{ regen:'Regeneración', vampiro:'Vampiro', contra:'Contraataque' }[e]} ${'I'.repeat(Math.min(3, v))}</span>`).join('')}
         <span class="chipi">Secundaria: ${u.sec ? CLASES[u.sec].n : '—'}</span>
-        <span class="chipi">Pasiva: ${u.pasiva ? HAB[u.pasiva].n : '—'}</span>
+        <span class="chipi">Pasivas: ${pasivasDe(u).length ? pasivasDe(u).map(h => HAB[h].n).join(' + ') : '—'}</span>
       </div>
       <div class="panel"><b>${C.n}</b> <span class="sub">— ${esc(C.d)}</span></div>
       ${u.unico ? '' : '<button data-x="despedir" class="peligro">Despedir</button>'}`;
@@ -187,13 +187,13 @@ function pantallaFicha(uidU, tab, volver) {
         if (H.historia && !ya) return `<div class="hab2 bloq"><span class="h-ic">✦</span><div><b>${esc(H.n)}</b><small>Se aprende con la historia.</small></div></div>`;
         const puede = !ya && clc.pc >= H.pc;
         const pasiva = H.tipo === 'pasiva';
-        const etiqueta = ya ? (pasiva ? (u.pasiva === h ? '★ Puesta' : 'Poner') : (H.mp ? H.mp + ' PM' : 'Libre')) : H.pc + ' PC';
+        const etiqueta = ya ? (pasiva ? (pasivasDe(u).includes(h) ? '★ Puesta' : 'Poner') : (H.mp ? H.mp + ' PM' : 'Libre')) : H.pc + ' PC';
         return `<button class="hab2 ${ya ? 'ya' : ''} ${puede ? 'puede' : ''} ${pasiva ? 'pas' : ''}" data-x="${ya ? (pasiva ? 'pasiva' : 'nada') : 'aprender'}" data-h="${h}">
           <span class="h-ic">${pasiva ? '◆' : H.el ? ELEMENTOS[H.el].i : '✦'}</span>
           <div><b>${esc(H.n)}</b><small>${esc(H.d)}</small>${pasiva ? '' : `<small class="h-num">${esc(detalleHab(h, u))}</small>`}</div>
           <span class="h-tag">${etiqueta}</span></button>`;
       }).join('')}</div>
-      <p class="sub">Los PC se ganan peleando con esa clase puesta. Las pasivas se ponen tocándolas (una por personaje).</p>`;
+      <p class="sub">Los PC se ganan peleando con esa clase puesta. Las pasivas se ponen tocándolas: podés llevar varias juntas si son del mismo oficio; si ponés una de otro oficio, reemplaza a las que tenías.</p>`;
   }
   montar(`${cabecera(u.nombre)}
     <div class="heroe" style="--cc:${colorClase(u.clase)};--cd:${CLASES[u.clase].asp.D}">
@@ -225,10 +225,14 @@ function pantallaFicha(uidU, tab, volver) {
       if (!aprender(u, d.h)) { toast(`Faltan PC (${H.pc})`); Sonido.fx('error'); return; }
       Sonido.fx('nivel'); chispazo(); toast(`¡Aprendió ${H.n}!`, 'bien');
       if (!antes && dominada(u, cid)) setTimeout(() => { Sonido.fx('revivir'); chispazo(); toast(`★ ¡${u.nombre} ahora es ${nombreClase(u, cid)}! Se abren las habilidades de maestría.`, 'bien'); }, 900);
-      if (H.tipo === 'pasiva' && !u.pasiva) u.pasiva = d.h;
+      if (H.tipo === 'pasiva' && !pasivasDe(u).length) alternarPasiva(u, d.h);
       guardar(); pantallaFicha(uidU, 'habs', volver);
     },
-    pasiva: d => { u.pasiva = u.pasiva === d.h ? null : d.h; Sonido.fx('brillo'); guardar(); pantallaFicha(uidU, 'habs', volver); },
+    pasiva: d => {
+      const antes = pasivasDe(u).map(h => HAB[h].n).join(' y ');
+      if (alternarPasiva(u, d.h)) toast(`Las pasivas de distintos oficios no se combinan: ${antes} se cambió por ${HAB[d.h].n}.`);
+      Sonido.fx('brillo'); guardar(); pantallaFicha(uidU, 'habs', volver);
+    },
     nada: () => {},
     despedir: () => confirmar(`¿Despedir a ${esc(u.nombre)}? Su equipo queda en el inventario.`, () => { G.unidades = G.unidades.filter(v => v !== u); guardar(); volver(); }),
   });
