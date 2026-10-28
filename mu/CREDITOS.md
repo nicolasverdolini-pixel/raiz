@@ -7,3 +7,7 @@ Modelos 3D (licencia CC0, dominio público):
 Motor 3D: three.js r169 (licencia MIT) — https://threejs.org
 
 Los modelos se achicaron (menos animaciones, compresión meshopt) para que carguen rápido en el celu.
+
+Monstruos agregados después (también CC0):
+- Esqueleto mago y pícaro, y su báculo: KayKit — Skeletons Character Pack 1.0 (Kay Lousberg).
+- Lobo y ciervo (Animals Pack), raptor y tiranosaurio (Dinosaurs Pack), serpiente (Easy Enemies Pack), orco, demonio y demonio azul (Ultimate Monsters): Quaternius.

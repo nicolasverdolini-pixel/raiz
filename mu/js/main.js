@@ -1,7 +1,7 @@
 // Sendas del Éter: une el mundo 3D, la conexión, los controles y la pantalla.
 import * as THREE from 'three';
 import * as R from './reglas.js';
-import { cargarTodo, crear } from './modelos.js';
+import { cargarTodo, crear, VISUAL } from './modelos.js';
 import { crearEscena } from './escena.js';
 import { crearEfectos } from './efectos.js';
 import { Red } from './red.js';
@@ -80,7 +80,7 @@ function alMensaje(m) {
     yo = crearEnte(yoId, 'guardian', true); yo.nombre = m.datos.nombre;
     document.getElementById('entrada').hidden = true;
     hud.mostrar(m.datos);
-    if (m.nuevo) hud.toast(`${m.datos.nombre}, Guardián. El Páramo no tiene fin: cazá, subí y no camines solo.`, 'grande');
+    if (m.nuevo) hud.lore();
     return;
   }
   if (m.t === 'inv') return hud.invitacion(m.de, m.nombre, m.nivel);
@@ -89,25 +89,33 @@ function alMensaje(m) {
 
 function foto(s) {
   const ahora = performance.now();
-  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, muralla] of s.j) {
+  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl] of s.j) {
+    const muralla = fl & 1, veneno = fl & 2;
     let e = entes.get(id);
     if (!e) { e = crearEnte(id, 'guardian', true); e.vis.raiz.position.set(x, R.altura(x, z), z); }
-    Object.assign(e, { nombre, hp, nivel, st, grupo, muralla, visto: ahora });
+    Object.assign(e, { nombre, hp, nivel, st, grupo, muralla, veneno, visto: ahora });
     if (id !== yoId) { e.buf.push({ t: ahora, x, z, dir }); if (e.buf.length > 30) e.buf.shift(); }
     if (st === 4 && !e.muerto) morir(e);
   }
-  for (const [id, ti, x, z, dir, hp, st] of s.m) {
+  for (const [id, ti, x, z, dir, hp, st, fl] of s.m) {
     const tipo = R.TIPOS[ti];
     let e = entes.get(id);
     if (!e) { e = crearEnte(id, tipo, false); e.vis.raiz.position.set(x, R.altura(x, z), z); e.vis.raiz.rotation.y = dir; e.nombre = e.def.nombre; e.nivel = e.def.nivel; if (st === 4) { morir(e); e.muertoT = 9; } }
     if (e.muerto && st !== 4) { revivir(e); e.buf = []; e.vis.raiz.position.set(x, R.altura(x, z), z); }
     Object.assign(e, { hp, st, visto: ahora });
+    if (fl !== e.flags) {
+      e.flags = fl; e.campeon = !!(fl & 1); e.furioso = !!(fl & 2);
+      const k = e.campeon ? R.CAMPEON.escala : 1;
+      e.vis.cuerpo.scale.setScalar(VISUAL[tipo].escala * k); e.radio = e.def.radio * k;
+      e.nombre = (e.campeon ? 'Campeón · ' : '') + e.def.nombre;
+    }
     e.buf.push({ t: ahora, x, z, dir }); if (e.buf.length > 30) e.buf.shift();
     if (st === 4 && !e.muerto) morir(e);
   }
   for (const [id, e] of entes) if (id !== yoId && ahora - e.visto > 1500) quitarEnte(id);
   for (const ev of s.ev) evento(ev);
   estado = s.yo;
+  const evt = s.yo.evt; E.ambiente(evt && evt[0][0] !== '-' ? evt[0] : 'normal');
   if (objetivo && s.yo.obj == null && !entes.get(objetivo)) objetivo = null;
 }
 
@@ -119,14 +127,15 @@ function evento(ev) {
     const t = entes.get(b), atacante = entes.get(a);
     if (!t) return;
     const p = pos(t), alto = t.vis.alto * 0.6;
-    const color = d === 4 ? '#d23b3b' : d === 1 ? '#ffb347' : d === 2 ? '#7fe0c2' : d === 3 ? '#c7a5ff' : '#e9e1cf';
+    const color = d === 5 ? '#8fd14a' : d === 4 ? '#d23b3b' : d === 1 ? '#ffb347' : d === 2 ? '#7fe0c2' : d === 3 ? '#c7a5ff' : '#e9e1cf';
     numeros.push({ x: p.x + (Math.random() - 0.5) * 0.6, y: p.y + t.vis.alto + 0.2, z: p.z, txt: String(c), color, grande: d === 1 || d === 2, t: 0, mio: a === yoId || b === yoId });
-    if (t.esJ) FX.sangre(p.x, p.y + alto, p.z, false);
+    if (d === 5) FX.chispas(p.x, p.y + alto, p.z, '#6fdc5a', 6);
+    else if (t.esJ) FX.sangre(p.x, p.y + alto, p.z, false);
     else if (t.tipo === 'huesudo' || t.tipo === 'centinela') FX.chispas(p.x, p.y + alto, p.z, '#e8dcc0', d ? 16 : 8);
     else FX.sangre(p.x, p.y + alto, p.z, d === 1 || d === 2);
     t.flash = 0.14;
     if (!t.esJ && !t.vis.muneco.unaVez && Math.random() < 0.5) t.vis.muneco.hacer('hit');
-    if (b === yoId) { hud.dolor(); temblor = Math.max(temblor, 0.12); }
+    if (b === yoId && d !== 5) { hud.dolor(); temblor = Math.max(temblor, 0.12); }
     if (a === yoId && (d === 1 || d === 2)) temblor = Math.max(temblor, 0.1);
     if (atacante && atacante !== yo && atacante.esJ) atacante.vis.raiz.rotation.y = Math.atan2(p.x - pos(atacante).x, p.z - pos(atacante).z);
   } else if (tipo === 'a') {
@@ -141,7 +150,15 @@ function evento(ev) {
     else if (b === 'stab') { mu.hacer('stab', { vel: 1.3 }); FX.polvo(p.x, p.y, p.z); }
     else if (b === 'pot') { mu.hacer('pot', { vel: 1.5 }); FX.chispas(p.x, p.y + 1, p.z, '#c43b3b', 14); }
     else if (b === 'nace') { mu.hacer('nace'); FX.nace(p.x, p.y, p.z); }
+    else if (b === 'lanza') { if (!mu.hacer('lanza', { vel: 1.3 })) mu.hacer('atk'); }
+    else if (b === 'carga') { mu.hacer('carga'); FX.polvo(p.x, p.y, p.z); }
+    else if (b === 'invoca') { mu.hacer('invoca'); FX.invocar(p.x, p.y, p.z); }
+    else if (b === 'furia') { FX.furia(p.x, p.y, p.z); if (e.def?.jefe && Math.hypot(lx - p.x, lz - p.z) < 20) temblor = 0.3; }
     else if (b === 'pisoton') { mu.hacer('pisoton'); setTimeout(() => { FX.polvo(p.x, p.y, p.z); if (yo && Math.hypot(lx - p.x, lz - p.z) < 14) temblor = 0.35; }, 550); }
+  } else if (tipo === 'p') {
+    const o = entes.get(a), t = entes.get(b); if (!o || !t) return;
+    const po = pos(o), pt = pos(t);
+    FX.proyectil({ x: po.x, y: po.y + o.vis.alto * 0.7, z: po.z }, { x: pt.x, y: pt.y + 1, z: pt.z }, c, d);
   } else if (tipo === 'm') { const e = entes.get(a); if (e) morir(e); }
   else if (tipo === 'n') {
     const e = entes.get(a); if (!e) return;
@@ -279,8 +296,8 @@ function actualizarEntes(dt) {
     }
     if (e.aura) e.aura.visible = !!e.muralla && !e.muerto;
     if (e.flash > 0) e.flash -= dt;
-    const f = Math.max(0, e.flash) / 0.14;
-    for (const m of e.vis.mats) if (m.emissive && m.name !== 'Glow') m.emissive.setRGB(f * 0.7, f * 0.08, f * 0.05);
+    const f = Math.max(0, e.flash) / 0.14 + (e.campeon ? 0.22 : 0) + (e.furioso ? 0.25 + Math.sin(performance.now() / 120) * 0.15 : 0);
+    if (f > 0 || e.brillaba) { e.brillaba = f > 0; for (const m of e.vis.mats) if (m.emissive && m.name !== 'Glow') m.emissive.setRGB(f * 0.7, f * 0.08, f * 0.05); }
     if (e.muerto && !e.esJ) {
       e.muertoT += dt;
       if (e.muertoT > 2.4) e.vis.cuerpo.position.y = (e.tipo === 'avispon' ? 0 : 0) - (e.muertoT - 2.4) * 0.7;
@@ -309,12 +326,12 @@ function dibujarTextos(dt) {
       tc.fillStyle = e === yo ? '#efe6d2' : mismo ? '#a8d48f' : '#b9c1c9';
       tc.strokeText(t, s[0], s[1]); tc.fillText(t, s[0], s[1]);
       if (e !== yo) barra(s[0], s[1] + 11, 46, 4, e.hp, mismo ? '#6fae4f' : '#a33');
-    } else if (e.id === objetivo || e.hp < 100 || e.def.jefe) {
+    } else if (e.id === objetivo || e.hp < 100 || e.def.jefe || e.campeon) {
       barra(s[0], s[1], e.def.jefe ? 90 : 50, e.def.jefe ? 6 : 4, e.hp, '#9c1f1f');
-      if (e.id === objetivo || e.def.jefe) {
+      if (e.id === objetivo || e.def.jefe || e.campeon) {
         tc.font = `${e.def.jefe ? 17 : 14}px "IM Fell English SC", Georgia, serif`; tc.lineWidth = 3; tc.strokeStyle = 'rgba(0,0,0,.85)';
-        tc.fillStyle = e.def.jefe ? '#e0543f' : '#d8cfbd';
-        tc.strokeText(e.def.nombre, s[0], s[1] - 13); tc.fillText(e.def.nombre, s[0], s[1] - 13);
+        tc.fillStyle = e.def.jefe ? '#e0543f' : e.campeon ? '#f0a050' : '#d8cfbd';
+        tc.strokeText(e.nombre, s[0], s[1] - 13); tc.fillText(e.nombre, s[0], s[1] - 13);
       }
     }
   }
@@ -337,16 +354,16 @@ function dibujarTextos(dt) {
 function datosHud() {
   const o = objetivo && entes.get(objetivo);
   let jefe = null;
-  for (const e of entes.values()) if (e.def?.jefe && !e.muerto && Math.hypot(pos(e).x - lx, pos(e).z - lz) < 26) jefe = { nombre: e.def.nombre, hp: e.hp };
-  let lugar = R.MAPA.nombre;
-  for (const l of R.MAPA.lugares) if (Math.hypot(l.x - lx, l.z - lz) < (l.x || l.z ? 13 : R.PUEBLO.r)) lugar = l.nombre;
+  for (const e of entes.values()) if (e.def?.jefe && !e.muerto && Math.hypot(pos(e).x - lx, pos(e).z - lz) < 26) jefe = { nombre: e.def.nombre + (e.furioso ? ' · en furia' : ''), hp: e.hp };
+  let lugar = { nombre: R.MAPA.nombre, frase: 'La noche no se termina.' };
+  for (const l of R.MAPA.lugares) if (Math.hypot(l.x - lx, l.z - lz) < (l.x || l.z ? 14 : R.PUEBLO.r)) lugar = l;
   const puntos = [];
   for (const e of entes.values()) {
     if (e === yo || (e.muerto && !e.esJ)) continue;
     const p = pos(e);
-    puntos.push(e.esJ ? { x: p.x, z: p.z, r: 3, c: estado?.grupo?.some(g => g[0] === e.id) ? '#8fd16e' : '#8fb2d8' } : { x: p.x, z: p.z, r: e.def.jefe ? 5 : 1.8, c: e.def.jefe ? '#ff4a2a' : '#a8382c' });
+    puntos.push(e.esJ ? { x: p.x, z: p.z, r: 3, c: estado?.grupo?.some(g => g[0] === e.id) ? '#8fd16e' : '#8fb2d8' } : { x: p.x, z: p.z, r: e.def.jefe ? 5 : e.campeon ? 3 : 1.8, c: e.def.jefe ? '#ff4a2a' : e.campeon ? '#f0a050' : '#a8382c' });
   }
-  return { objetivo: o && !o.muerto ? { nombre: o.def.nombre, nivel: o.def.nivel, hp: o.hp } : null, jefe, lugar, ping: red.ping, mini: { yo: { x: lx, z: lz }, puntos } };
+  return { objetivo: o && !o.muerto ? { nombre: o.nombre, nivel: o.def.nivel, hp: o.hp, desc: o.def.desc } : null, jefe, lugar, ping: red.ping, mini: { yo: { x: lx, z: lz }, puntos } };
 }
 
 // ---------- bucle ----------

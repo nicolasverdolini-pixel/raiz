@@ -81,6 +81,7 @@ export class Mapa extends DurableObject {
     this.ev = [];
     this.sigId = 1; this.sigMon = 1000; this.sigGrupo = 1;
     this.t = 0; this.reloj = null;
+    this.evento = null; this.proximo = null;
     for (const tipo of R.TIPOS) for (let i = 0; i < R.MONSTRUOS[tipo].cantidad; i++) this.crearMonstruo(tipo);
   }
 
@@ -261,6 +262,7 @@ export class Mapa extends DurableObject {
 
   // ----- combate -----
   golpear(p, m, mult, hab) {
+    if (m.muerto) return;
     let tipo = hab ? R.GOLPE.HABILIDAD : R.GOLPE.NORMAL, f = mult;
     const r = Math.random();
     if (r < 0.04) { tipo = R.GOLPE.EXCELENTE; f *= 2; } else if (r < 0.12) { tipo = hab ? tipo : R.GOLPE.CRITICO; f *= 1.5; }
@@ -269,18 +271,22 @@ export class Mapa extends DurableObject {
     const bando = p.grupo ? 'g' + p.grupo : 'p' + p.id;
     m.danos.set(bando, (m.danos.get(bando) || 0) + dano);
     if (!m.obj || !m.def.jefe) m.obj = p.id;
-    m.frenado = 0.25;
+    if (!m.def.jefe) m.frenado = 0.25;
     this.ev.push(['g', p.id, m.id, dano, tipo]);
     if (m.hp <= 0) this.matar(m);
   }
 
   matar(m) {
-    m.muerto = true; m.hp = 0; m.reaparece = m.def.reaparece; m.obj = null;
+    m.muerto = true; m.hp = 0; m.obj = null; m.muertoT = 0; m.carga = null;
+    const marea = this.evento?.id === 'marea';
+    m.reaparece = m.def.reaparece * (marea ? 0.4 : 1);
     this.ev.push(['m', m.id]);
-    if (m.def.jefe) this.msgTodos(`¡Cayó el ${m.def.nombre}! Vuelve en ${Math.round(m.def.reaparece / 60)} minutos.`);
+    if (m.def.jefe) this.msgTodos(m.def.soloEvento ? `¡Cayó el ${m.def.nombre}! La Noche Roja pierde fuerza.` : `¡Cayó ${m.def.nombre}! Vuelve en ${Math.round(m.def.reaparece / 60)} minutos.`);
+    else if (m.campeon) this.msgCerca(m, `Cayó un campeón: ${m.def.nombre}.`);
     let total = 0; for (const v of m.danos.values()) total += v;
+    const base = m.def.exp * (m.campeon ? R.CAMPEON.exp : 1) * (m.temporal ? 0.3 : 1) * (this.evento?.exp || 1);
     for (const [bando, d] of m.danos) {
-      const parte = m.def.exp * d / total;
+      const parte = base * d / total;
       if (bando[0] === 'p') { const p = this.jug.get(+bando.slice(1)); if (p && !p.muerto) this.darExp(p, parte, m); continue; }
       const g = this.grupos.get(+bando.slice(1)); if (!g) continue;
       const cerca = g.miembros.map(id => this.jug.get(id)).filter(p => p && !p.muerto && dist(p, m) < R.DIST_GRUPO);
@@ -307,19 +313,26 @@ export class Mapa extends DurableObject {
     }
   }
 
-  herirJugador(p, dano, m) {
+  danoDe(m, rango) {
+    return entre(rango[0], rango[1]) * (m.campeon ? R.CAMPEON.dano : 1) * (this.evento?.id === 'noche' ? 1.3 : 1) * (m.furioso ? 1.15 : 1);
+  }
+
+  herirJugador(p, dano, m, tipo = 4) {
     if (p.muerto) return;
-    dano = Math.max(1, Math.round(dano - p.der.def * 0.5));
+    dano = tipo === 5 ? Math.round(dano) : Math.max(1, Math.round(dano - p.der.def * 0.5));
     if (p.muralla > 0) dano = Math.max(1, Math.round(dano * 0.5));
     p.hp -= dano;
-    this.ev.push(['g', m.id, p.id, dano, 4]);
+    this.ev.push(['g', m?.id || 0, p.id, dano, tipo]);
+    if (m && tipo === 4 && m.def.veneno && Math.random() < m.def.veneno.prob) { p.veneno = { dps: m.def.veneno.dps, t: m.def.veneno.dura }; this.aviso(p, 'Estás envenenado.'); }
     if (p.hp <= 0) {
-      p.hp = 0; p.muerto = 5; p.objetivo = null; p.mueve = false;
+      p.hp = 0; p.muerto = 5; p.objetivo = null; p.mueve = false; p.veneno = null;
       this.ev.push(['m', p.id]);
-      this.aviso(p, `Te venció ${m.def.nombre}. Volvés a la Atalaya en 5 segundos.`);
+      this.aviso(p, `Te venció ${m ? m.def.nombre : 'el veneno'}. Despertás junto al Farol en 5 segundos.`);
       for (const x of this.mons.values()) if (x.obj === p.id) x.obj = null;
     }
   }
+
+  msgCerca(m, texto) { for (const p of this.jug.values()) if (dist(p, m) < VISTA) this.aviso(p, texto); }
 
   // ----- monstruos -----
   lugarLibre(def) {
@@ -328,23 +341,40 @@ export class Mapa extends DurableObject {
       let x, y;
       if (z.rmax) { const a = Math.random() * Math.PI * 2, r = entre(z.rmin, z.rmax); x = z.x + Math.cos(a) * r; y = z.z + Math.sin(a) * r; }
       else { const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * z.r; x = z.x + Math.cos(a) * r; y = z.z + Math.sin(a) * r; }
-      if (Math.hypot(x, y) > R.PUEBLO.r + 2 && Math.abs(x) < R.MUNDO - 4 && Math.abs(y) < R.MUNDO - 4) return { x, z: y };
+      if (Math.hypot(x, y) > R.PUEBLO.r + 2 && Math.abs(x) < R.MUNDO - 6 && Math.abs(y) < R.MUNDO - 6) return { x, z: y };
     }
     return { x: z.x, z: z.z };
   }
 
-  crearMonstruo(tipo) {
-    const def = R.MONSTRUOS[tipo], l = this.lugarLibre(def);
-    const m = { id: this.sigMon++, tipo, ti: R.TIPOS.indexOf(tipo), def, casa: l, x: l.x, z: l.z, dir: Math.random() * 6, hp: def.hp,
-      muerto: false, reaparece: 0, obj: null, cd: 0, paseo: 0, destino: null, volviendo: false, mueve: false, frenado: 0, pisoton: def.pisoton?.cada || 0, danos: new Map() };
+  crearMonstruo(tipo, donde, temporal) {
+    const def = R.MONSTRUOS[tipo];
+    const m = { id: this.sigMon++, tipo, ti: R.TIPOS.indexOf(tipo), def, temporal: !!temporal, danos: new Map(), timers: {} };
     this.mons.set(m.id, m);
+    this.ponerVivo(m, donde);
+    return m;
+  }
+
+  ponerVivo(m, donde) {
+    const def = m.def, l = donde || this.lugarLibre(def);
+    const noche = this.evento?.id === 'noche';
+    m.campeon = !def.jefe && !m.temporal && Math.random() < (noche ? R.CAMPEON.probNoche : R.CAMPEON.prob);
+    m.maxHp = def.hp * (m.campeon ? R.CAMPEON.hp : 1);
+    Object.assign(m, { casa: { x: l.x, z: l.z }, x: l.x, z: l.z, dir: Math.random() * 6, hp: m.maxHp, muerto: false, reaparece: 0, obj: null, cd: 0, paseo: 0,
+      destino: null, volviendo: false, mueve: false, frenado: 0, furioso: false, carga: null, muertoT: 0 });
+    m.danos.clear();
+    for (const h of def.habs || []) m.timers[h.t] = h.cada * (0.5 + Math.random() * 0.5);
   }
 
   revivirMonstruo(m) {
-    const l = this.lugarLibre(m.def);
-    Object.assign(m, { casa: l, x: l.x, z: l.z, hp: m.def.hp, muerto: false, obj: null, volviendo: false, destino: null });
+    this.ponerVivo(m);
     this.ev.push(['a', m.id, 'nace']);
-    if (m.def.jefe) this.msgTodos(`¡Apareció el ${m.def.nombre} en el Osario! Hace falta un grupo.`);
+    if (m.def.jefe) this.msgTodos(`${m.def.nombre} despertó en ${this.lugarDe(m)}. Hace falta un grupo.`);
+  }
+
+  lugarDe(m) {
+    let mejor = R.MAPA.lugares[0], md = 1e9;
+    for (const l of R.MAPA.lugares) { const d = Math.hypot(l.x - m.x, l.z - m.z); if (d < md) { md = d; mejor = l; } }
+    return mejor.nombre;
   }
 
   caminar(m, x, z, vel, dt) {
@@ -355,12 +385,56 @@ export class Mapa extends DurableObject {
     return paso >= d;
   }
 
+  usarHabilidades(m, p, dt) {
+    const def = m.def;
+    for (const h of def.habs || []) {
+      m.timers[h.t] -= dt * (m.furioso ? 1.4 : 1);
+      if (m.timers[h.t] > 0) continue;
+      if (h.t === 'pisoton') {
+        if (dist(m, p) > h.radio + 1) continue;
+        m.timers[h.t] = h.cada;
+        this.ev.push(['a', m.id, 'pisoton']);
+        for (const q of this.jug.values()) if (dist(q, m) < h.radio) this.herirJugador(q, this.danoDe(m, h.dano), m);
+      } else if (h.t === 'rayo') {
+        if (dist(m, p) > h.alcance) continue;
+        m.timers[h.t] = h.cada;
+        m.dir = Math.atan2(p.x - m.x, p.z - m.z);
+        this.ev.push(['a', m.id, 'lanza'], ['p', m.id, p.id, h.color || 'violeta', h.radio || 0]);
+        if (h.radio) { for (const q of this.jug.values()) if (dist(q, p) < h.radio) this.herirJugador(q, this.danoDe(m, h.dano), m); }
+        else this.herirJugador(p, this.danoDe(m, h.dano), m);
+      } else if (h.t === 'carga') {
+        const d = dist(m, p);
+        if (d < 3 || d > h.alcance) continue;
+        m.timers[h.t] = h.cada;
+        m.carga = { obj: p.id, t: 1.2, dano: h.dano };
+        this.ev.push(['a', m.id, 'carga']);
+      } else if (h.t === 'invocar') {
+        m.timers[h.t] = h.cada;
+        const vivos = [...this.mons.values()].filter(x => x.temporal && x.dueno === m.id && !x.muerto).length;
+        const n = Math.min(h.n, h.max - vivos);
+        if (n <= 0) continue;
+        this.ev.push(['a', m.id, 'invoca']);
+        for (let i = 0; i < n; i++) {
+          const a = Math.random() * 6.3, x = this.crearMonstruo(h.cual, { x: m.x + Math.cos(a) * 2.5, z: m.z + Math.sin(a) * 2.5 }, true);
+          x.dueno = m.id; x.obj = p.id; x.casa = { x: m.x, z: m.z };
+          this.ev.push(['a', x.id, 'nace']);
+        }
+      }
+    }
+  }
+
   tickMonstruo(m, dt) {
     m.mueve = false;
-    if (m.muerto) { m.reaparece -= dt; if (m.reaparece <= 0) this.revivirMonstruo(m); return; }
+    if (m.muerto) {
+      m.muertoT += dt;
+      if (m.temporal || m.def.soloEvento) { if (m.muertoT > 3) this.mons.delete(m.id); return; }
+      m.reaparece -= dt; if (m.reaparece <= 0) this.revivirMonstruo(m);
+      return;
+    }
     m.cd -= dt;
-    if (m.frenado > 0) { m.frenado -= dt; return; }
     const def = m.def;
+    if (def.furia && !m.furioso && m.hp < m.maxHp * def.furia) { m.furioso = true; this.ev.push(['a', m.id, 'furia']); if (def.jefe) this.msgCerca(m, `${def.nombre} entra en furia.`); }
+    if (m.frenado > 0) { m.frenado -= dt; return; }
     let p = m.obj ? this.jug.get(m.obj) : null;
     if (p && (p.muerto || enPueblo(p))) { p = null; m.obj = null; }
     if (!p && def.agresivo && !m.volviendo) {
@@ -368,26 +442,35 @@ export class Mapa extends DurableObject {
       for (const q of this.jug.values()) { if (q.muerto || enPueblo(q)) continue; const d = dist(q, m); if (d < mejor) { mejor = d; p = q; } }
       if (p) m.obj = p.id;
     }
-    if (dist(m, m.casa) > (def.jefe ? 20 : 16)) { m.obj = null; p = null; m.volviendo = true; }
+    const correa = def.jefe ? 24 : m.temporal ? 30 : 18;
+    if (!def.soloEvento && dist(m, m.casa) > correa) { m.obj = null; p = null; m.volviendo = true; m.carga = null; }
     if (m.volviendo) {
-      if (this.caminar(m, m.casa.x, m.casa.z, def.vel * 1.3, dt)) { m.volviendo = false; m.hp = def.hp; m.danos.clear(); }
+      if (this.caminar(m, m.casa.x, m.casa.z, def.vel * 1.4, dt)) { m.volviendo = false; m.hp = m.maxHp; m.furioso = false; m.danos.clear(); }
+      return;
+    }
+    if (m.carga) {
+      const q = this.jug.get(m.carga.obj);
+      m.carga.t -= dt;
+      if (!q || q.muerto || m.carga.t <= 0) { m.carga = null; }
+      else if (this.caminar(m, q.x, q.z, def.vel * 3.2, dt) || dist(m, q) < def.alcance) {
+        this.herirJugador(q, this.danoDe(m, m.carga.dano), m); m.carga = null; m.cd = def.cadencia;
+      }
       return;
     }
     if (p) {
       const d = dist(m, p);
-      if (d > def.alcance + 0.4) this.caminar(m, p.x, p.z, def.vel, dt);
+      const cadencia = def.cadencia * (m.furioso ? 0.65 : 1), vel = def.vel * (m.furioso ? 1.25 : 1);
+      if (d > def.alcance + 0.4) this.caminar(m, p.x, p.z, vel, dt);
       else {
         m.dir = Math.atan2(p.x - m.x, p.z - m.z);
-        if (m.cd <= 0) { m.cd = def.cadencia; this.ev.push(['a', m.id, 'atk', p.id]); this.herirJugador(p, entre(def.dano[0], def.dano[1]), m); }
-      }
-      if (def.pisoton) {
-        m.pisoton -= dt;
-        if (m.pisoton <= 0) {
-          m.pisoton = def.pisoton.cada;
-          this.ev.push(['a', m.id, 'pisoton']);
-          for (const q of this.jug.values()) if (dist(q, m) < def.pisoton.radio) this.herirJugador(q, entre(def.pisoton.dano[0], def.pisoton.dano[1]), m);
+        if (m.cd <= 0) {
+          m.cd = cadencia;
+          if (def.distancia) this.ev.push(['a', m.id, 'lanza'], ['p', m.id, p.id, def.distancia, 0]);
+          else this.ev.push(['a', m.id, 'atk', p.id]);
+          this.herirJugador(p, this.danoDe(m, def.dano), m);
         }
       }
+      if (this.jug.has(p.id)) this.usarHabilidades(m, p, dt);
       return;
     }
     // Pasea cerca de su casa.
@@ -396,9 +479,31 @@ export class Mapa extends DurableObject {
     if (m.destino && this.caminar(m, m.destino.x, m.destino.z, def.vel * 0.35, dt)) m.destino = null;
   }
 
+  // ----- eventos con horario -----
+  revisarEventos() {
+    const { activo, proximo } = R.estadoEventos(Date.now());
+    this.proximo = proximo;
+    const antes = this.evento?.id || null, ahora = activo?.id || null;
+    this.evento = activo;
+    if (antes === ahora) return;
+    if (antes === 'noche') {
+      for (const m of this.mons.values()) if (m.def.soloEvento && !m.muerto) { this.mons.delete(m.id); this.ev.push(['bye', m.id]); this.msgTodos('El Heraldo del Éter se retira. Volverá con la próxima Noche Roja.'); }
+    }
+    if (activo) {
+      this.msgTodos(`${activo.nombre}: ${activo.desc}`);
+      if (activo.id === 'noche') {
+        const l = R.MAPA.lugares[1 + Math.floor(Math.random() * (R.MAPA.lugares.length - 1))];
+        const h = this.crearMonstruo('heraldo', { x: l.x, z: l.z });
+        this.ev.push(['a', h.id, 'nace']);
+        this.msgTodos(`El Heraldo del Éter apareció en ${l.nombre}.`);
+      }
+    } else if (antes) this.msgTodos('El evento terminó.');
+  }
+
   // ----- reloj del mapa -----
   tick() {
     const dt = R.TICK; this.t += dt;
+    if (!this.evT || this.t - this.evT > 1) { this.evT = this.t; this.revisarEventos(); }
     for (const p of this.jug.values()) {
       if (p.muerto) {
         p.muerto -= dt;
@@ -412,13 +517,19 @@ export class Mapa extends DurableObject {
       for (let i = 0; i < 3; i++) if (p.cds[i] > 0) p.cds[i] = Math.max(0, p.cds[i] - dt);
       if (p.muralla > 0) p.muralla = Math.max(0, p.muralla - dt);
       if (p.potT > 0) { p.potT -= dt; if (p.potT <= 0) { p.pot = Math.min(R.POCION.cargas, p.pot + 1); p.potT = p.pot < R.POCION.cargas ? R.POCION.recarga : 0; } }
-      p.hp = Math.min(p.der.maxHp, p.hp + p.der.maxHp * 0.005 * dt);
-      p.mp = Math.min(p.der.maxMp, p.mp + 2 * dt);
+      if (p.veneno) {
+        p.veneno.t -= dt; p.venT = (p.venT || 0) + dt;
+        if (p.venT >= 1) { p.venT = 0; this.herirJugador(p, p.veneno.dps, null, 5); }
+        if (p.veneno && p.veneno.t <= 0) p.veneno = null;
+        if (p.muerto) continue;
+      }
+      p.hp = Math.min(p.der.maxHp, p.hp + p.der.maxHp * (enPueblo(p) ? 0.04 : 0.005) * dt);
+      p.mp = Math.min(p.der.maxMp, p.mp + (enPueblo(p) ? 6 : 2) * dt);
       p.cdAtk -= dt;
       if (p.objetivo) {
         const m = this.mons.get(p.objetivo);
         if (!m || m.muerto) p.objetivo = null;
-        else if (dist(p, m) <= p.der.alcance + m.def.radio + 0.6 && p.cdAtk <= 0) {
+        else if (dist(p, m) <= p.der.alcance + m.def.radio * (m.campeon ? R.CAMPEON.escala : 1) + 0.6 && p.cdAtk <= 0) {
           p.cdAtk = p.der.cadencia; p.dir = Math.atan2(m.x - p.x, m.z - p.z);
           this.ev.push(['a', p.id, 'atk', m.id]);
           this.golpear(p, m, 1, false);
@@ -434,7 +545,9 @@ export class Mapa extends DurableObject {
       if (Math.hypot(a.x, a.z) < R.PUEBLO.r + 1) { const d = Math.hypot(a.x, a.z) || 1; a.x = a.x / d * (R.PUEBLO.r + 1); a.z = a.z / d * (R.PUEBLO.r + 1); }
       for (let j = i + 1; j < mons.length; j++) {
         const b = mons[j]; if (b.muerto) continue;
-        const min = a.def.radio + b.def.radio, dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
+        const min = a.def.radio + b.def.radio, dx = b.x - a.x, dz = b.z - a.z;
+        if (Math.abs(dx) > min || Math.abs(dz) > min) continue;
+        const d = Math.hypot(dx, dz);
         if (d < min && d > 0.001) { const k = (min - d) / d * 0.5; a.x -= dx * k; a.z -= dz * k; b.x += dx * k; b.z += dz * k; }
       }
     }
@@ -443,17 +556,18 @@ export class Mapa extends DurableObject {
 
   enviarFotos() {
     const ev = this.ev; this.ev = [];
-    const filaJ = q => [q.id, q.nombre, r2(q.x), r2(q.z), r2(q.dir), Math.round(q.hp / q.der.maxHp * 100), q.d.nivel, q.muerto ? 4 : q.mueve ? 1 : 0, q.grupo || 0, q.muralla > 0 ? 1 : 0];
-    const filaM = m => [m.id, m.ti, r2(m.x), r2(m.z), r2(m.dir), Math.round(Math.max(0, m.hp) / m.def.hp * 100), m.muerto ? 4 : m.mueve ? 1 : 0];
+    const filaJ = q => [q.id, q.nombre, r2(q.x), r2(q.z), r2(q.dir), Math.round(q.hp / q.der.maxHp * 100), q.d.nivel, q.muerto ? 4 : q.mueve ? 1 : 0, q.grupo || 0, (q.muralla > 0 ? 1 : 0) | (q.veneno ? 2 : 0)];
+    const filaM = m => [m.id, m.ti, r2(m.x), r2(m.z), r2(m.dir), Math.round(Math.max(0, m.hp) / m.maxHp * 100), m.muerto ? 4 : m.mueve ? 1 : 0, (m.campeon ? 1 : 0) | (m.furioso ? 2 : 0) | (m.temporal ? 4 : 0)];
+    const evt = this.evento ? [this.evento.id, Math.round(this.evento.resta)] : this.proximo ? ['-' + this.proximo.id, Math.round(this.proximo.en)] : null;
     for (const p of this.jug.values()) {
       const j = [], m = [];
       for (const q of this.jug.values()) if (q === p || dist(q, p) < VISTA) j.push(filaJ(q));
-      for (const x of this.mons.values()) if (dist(x, p) < VISTA || x.def.jefe) m.push(filaM(x));
+      for (const x of this.mons.values()) if (dist(x, p) < VISTA) m.push(filaM(x));
       const g = p.grupo && this.grupos.get(p.grupo);
       const yo = {
         hp: Math.round(p.hp), mp: Math.round(p.mp), maxHp: p.der.maxHp, maxMp: p.der.maxMp, nivel: p.d.nivel, exp: p.d.exp, sig: R.expParaSubir(p.d.nivel),
         puntos: p.d.puntos, fue: p.d.fue, agi: p.d.agi, vit: p.d.vit, ene: p.d.ene, dmin: p.der.dmin, dmax: p.der.dmax, def: p.der.def,
-        cds: p.cds.map(r2), pot: p.pot, potT: r2(p.potT), muralla: r2(p.muralla), muerto: r2(p.muerto), obj: p.objetivo,
+        cds: p.cds.map(r2), pot: p.pot, potT: r2(p.potT), muralla: r2(p.muralla), muerto: r2(p.muerto), obj: p.objetivo, veneno: p.veneno ? r2(p.veneno.t) : 0, evt,
         grupo: g ? g.miembros.map(id => { const x = this.jug.get(id); return x ? [x.id, x.nombre, Math.round(x.hp / x.der.maxHp * 100), x.d.nivel, x.id === g.lider ? 1 : 0] : null; }).filter(Boolean) : null,
       };
       this.enviar(p.s, { t: 's', j, m, ev: p.priv.length ? ev.concat(p.priv) : ev, yo });

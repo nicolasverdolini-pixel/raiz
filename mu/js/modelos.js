@@ -4,17 +4,37 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
-// tam: tamaño más grande del modelo en metros · giro: para que mire hacia adelante · vuela: altura
+// tam: tamaño más grande del modelo en metros · vuela: altura · tinte: color encima · bajo: cuadrúpedo (nombre más abajo)
+const SK = { idle: 'Idle', run: 'Walking_D_Skeletons', atk: '1H_Melee_Attack_Chop', hit: 'Hit_A', muere: 'Death_C_Skeletons', nace: 'Spawn_Ground_Skeletons' };
+const RATA = { idle: 'Rat_Idle', run: 'Rat_Run', atk: 'Rat_Attack', muere: 'Rat_Death', pisoton: 'Rat_Jump', invoca: 'Rat_Jump' };
+const ARANA = { idle: 'Spider_Idle', run: 'Spider_Walk', atk: 'Spider_Attack', muere: 'Spider_Death', lanza: 'Spider_Attack', invoca: 'Spider_Jump' };
+const AVISPA = { idle: 'Wasp_Flying', run: 'Wasp_Flying', atk: 'Wasp_Attack', muere: 'Wasp_Death', lanza: 'Wasp_Attack' };
+const MAGO = { ...SK, atk: 'Spellcast_Shoot', lanza: 'Spellcast_Shoot', invoca: 'Spellcast_Summon' };
+const DEMONIO = { idle: 'Idle', run: 'Run', atk: 'Punch', lanza: 'Weapon', pisoton: 'Weapon', invoca: 'Wave', hit: 'HitReact', muere: 'Death' };
 export const VISUAL = {
   guardian:  { archivo: 'guardian.glb', tam: 1.85, anims: { idle: 'Idle', run: 'Running_A', atk: ['1H_Melee_Attack_Chop', '1H_Melee_Attack_Slice_Diagonal', '1H_Melee_Attack_Slice_Horizontal'],
                spin: '2H_Melee_Attack_Spin', muralla: 'Block', stab: '1H_Melee_Attack_Stab', hit: 'Hit_A', muere: 'Death_A', festeja: 'Cheer', pot: 'Use_Item' } },
-  rata:      { archivo: 'rat.glb', tam: 1.5, tinte: '#8a7a68', anims: { idle: 'Rat_Idle', run: 'Rat_Run', atk: 'Rat_Attack', muere: 'Rat_Death' } },
-  sapo:      { archivo: 'frog.glb', tam: 1.3, tinte: '#6d7a4a', anims: { idle: 'Frog_Idle', run: 'Frog_Jump', atk: 'Frog_Attack', muere: 'Frog_Death' } },
-  arana:     { archivo: 'spider.glb', tam: 1.9, tinte: '#4a3a30', anims: { idle: 'Spider_Idle', run: 'Spider_Walk', atk: 'Spider_Attack', muere: 'Spider_Death' } },
-  avispon:   { archivo: 'wasp.glb', tam: 1.4, vuela: 1.1, tinte: '#8a4a2a', anims: { idle: 'Wasp_Flying', run: 'Wasp_Flying', atk: 'Wasp_Attack', muere: 'Wasp_Death' } },
-  huesudo:   { archivo: 'huesudo.glb', tam: 1.8, arma: 'hoja_hueso.glb', anims: { idle: 'Idle', run: 'Walking_D_Skeletons', atk: '1H_Melee_Attack_Chop', hit: 'Hit_A', muere: 'Death_C_Skeletons', nace: 'Spawn_Ground_Skeletons' } },
+  rata:      { archivo: 'rat.glb', tam: 1.5, bajo: 1, tinte: '#8a7a68', anims: RATA },
+  sapo:      { archivo: 'frog.glb', tam: 1.3, bajo: 1, tinte: '#6d7a4a', anims: { idle: 'Frog_Idle', run: 'Frog_Jump', atk: 'Frog_Attack', muere: 'Frog_Death' } },
+  arana:     { archivo: 'spider.glb', tam: 1.9, bajo: 1, tinte: '#4a3a30', anims: ARANA },
+  sierpe:    { archivo: 'sierpe.glb', tam: 1.8, bajo: 1, tinte: '#26221c', anims: { idle: 'Snake_Idle', run: 'Snake_Walk', atk: 'Snake_Attack' } },
+  avispon:   { archivo: 'wasp.glb', tam: 1.4, vuela: 1.1, tinte: '#8a4a2a', anims: AVISPA },
+  lobo:      { archivo: 'lobo.glb', tam: 1.8, bajo: 1, tinte: '#3a3530', anims: { idle: 'Idle', run: 'Gallop', atk: 'Attack', muere: 'Death', hit: 'Idle_HitReact_Left' } },
+  huesudo:   { archivo: 'huesudo.glb', tam: 1.8, arma: 'hoja_hueso.glb', anims: SK },
+  ciervo:    { archivo: 'ciervo.glb', tam: 2.5, tinte: '#2e2a26', anims: { idle: 'Idle', run: 'Gallop', atk: 'Attack_Headbutt', carga: 'Gallop', muere: 'Death', hit: 'Idle_HitReact_Left' } },
+  anima:     { archivo: 'anima.glb', tam: 1.9, arma: 'baculo_hueso.glb', anims: MAGO },
+  degollador:{ archivo: 'degollador.glb', tam: 1.8, arma: 'hoja_hueso.glb', anims: { ...SK, idle: 'Idle_Combat', run: 'Running_C', atk: ['Dualwield_Melee_Attack_Slice', 'Dualwield_Melee_Attack_Chop'] } },
+  bruto:     { archivo: 'bruto.glb', tam: 2.7, tinte: '#4d5a3c', anims: { ...DEMONIO, pisoton: 'Weapon' } },
+  acechador: { archivo: 'raptor.glb', tam: 2.3, bajo: 1, tinte: '#2f2f33', anims: { idle: 'Velociraptor_Idle', run: 'Velociraptor_Run', atk: 'Velociraptor_Attack', carga: 'Velociraptor_Run', muere: 'Velociraptor_Death' } },
+  engendro:  { archivo: 'engendro.glb', tam: 2.7, tinte: '#5a2420', anims: DEMONIO },
+  ratareina: { archivo: 'rat.glb', tam: 3.4, bajo: 1, tinte: '#d8cfc0', anims: RATA },
+  madretejedora: { archivo: 'spider.glb', tam: 4.4, bajo: 1, tinte: '#1a1210', anims: ARANA },
+  reinacolmena:  { archivo: 'wasp.glb', tam: 3.3, vuela: 1.8, tinte: '#3a1a10', anims: { ...AVISPA, invoca: 'Wasp_Attack' } },
   centinela: { archivo: 'centinela.glb', tam: 4.0, arma: 'hacha_hueso.glb', anims: { idle: 'Idle_Combat', run: 'Running_C', atk: '1H_Melee_Attack_Chop', pisoton: '1H_Melee_Attack_Jump_Chop',
-               hit: 'Hit_B', muere: 'Death_C_Skeletons', nace: 'Spawn_Ground_Skeletons' } },
+               invoca: 'Taunt', hit: 'Hit_B', muere: 'Death_C_Skeletons', nace: 'Spawn_Ground_Skeletons' } },
+  archimago: { archivo: 'anima.glb', tam: 3.6, arma: 'baculo_hueso.glb', tinte: '#6a4a9a', anims: MAGO },
+  bestia:    { archivo: 'trex.glb', tam: 6.2, tinte: '#2a1a16', anims: { idle: 'TRex_Idle', run: 'TRex_Run', atk: 'TRex_Attack', pisoton: 'TRex_Jump', carga: 'TRex_Run', muere: 'TRex_Death' } },
+  heraldo:   { archivo: 'heraldo.glb', tam: 4.3, tinte: '#8a1a14', anims: DEMONIO },
 };
 
 export const ESCENOGRAFIA = ['CommonTree_Dead_1', 'CommonTree_Dead_2', 'CommonTree_Dead_3', 'CommonTree_Dead_5', 'BirchTree_Dead_1', 'BirchTree_Dead_3',
@@ -41,8 +61,7 @@ export async function cargarTodo(progreso) {
       o.castShadow = true; o.frustumCulled = false;
       const ms = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of ms) {
-        if (v.tinte && m.color) m.color.lerp(new THREE.Color(v.tinte), 0.55);
-        m.userData.outlineParameters = { thickness: tipo === 'centinela' ? 0.004 : 0.0045, color: [0.02, 0.015, 0.01], alpha: 1 };
+        m.userData.outlineParameters = { thickness: v.tam > 3 ? 0.0035 : 0.0045, color: [0.02, 0.015, 0.01], alpha: 1 };
         if (m.name === 'Glow') { m.emissive = new THREE.Color('#ff3b1f'); m.emissiveIntensity = 3; }
       }
     });
@@ -58,6 +77,7 @@ export function crear(tipo) {
   cuerpo.traverse(o => {
     if (!o.isMesh) return;
     o.material = Array.isArray(o.material) ? o.material.map(m => m.clone()) : o.material.clone();
+    if (v.tinte) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.color && m.name !== 'Glow') m.color.lerp(new THREE.Color(v.tinte), 0.55); });
     (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => mats.push(m));
   });
   if (v.arma) {
@@ -67,7 +87,7 @@ export function crear(tipo) {
   const raiz = new THREE.Group();
   if (v.vuela) cuerpo.position.y = v.vuela;
   raiz.add(cuerpo);
-  return { raiz, cuerpo, mats, muneco: new Muneco(cuerpo, g.animations, v.anims), alto: v.tam * (tipo === 'rata' || tipo === 'arana' || tipo === 'sapo' ? 0.75 : 1.08) + (v.vuela || 0) };
+  return { raiz, cuerpo, mats, muneco: new Muneco(cuerpo, g.animations, v.anims), alto: v.tam * (v.bajo ? 0.6 : 1.05) + (v.vuela || 0) };
 }
 
 // Maneja animaciones: una "base" que se repite (quieto/corre) y acciones de una vez (atacar, morir).

@@ -118,7 +118,7 @@ input:focus { outline: 1px solid var(--sangre-2); }
 .mas:disabled { opacity: .35; }
 @media (prefers-reduced-motion: reduce) { .toast, #titulo-lugar.ver, .boton-puntos { animation-duration: .01s; } }
 /* Celu acostado: la entrada entra en pantalla y se puede deslizar. */
-#entrada { overflow-y: auto; touch-action: pan-y; }
+#entrada { overflow-y: auto; overflow-x: hidden; touch-action: pan-y; }
 @media (max-height: 560px) {
   #entrada { place-items: start center; padding-block: 10px; }
   #form-entrar { gap: 7px; padding: 14px 18px; }
@@ -126,3 +126,15 @@ input:focus { outline: 1px solid var(--sangre-2); }
   input { padding: 7px 10px; }
   #btn-entrar { padding: 8px 14px; }
 }
+/* Eventos, lore y estados */
+#h-obj small { color: var(--hueso-2); font-style: italic; font-size: .8em; max-width: 280px; }
+#h-evento { font-size: .8em; color: var(--hueso-2); text-shadow: 0 1px 3px #000; }
+#h-evento.activo { color: #f0c27a; font-family: var(--titulo); font-size: .95em; }
+#h-evento.activo.noche { color: #ff6a4a; }
+#h-evento.activo.marea { color: #8fd0ff; }
+#titulo-lugar { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#titulo-lugar small { font: italic clamp(13px, 2.4vmin, 18px) var(--texto); color: var(--hueso-2); letter-spacing: .02em; }
+.orbe.vida.veneno i { background: radial-gradient(circle at 40% 20%, #8fbf3a, #2f4a10 70%); }
+.modal.lore { width: min(520px, 92vw); text-align: center; gap: 12px; }
+.modal.lore h2 { color: #c0392b; }
+.modal.lore p { font-size: 1.02em; line-height: 1.5; color: var(--hueso); }

@@ -16,9 +16,9 @@ export class Hud {
     const h = document.getElementById('hud');
     h.innerHTML = `
       <div class="caja arriba-izq"><div id="h-yo"><b id="h-nombre"></b><span id="h-nivel"></span></div><div id="h-grupo"></div></div>
-      <div id="h-obj" class="caja" hidden><b id="h-obj-nombre"></b><div class="barra"><i id="h-obj-vida"></i></div></div>
+      <div id="h-obj" class="caja" hidden><b id="h-obj-nombre"></b><div class="barra"><i id="h-obj-vida"></i></div><small id="h-obj-desc"></small></div>
       <div id="h-jefe" hidden><b id="h-jefe-nombre"></b><div class="barra"><i id="h-jefe-vida"></i></div></div>
-      <div class="arriba-der"><canvas id="h-mini" width="140" height="140"></canvas><span id="h-lugar"></span><span id="h-ping"></span></div>
+      <div class="arriba-der"><canvas id="h-mini" width="140" height="140"></canvas><span id="h-lugar"></span><span id="h-evento"></span><span id="h-ping"></span></div>
       <div class="abajo">
         <div class="orbe vida"><i id="h-vida"></i><span id="h-vida-n"></span></div>
         <div class="expw"><span id="h-exp-n"></span><div class="exp"><i id="h-exp"></i></div></div>
@@ -30,7 +30,7 @@ export class Hud {
       <button id="b-puntos" class="boton-puntos" hidden>Puntos <b id="h-puntos">0</b></button>
       <div id="stick" hidden><i></i></div>
       <div id="toasts" aria-live="polite"></div>
-      <div id="titulo-lugar"></div>
+      <div id="titulo-lugar"><b></b><small></small></div>
       <div id="h-muerte" hidden><b>Caíste</b><span id="h-muerte-n"></span></div>
       <div id="h-dolor"></div>
       <div id="menu-jug" class="caja menu" hidden></div>
@@ -71,17 +71,34 @@ export class Hud {
     // Objetivo y jefe
     const o = extra.objetivo;
     $('#h-obj').hidden = !o;
-    if (o) { $('#h-obj-nombre').textContent = `${o.nombre} · Nv ${o.nivel}`; $('#h-obj-vida').style.width = o.hp + '%'; }
+    if (o) { $('#h-obj-nombre').textContent = `${o.nombre} · Nv ${o.nivel}`; $('#h-obj-vida').style.width = o.hp + '%'; $('#h-obj-desc').textContent = o.desc || ''; }
     const j = extra.jefe;
     $('#h-jefe').hidden = !j;
     if (j) { $('#h-jefe-nombre').textContent = j.nombre; $('#h-jefe-vida').style.width = j.hp + '%'; }
     $('#h-ping').textContent = extra.ping ? `${extra.ping} ms` : '';
-    if (extra.lugar !== this.lugar) { this.lugar = extra.lugar; $('#h-lugar').textContent = extra.lugar; this.tituloLugar(extra.lugar); }
+    if (extra.lugar.nombre !== this.lugar) { this.lugar = extra.lugar.nombre; $('#h-lugar').textContent = extra.lugar.nombre; this.tituloLugar(extra.lugar.nombre, extra.lugar.frase); }
+    const ev = yo.evt, he = $('#h-evento');
+    if (!ev) he.textContent = '';
+    else {
+      const prox = ev[0][0] === '-', def = R.EVENTOS.find(x => x.id === ev[0].replace('-', '')), seg = Math.max(0, ev[1]);
+      const mm = Math.floor(seg / 60) + ':' + String(Math.floor(seg % 60)).padStart(2, '0');
+      he.textContent = prox ? `${def.nombre} en ${mm}` : `${def.nombre} · quedan ${mm}`;
+      he.className = prox ? '' : 'activo ' + def.id;
+    }
+    $('.orbe.vida').classList.toggle('veneno', yo.veneno > 0);
     this.dibujarMini(extra.mini);
   }
 
-  tituloLugar(n) {
-    const t = $('#titulo-lugar'); t.textContent = n; t.classList.remove('ver'); void t.offsetWidth; t.classList.add('ver');
+  tituloLugar(n, frase) {
+    const t = $('#titulo-lugar'); t.querySelector('b').textContent = n; t.querySelector('small').textContent = frase || '';
+    t.classList.remove('ver'); void t.offsetWidth; t.classList.add('ver');
+  }
+
+  lore() {
+    const m = $('#modal'); this.panelAbierto = false;
+    m.innerHTML = `<h2>El Sol Hondo se apagó</h2>${R.LORE.map(l => `<p>${l}</p>`).join('')}<button class="btn" id="m-despertar">Despertar</button>`;
+    m.classList.add('lore'); m.hidden = false;
+    $('#m-despertar').onclick = () => { m.hidden = true; m.classList.remove('lore'); };
   }
 
   dibujarMini({ yo, puntos }) {

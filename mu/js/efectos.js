@@ -55,8 +55,26 @@ export function crearEfectos(scene) {
   const auraMat = sinBorde(new THREE.MeshBasicMaterial({ color: '#7f95b8', wireframe: true, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
   auraMat.wireframe = true;
 
+  // ---- proyectiles (rayos de magos y jefes) ----
+  const COLORES = { violeta: '#a46cff', verde: '#6fdc5a', ambar: '#ffb347', rojo: '#ff3b2a' };
+  const bolaGeo = new THREE.IcosahedronGeometry(0.24, 1);
+  function proyectil(a, b, nombre, radio) {
+    const color = COLORES[nombre] || nombre;
+    const m = new THREE.Mesh(bolaGeo, sinBorde(new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })));
+    scene.add(m);
+    const dur = Math.min(0.55, 0.12 + Math.hypot(b.x - a.x, b.z - a.z) * 0.035);
+    vivos.push({ m, t: 0, dur, upd: k => {
+      m.position.set(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k + Math.sin(k * Math.PI) * 0.8, a.z + (b.z - a.z) * k);
+      if (Math.random() < 0.7) soltar(m.position.x, m.position.y, m.position.z, 1, color, 0.5, 0, 0.3);
+      if (k >= 1) { soltar(b.x, b.y, b.z, 18, color, 4, 4, 0.5); if (radio) anillo(b.x, b.y - 0.9, b.z, color, { dur: 0.6, hasta: radio, opac: 0.8 }); }
+    } });
+  }
+
   let t = 0;
   return {
+    proyectil,
+    invocar(x, y, z) { anillo(x, y, z, '#6b1a12', { dur: 0.9, hasta: 4, opac: 1 }); soltar(x, y + 0.3, z, 24, '#3b1410', 3, 2, 0.9); },
+    furia(x, y, z) { anillo(x, y, z, '#ff3b2a', { dur: 0.8, hasta: 5 }); soltar(x, y + 1, z, 40, '#ff4a2a', 5, 3, 0.8); },
     sangre(x, y, z, fuerte) { soltar(x, y, z, fuerte ? 26 : 12, '#8a0f0f', fuerte ? 5 : 3.5, 12, 0.7); soltar(x, y, z, fuerte ? 10 : 4, '#ffcf8a', 5, 6, 0.25); },
     chispas(x, y, z, color = '#ffcf8a', n = 10) { soltar(x, y, z, n, color, 4, 6, 0.35); },
     polvo(x, y, z) { soltar(x, y, z, 40, '#5d5548', 6, 3, 0.8); anillo(x, y, z, '#8c7f6a', { dur: 0.6, hasta: 5 }); },
