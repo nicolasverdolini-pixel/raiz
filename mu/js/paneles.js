@@ -6,6 +6,7 @@ import * as C from './clases.js';
 import { iconoObjeto, iconoHab } from './iconos.js';
 import { foto, alTerminar } from './miniaturas.js';
 import * as MI from './misiones.js';
+import * as SND from './sonido.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -68,12 +69,15 @@ export class Paneles {
   marco(titulo, sub, tabs, actual, cuerpo, f, args) {
     const scroll = this.el.querySelector('.cuerpo')?.scrollTop || 0, mismo = this.abierto?.f === f && this.abierto?.args[0] === args[0];
     this.abierto = { f, args };
-    this.el.innerHTML = `<header><div><h2>${titulo}</h2>${sub ? `<span class="sub">${sub}</span>` : ''}</div><button class="x" id="p-cerrar" aria-label="Cerrar">✕</button></header>
+    this.el.innerHTML = `<header><div><h2>${titulo}</h2>${sub ? `<span class="sub">${sub}</span>` : ''}</div><span class="sonido"><button id="p-mus" class="${SND.estado().musica ? '' : 'off'}" aria-label="Música">♪</button><button id="p-sfx" class="${SND.estado().efectos ? '' : 'off'}" aria-label="Efectos">♫</button></span><button class="x" id="p-cerrar" aria-label="Cerrar">✕</button></header>
       ${tabs ? `<nav>${tabs.map(([id, n]) => `<button data-tab="${id}" class="${id === actual ? 'on' : ''}">${n}</button>`).join('')}</nav>` : ''}
       <div class="cuerpo">${cuerpo}</div>`;
     this.el.hidden = false;
     if (mismo) this.el.querySelector('.cuerpo').scrollTop = scroll;
     $('#p-cerrar', this.el).onclick = () => this.cerrar();
+    $('#p-mus', this.el).onclick = e => { SND.alternar('musica'); e.currentTarget.classList.toggle('off'); };
+    $('#p-sfx', this.el).onclick = e => { SND.alternar('efectos'); e.currentTarget.classList.toggle('off'); };
+    this.el.querySelectorAll('.cuerpo button').forEach(b => b.addEventListener('click', () => SND.sfx.boton()));
     this.el.querySelectorAll('nav button').forEach(b => b.onclick = () => { this.sel = null; if (f === 'npc') this.npc(args[0], b.dataset.tab); else this[f](b.dataset.tab); });
   }
   oro(d) { return `<span class="oro">${iconoObjeto('oro')} ${d.oro.toLocaleString('es-AR')}</span>`; }
@@ -308,6 +312,17 @@ export class Paneles {
     if (!l) return '<p class="nota">Buscando…</p>';
     return `<div class="ranking"><div class="rk cab"><span>#</span><span>Nombre</span><span>Clase</span><span>Renac.</span><span>Nivel</span></div>
       ${l.map((f, i) => `<div class="rk ${f.nombre === d.nombre ? 'yo' : ''}"><span>${i + 1}</span><span>${esc(f.nombre)}</span><span>${C.CLASES[f.clase]?.nombre || ''}</span><span>${f.resets}</span><span>${f.nivel}</span></div>`).join('')}</div>`;
+  }
+
+  senda(n) {
+    const d = this.ctx.mio(); if (!d) return;
+    const puede = d.nivel >= R.COSTA.nivel || d.resets > 0;
+    const cuerpo = `<p class="frase">«${n.frase}»</p><div class="mision"><b>${n.destino === 5 ? 'Costa de la Sal Negra' : 'Páramo del Luto'}</b>
+      <span class="m-texto">${n.destino === 5 ? 'Una isla al otro lado de la Senda. Ahogados, piratas sin cuello y algo enorme en la Fosa. Monstruos de nivel 48 a 75 y el equipo del Velo.' : 'De vuelta a la Atalaya Roja.'}</span>
+      ${n.destino === 5 && !puede ? `<span class="peligro">Hace falta nivel ${R.COSTA.nivel}.</span>` : ''}
+      <div class="acciones"><button class="btn" id="p-senda" ${puede || n.destino !== 5 ? '' : 'disabled'}>Cruzar</button></div></div>`;
+    this.marco('Senda Negra', null, null, null, cuerpo, 'senda', [n]);
+    const b = $('#p-senda', this.el); if (b) b.onclick = () => { this.ctx.mandar({ t: 'senda' }); this.cerrar(); };
   }
 
   // ---------- farol: viajar entre atalayas ----------

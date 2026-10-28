@@ -12,25 +12,27 @@ const B = {};
 const arma = (id, nombre, clase, req, dmg, precio) => B[id] = { id, nombre, r: 'arma', clase, req, dmg, precio };
 const escudo = (id, nombre, req, def, precio) => B[id] = { id, nombre, r: 'escudo', clase: 'guardian', req, def, precio };
 const ARMAS = {
-  guardian: [['espada', ['Espada Oxidada', 'Hoja de Vigía', 'Mandoble del Luto', 'Filo del Éter']], [[4, 7], [10, 15], [20, 30], [34, 48]]],
-  cazadora: [['ballesta', ['Ballesta de Caza', 'Ballesta de Vigía', 'Ballesta del Luto', 'Ballesta del Éter']], [[3, 6], [8, 13], [17, 26], [29, 42]]],
-  arcanista: [['baculo', ['Bastón de Fresno', 'Báculo de Vigía', 'Báculo del Luto', 'Báculo del Éter']], [[3, 6], [9, 14], [19, 28], [32, 45]]],
-  barbaro: [['hacha', ['Hachas Melladas', 'Hachas de Vigía', 'Hachas del Luto', 'Hachas del Éter']], [[5, 8], [11, 17], [22, 33], [37, 52]]],
-  sombra: [['dagas', ['Dagas Oxidadas', 'Dagas de Vigía', 'Dagas del Luto', 'Dagas del Éter']], [[4, 6], [9, 14], [18, 27], [31, 44]]],
-  nigromante: [['cetro', ['Cetro de Hueso', 'Cetro de Vigía', 'Cetro del Luto', 'Cetro del Éter']], [[3, 6], [8, 13], [18, 27], [30, 43]]],
-  desterrado: [['garras', ['Garras de Hierro', 'Garras de Vigía', 'Garras del Luto', 'Garras del Éter']], [[5, 8], [10, 16], [21, 31], [35, 50]]],
+  guardian: [['espada', ['Espada Oxidada', 'Hoja de Vigía', 'Mandoble del Luto', 'Filo del Éter', 'Hoja del Velo']], [[4, 7], [10, 15], [20, 30], [34, 48], [50, 70]]],
+  cazadora: [['ballesta', ['Ballesta de Caza', 'Ballesta de Vigía', 'Ballesta del Luto', 'Ballesta del Éter', 'Ballesta del Velo']], [[3, 6], [8, 13], [17, 26], [29, 42], [43, 61]]],
+  arcanista: [['baculo', ['Bastón de Fresno', 'Báculo de Vigía', 'Báculo del Luto', 'Báculo del Éter', 'Báculo del Velo']], [[3, 6], [9, 14], [19, 28], [32, 45], [47, 66]]],
+  barbaro: [['hacha', ['Hachas Melladas', 'Hachas de Vigía', 'Hachas del Luto', 'Hachas del Éter', 'Hachas del Velo']], [[5, 8], [11, 17], [22, 33], [37, 52], [54, 76]]],
+  sombra: [['dagas', ['Dagas Oxidadas', 'Dagas de Vigía', 'Dagas del Luto', 'Dagas del Éter', 'Dagas del Velo']], [[4, 6], [9, 14], [18, 27], [31, 44], [46, 64]]],
+  nigromante: [['cetro', ['Cetro de Hueso', 'Cetro de Vigía', 'Cetro del Luto', 'Cetro del Éter', 'Cetro del Velo']], [[3, 6], [8, 13], [18, 27], [30, 43], [45, 63]]],
+  desterrado: [['garras', ['Garras de Hierro', 'Garras de Vigía', 'Garras del Luto', 'Garras del Éter', 'Garras del Velo']], [[5, 8], [10, 16], [21, 31], [35, 50], [51, 73]]],
 };
-const REQ = [1, 10, 24, 38], PRECIO = [60, 900, 6000, 30000];
+const REQ = [1, 10, 24, 38, 55], PRECIO = [60, 900, 6000, 30000, 120000];
 for (const [clase, [[pref, nombres], dmgs]] of Object.entries(ARMAS)) nombres.forEach((n, i) => arma(pref + (i + 1), n, clase, REQ[i], dmgs[i], PRECIO[i]));
 escudo('escudo1', 'Rodela de Pino', 1, 3, 50);
 escudo('escudo2', 'Escudo de Atalaya', 10, 8, 800);
 escudo('escudo3', 'Égida Hueca', 24, 16, 5500);
 escudo('escudo4', 'Baluarte Negro', 38, 26, 28000);
+escudo('escudo5', 'Muro del Velo', 55, 38, 110000);
 const SETS = [
   ['cuero', 'de Cuero Gastado', 1, 1],
   ['vigia', 'de Vigía', 12, 2.4],
   ['osario', 'del Osario', 24, 4.6],
   ['foso', 'del Foso', 38, 7.4],
+  ['velo', 'del Velo', 55, 11],
 ];
 const PIEZAS = [['casco', 'Capucha', 2, 40], ['armadura', 'Cota', 4, 80], ['guantes', 'Guanteletes', 1, 30], ['botas', 'Botas', 1, 30]];
 for (const [sid, sn, req, k] of SETS) for (const [r, pn, def, precio] of PIEZAS) {
@@ -52,12 +54,12 @@ export const puedeUsar = (b, clase) => !BASES[b]?.clase || BASES[b].clase === cl
 // ---------- requisitos para ponerse un equipo ----------
 // Nivel y atributos mínimos. Suben con la rareza y con la forja: un nivel 1 no puede usar un mítico.
 const STAT_ARMA = { guardian: 'fue', barbaro: 'fue', desterrado: 'fue', cazadora: 'agi', sombra: 'agi', arcanista: 'ene', nigromante: 'ene' };
-const TIER = req => (req >= 38 ? 3 : req >= 24 ? 2 : req >= 10 ? 1 : 0);
+const TIER = req => (req >= 55 ? 4 : req >= 38 ? 3 : req >= 24 ? 2 : req >= 10 ? 1 : 0);
 export function requisitos(it) {
   const b = BASES[it.b]; if (!b?.r) return null;
   const t = TIER(b.req), ra = rareza(it), n = it.n || 0;
   const nivel = b.req + [0, 0, 8, 15][ra] + Math.floor(n / 3) + (ra === 3 ? Math.max(0, 40 - b.req - 15) : 0);
-  const base = b.r === 'arma' ? [0, 45, 90, 150][t] : b.r === 'escudo' ? [0, 35, 70, 120][t] : [0, 30, 60, 100][t];
+  const base = b.r === 'arma' ? [0, 45, 90, 150, 220][t] : b.r === 'escudo' ? [0, 35, 70, 120, 180][t] : [0, 30, 60, 100, 150][t];
   const k = b.r === 'arma' ? STAT_ARMA[b.clase] || 'fue' : b.r === 'escudo' ? 'fue' : 'vit';
   const valor = Math.round(base * (1 + 0.2 * ra) + n * 2 + (ra === 3 ? 40 : 0));
   return { nivel, stat: valor ? { [k]: valor } : {} };
@@ -125,7 +127,7 @@ export const FORJA = {
 
 // ---------- NPCs de cada atalaya ----------
 // Cada atalaya vende el equipo de su nivel (tier 1 a 4).
-const SETS_ID = ['cuero', 'vigia', 'osario', 'foso'];
+const SETS_ID = ['cuero', 'vigia', 'osario', 'foso', 'velo'];
 const equipoDeTier = t => ['espada', 'ballesta', 'baculo', 'hacha', 'dagas', 'cetro', 'garras'].map(a => a + t).concat(['escudo' + t, ...['casco', 'armadura', 'guantes', 'botas'].map(r => `${r}_${SETS_ID[t - 1]}`)]);
 const ATALAYAS = [
   { x: 0, z: 0, tier: 1, nombres: ['Úrsula la Boticaria', 'Tordo el Herrero'], vidente: true },
@@ -133,6 +135,7 @@ const ATALAYAS = [
   { x: 78, z: -46, tier: 3, nombres: ['Hueso Viejo', 'Maese Ceniciento'] },
   { x: -60, z: -74, tier: 3, nombres: ['La Hundida', 'Sargo el Herrero'] },
   { x: 60, z: 70, tier: 4, nombres: ['Madre Brasa', 'Yunque Rojo'] },
+  { x: 600, z: 0, tier: 5, nombres: ['Sal la Mercadera', 'Ancla el Herrero'] },
 ];
 export const NPCS = ATALAYAS.flatMap((a, i) => {
   const lista = [
@@ -148,6 +151,10 @@ export const NPCS = ATALAYAS.flatMap((a, i) => {
     frase: 'Veo la Marea antes que llegue. Veo el rojo de la noche. Preguntame.', eventos: true, vende: ['vela', 'sello'] });
   return lista;
 });
+// La Senda Negra: portal entre la Atalaya Roja y la Atalaya de Sal.
+NPCS.push(
+  { id: 'senda4', rol: 'senda', atalaya: 4, destino: 5, nombre: 'Senda Negra', x: 63.5, z: 66.5, frase: 'Un camino que no está en ningún mapa. Lleva a la Costa de la Sal Negra (nivel 45).' },
+  { id: 'senda5', rol: 'senda', atalaya: 5, destino: 4, nombre: 'Senda Negra', x: 596.5, z: 3.5, frase: 'Vuelve al Páramo, a la Atalaya Roja.' });
 export const DIST_NPC = 4.5;
 
 // ---------- lo que tiran los monstruos ----------

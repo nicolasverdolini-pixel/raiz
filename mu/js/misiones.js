@@ -20,6 +20,12 @@ export const NPC_MISION = [
     saludo: 'Rompieron los sellos. Yo los puse. Ayudame a ponerlos otra vez.' },
   { id: 'desertor', nombre: 'El Desertor', modelo: 'npc_herrero', tinte: '#3a2a20', x: -68, z: -86, giro: 1.2,
     saludo: 'Me fui de la guardia. No me juzgues hasta ver lo que hay en ese pantano.' },
+  { id: 'naufrago', nombre: 'El Náufrago', modelo: 'npc_herrero', tinte: '#3a4a5a', x: 588, z: -30, giro: 0.4,
+    saludo: 'Llegué nadando. Ojalá me hubiera ahogado como los demás.' },
+  { id: 'farera', nombre: 'La Farera', modelo: 'npc_vidente', tinte: '#2a3a4a', x: 612, z: 44, giro: 2.8,
+    saludo: 'Mientras el faro esté apagado, ellos van a seguir saliendo del agua.' },
+  { id: 'ultimo', nombre: 'El Último Pescador', modelo: 'npc_mercader', tinte: '#2a3a3a', x: 650, z: -6, giro: -1.6,
+    saludo: 'Pesqué algo que no tenía que pescar. Ahora la Fosa respira.' },
   { id: 'penitente', nombre: 'El Penitente', modelo: 'npc_vidente', tinte: '#5a1a14', x: 72, z: 82, giro: -2.4,
     saludo: 'Yo abrí el Foso. Me queda poca vida para pedir perdón.' },
 ];
@@ -75,6 +81,18 @@ export const MISIONES = Object.fromEntries([
     'La Bestia del Foso. No hay nada más grande que eso. Creo.', 'Me equivoqué. Hay algo más grande.', 'peni1'),
   M('peni3', 'penitente', 'El Heraldo', 45, { tipo: 'jefe', mon: 'heraldo' }, { exp: 100000, oro: 15000, equipo: { exc: 1, leg: 0.4, mit: 0.1 }, items: [{ b: 'guardiana', c: 2 }] },
     'El Heraldo del Éter llega con la Noche Roja. Esperalo con todo tu grupo.', 'Ahora sí. Perdón aceptado, o eso quiero creer.', 'peni2'),
+  M('nau1', 'naufrago', 'Los que caminan', 46, { tipo: 'matar', mon: 'ahogado', n: 15 }, { exp: 60000, oro: 9000, items: [{ b: 'abismo', c: 2 }] },
+    'Quince Ahogados. Eran mis compañeros. Hacelo rápido.', 'Que el mar se los quede esta vez.'),
+  M('nau2', 'naufrago', 'La Reina de la marea', 55, { tipo: 'jefe', mon: 'reinaahogada' }, { exp: 150000, oro: 20000, equipo: { exc: 1, leg: 0.4, mit: 0.08 }, items: [{ b: 'guardiana', c: 2 }] },
+    'La Reina Ahogada se tragó la flota. Abrile la panza.', 'Ahí estaban. Gracias.', 'nau1'),
+  M('far1', 'farera', 'Aceite de faro', 54, { tipo: 'juntar', mon: 'farero', cosa: 'Aceite de faro', prob: 0.4, n: 8 }, { exp: 80000, oro: 12000, items: [{ b: 'abismo', c: 2 }] },
+    'Los Fareros todavía llevan aceite. Traeme ocho frascos.', 'Con esto el faro aguanta una noche.'),
+  M('far2', 'farera', 'Sin rostro', 64, { tipo: 'jefe', mon: 'capitan' }, { exp: 200000, oro: 30000, equipo: { exc: 1, leg: 0.5, mit: 0.1 }, items: [{ b: 'abismo', c: 3 }] },
+    'El Capitán sin Rostro manda a los piratas. Mientras él viva, el faro no prende.', 'El faro prende. Mirá.', 'far1'),
+  M('ult1', 'ultimo', 'Crías', 62, { tipo: 'matar', mon: 'leviatanmenor', n: 12 }, { exp: 120000, oro: 16000, items: [{ b: 'guardiana', c: 1 }, { b: 'abismo', c: 2 }] },
+    'Doce Leviatanes Menores. Si crecen, no hay isla que aguante.', 'Doce menos. La madre se va a enojar.'),
+  M('ult2', 'ultimo', 'Lo que respira abajo', 72, { tipo: 'jefe', mon: 'leviatan' }, { exp: 400000, oro: 60000, equipo: { exc: 1, leg: 0.6, mit: 0.15 }, items: [{ b: 'guardiana', c: 3 }] },
+    'El Leviatán salió de la Fosa. Juntá a los mejores que conozcas.', 'Volvió a dormir. O se murió. Con estas cosas nunca se sabe.', 'ult1'),
 ].map(m => [m.id, m]));
 
 export function misionesDe(npc) { return Object.values(MISIONES).filter(m => m.npc === npc); }
@@ -106,7 +124,7 @@ export function textoObjetivo(m, prog = 0) {
 
 // ---------- Tablón de Encargos (uno por atalaya, sin fin) ----------
 const LOCALES = [['rata', 'sapo', 'arana', 'avispon', 'sierpe'], ['sierpe', 'lobo', 'ciervo', 'avispon', 'arana'], ['huesudo', 'anima', 'degollador', 'ciervo'],
-  ['bruto', 'acechador', 'degollador', 'anima'], ['engendro', 'acechador', 'bruto']];
+  ['bruto', 'acechador', 'degollador', 'anima'], ['engendro', 'acechador', 'bruto'], ['ahogado', 'marinero', 'abisal', 'farero', 'pirata', 'brutosal', 'leviatanmenor']];
 export function nuevoEncargo(atalaya, nivelPj, rnd = Math.random) {
   const lista = LOCALES[atalaya] || LOCALES[0];
   const posibles = lista.filter(t => MONSTRUOS[t].nivel <= nivelPj + 6);

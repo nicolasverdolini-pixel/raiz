@@ -12,7 +12,11 @@ export const PUEBLOS = [
   { nombre: 'Atalaya de los Huesos', x: 78, z: -46, r: 8, tier: 3, frase: 'Construida con lo que el Osario no quiso.' },
   { nombre: 'Atalaya Hundida', x: -60, z: -74, r: 8, tier: 3, frase: 'La torre se va tragando a sí misma, piedra por piedra.' },
   { nombre: 'Atalaya Roja', x: 60, z: 70, r: 8, tier: 4, frase: 'El farol arde rojo. Dicen que lo alimentan con Éter del Foso.' },
+  { nombre: 'Atalaya de Sal', x: 600, z: 0, r: 8, tier: 5, frase: 'Al otro lado de la Senda Negra. Acá el mar también está muerto.' },
 ];
+// La Costa de la Sal Negra: una isla aparte, al otro lado de la Senda Negra.
+export const COSTA = { x: 600, z: 0, r: 92, nivel: 45 };
+export const enCosta = (x, z) => x > 400 && Math.hypot(x - COSTA.x, z - COSTA.z) < COSTA.r + 20;
 export const PUEBLO = PUEBLOS[0];
 export const enAtalaya = (x, z) => PUEBLOS.findIndex(p => Math.hypot(x - p.x, z - p.z) < p.r);
 export const atalayaCercana = (x, z, visitadas) => {
@@ -118,9 +122,39 @@ export const MONSTRUOS = {
                habs: [{ t: 'rayo', cada: 5, alcance: 14, dano: [80, 110], color: 'rojo', radio: 3 }, { t: 'pisoton', cada: 9, radio: 5, dano: [70, 100] }, { t: 'invocar', cada: 20, cual: 'engendro', n: 2, max: 4 }],
                furia: 0.3, desc: 'Llega con la Noche Roja. Viene a buscar Guardianes.' }),
 };
-export const TIPOS = Object.keys(MONSTRUOS);
+export const TIPOS = Object.keys(MONSTRUOS);   // (se le suman los de la Costa más abajo)
 const K = 1.45;   // el mapa es más grande: todo lo que no es el centro se aleja
 for (const m of Object.values(MONSTRUOS)) if (m.zona.x || m.zona.z) { m.zona.x = Math.round(m.zona.x * K); m.zona.z = Math.round(m.zona.z * K); if (m.zona.r > 1) m.zona.r = Math.round(m.zona.r * 1.2); }
+// ----- monstruos de la Costa de la Sal Negra (nivel 48 a 75) -----
+Object.assign(MONSTRUOS, {
+  ahogado:   M({ nombre: 'Ahogado', nivel: 48, hp: 4200, dano: [80, 105], def: 32, exp: 2100, vel: 2.6, alcance: 1.7, radio: 0.8, vista: 9,
+               zona: { x: 640, z: -40, r: 18 }, cantidad: 14, reaparece: 16, desc: 'Salió del mar caminando. No sabe que está muerto.' }),
+  marinero:  M({ nombre: 'Marinero Hueco', nivel: 52, hp: 4600, dano: [88, 115], def: 34, exp: 2500, vel: 3, zona: { x: 560, z: -50, r: 17 }, cantidad: 12, reaparece: 16,
+               desc: 'Todavía canta las canciones del barco. Sin lengua.' }),
+  abisal:    M({ nombre: 'Tejedora Abisal', nivel: 55, hp: 5200, dano: [95, 125], def: 36, exp: 2900, radio: 0.7, zona: { x: 550, z: 40, r: 17 }, cantidad: 12, reaparece: 16,
+               veneno: { prob: 0.3, dps: 30, dura: 5 }, desc: 'Teje con algas negras. El veneno huele a sal.' }),
+  farero:    M({ nombre: 'Farero Ánima', nivel: 58, hp: 5000, dano: [100, 130], def: 34, exp: 3200, vel: 2.4, alcance: 9, cadencia: 2.1, distancia: 'azul', vista: 11,
+               zona: { x: 620, z: 60, r: 15 }, cantidad: 10, reaparece: 17, desc: 'Sigue encendiendo un faro que ya no existe.' }),
+  pirata:    M({ nombre: 'Pirata Degollado', nivel: 60, hp: 6800, dano: [110, 145], def: 38, exp: 3600, vel: 4, cadencia: 0.9, zona: { x: 652, z: 48, r: 15 }, cantidad: 10, reaparece: 17,
+               desc: 'Le cortaron el cuello por traidor. No le importó.' }),
+  brutosal:  M({ nombre: 'Bruto de Sal', nivel: 62, hp: 9500, dano: [130, 170], def: 44, exp: 4300, vel: 2.4, alcance: 1.9, cadencia: 2.1, radio: 0.9,
+               zona: { x: 600, z: -72, r: 16 }, cantidad: 10, reaparece: 18, habs: [{ t: 'pisoton', cada: 9, radio: 4, dano: [110, 140] }], desc: 'La sal lo conservó. Demasiado bien.' }),
+  leviatanmenor: M({ nombre: 'Leviatán Menor', nivel: 66, hp: 9000, dano: [140, 180], def: 44, exp: 5000, vel: 4.6, cadencia: 1.1, vista: 12, radio: 0.8,
+               zona: { x: 668, z: -12, r: 16 }, cantidad: 10, reaparece: 18, habs: [{ t: 'carga', cada: 7, alcance: 13, dano: [170, 220] }, { t: 'rayo', cada: 8, alcance: 9, dano: [120, 150], color: 'azul' }],
+               desc: 'Cría de algo que todavía duerme en la Fosa.' }),
+  reinaahogada: M({ nombre: 'Reina Ahogada', nivel: 60, hp: 120000, dano: [150, 200], def: 40, exp: 90000, vel: 2.6, alcance: 2.6, cadencia: 1.8, radio: 1.6, jefe: true, vista: 11,
+               zona: { x: 646, z: -58, r: 1 }, cantidad: 1, reaparece: 480, veneno: { prob: 0.4, dps: 40, dura: 6 },
+               habs: [{ t: 'invocar', cada: 15, cual: 'ahogado', n: 3, max: 6 }, { t: 'pisoton', cada: 9, radio: 5, dano: [130, 170] }], furia: 0.3,
+               desc: 'Se tragó a la flota entera. Todavía tiene hambre.' }),
+  capitan:   M({ nombre: 'Capitán sin Rostro', nivel: 68, hp: 160000, dano: [170, 230], def: 46, exp: 130000, vel: 2.8, alcance: 2.8, cadencia: 1.9, radio: 1.3, jefe: true, vista: 12,
+               zona: { x: 664, z: 64, r: 1 }, cantidad: 1, reaparece: 540, habs: [{ t: 'invocar', cada: 16, cual: 'pirata', n: 2, max: 4 }, { t: 'pisoton', cada: 8, radio: 5, dano: [150, 190] }], furia: 0.25,
+               desc: 'Perdió la cara en la tormenta. Busca una nueva.' }),
+  leviatan:  M({ nombre: 'Leviatán', nivel: 75, hp: 260000, dano: [220, 300], def: 52, exp: 220000, vel: 3.6, alcance: 3.6, cadencia: 2.0, radio: 2.2, jefe: true, vista: 14,
+               zona: { x: 684, z: -22, r: 1 }, cantidad: 1, reaparece: 600,
+               habs: [{ t: 'carga', cada: 10, alcance: 15, dano: [260, 340] }, { t: 'pisoton', cada: 8, radio: 6.5, dano: [200, 260] }, { t: 'rayo', cada: 6, alcance: 14, dano: [180, 230], color: 'azul', radio: 3.5 }], furia: 0.3,
+               desc: 'Lo que dormía en la Fosa. Ya no duerme.' }),
+});
+TIPOS.push(...['ahogado', 'marinero', 'abisal', 'farero', 'pirata', 'brutosal', 'leviatanmenor', 'reinaahogada', 'capitan', 'leviatan']);
 export const CAMPEON = { prob: 0.06, probNoche: 0.25, hp: 3, dano: 1.4, exp: 3.5, escala: 1.3 };
 
 // ---------- Eventos con horario (hora del servidor) ----------
@@ -176,11 +210,25 @@ export const MAPA = {
   ],
 };
 for (const l of MAPA.lugares) { l.x = Math.round(l.x * K); l.z = Math.round(l.z * K); }
+MAPA.lugares.push(
+  { nombre: 'Playa de los Ahogados', x: 640, z: -40, frase: 'La marea trae cuerpos. A veces se van caminando.' },
+  { nombre: 'Arrecife de Huesos', x: 560, z: -50, frase: 'El coral creció sobre los que se hundieron.' },
+  { nombre: 'Coral Muerto', x: 550, z: 40, frase: 'Un bosque bajo el agua que se quedó sin agua.' },
+  { nombre: 'Faro Caído', x: 630, z: 58, frase: 'Su luz se apagó la misma noche que el Sol Hondo.' },
+  { nombre: 'Fosa de la Sal', x: 676, z: -18, frase: 'El mar se abre hacia abajo. Algo respira ahí.' },
+  { nombre: 'Salinas', x: 600, z: -72, frase: 'Sal blanca, cuerpos blancos. Nadie viene a buscarla.' });
 MAPA.lugares.push(...PUEBLOS.slice(1).map(p => ({ nombre: p.nombre, x: p.x, z: p.z, frase: p.frase, atalaya: true })));
 export const CIENAGA = { x: MONSTRUOS.sapo.zona.x, z: MONSTRUOS.sapo.zona.z };
 
 // Altura del piso: suave, plana en la atalaya y en la ciénaga. La usan los dos lados.
 export function altura(x, z) {
+  if (x > 400) {   // la isla de la Costa: dunas bajas y orilla que baja al mar
+    const lx = x - COSTA.x, d = Math.hypot(lx, z);
+    let h = Math.sin(lx * 0.07) * 0.6 + Math.cos(z * 0.06 + lx * 0.03) * 0.5 + Math.sin((lx - z) * 0.17) * 0.12;
+    for (const p of PUEBLOS) { if (p.x < 400) continue; const dp = Math.hypot(x - p.x, z - p.z); if (dp < p.r + 5) h *= Math.max(0, (dp - p.r) / 5); }
+    if (d > COSTA.r - 8) h -= (d - (COSTA.r - 8)) * 0.35;
+    return h;
+  }
   if (Math.abs(x) > 200) return 0;
   let h = Math.sin(x * 0.11) * 0.45 + Math.cos(z * 0.09 + x * 0.04) * 0.5 + Math.sin((x + z) * 0.23) * 0.15;
   for (const p of PUEBLOS) { const dp = Math.hypot(x - p.x, z - p.z); if (dp < p.r + 5) h *= Math.max(0, (dp - p.r) / 5); }

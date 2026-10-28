@@ -7,15 +7,15 @@ import * as O from './objetos.js';
 const cargador = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 // Qué modelo usa cada arma según su nivel (1 a 4).
 const MODELO = {
-  espada: ['sword_1handed', 'sword_1handed', 'sword_2handed', 'sword_2handed'],
-  ballesta: ['crossbow_1handed', 'crossbow_1handed', 'crossbow_2handed', 'crossbow_2handed'],
-  baculo: ['staff', 'staff', 'staff', 'staff'],
-  hacha: ['axe_1handed', 'axe_1handed', 'axe_2handed', 'axe_2handed'],
-  dagas: ['dagger', 'dagger', 'dagger', 'dagger'],
-  cetro: ['wand', 'wand', '../baculo_hueso', '../baculo_hueso'],
-  escudo: ['shield_round', 'shield_badge', 'shield_square', 'shield_spikes'],
+  espada: ['sword_1handed', 'sword_1handed', 'sword_2handed', 'sword_2handed', 'sword_2handed'],
+  ballesta: ['crossbow_1handed', 'crossbow_1handed', 'crossbow_2handed', 'crossbow_2handed', 'crossbow_2handed'],
+  baculo: ['staff', 'staff', 'staff', 'staff', 'staff'],
+  hacha: ['axe_1handed', 'axe_1handed', 'axe_2handed', 'axe_2handed', 'axe_2handed'],
+  dagas: ['dagger', 'dagger', 'dagger', 'dagger', 'dagger'],
+  cetro: ['wand', 'wand', '../baculo_hueso', '../baculo_hueso', '../baculo_hueso'],
+  escudo: ['shield_round', 'shield_badge', 'shield_square', 'shield_spikes', 'shield_spikes'],
 };
-const TINTE_TIER = [null, '#8fa8c8', '#5a4a52', '#7a2420'];
+const TINTE_TIER = [null, '#8fa8c8', '#5a4a52', '#7a2420', '#3a6a8a'];
 
 let renderer, scene, camara;
 const modelos = {}, fotos = {}, pedidos = {};

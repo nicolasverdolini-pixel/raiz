@@ -188,6 +188,7 @@ export class Mapa extends DurableObject {
       case 'renacer': return this.renacer(p);
       case 'ranking': return this.enviar(s, { t: 'ranking', lista: (await this.cuenta('#ranking').rankingVer()).slice(0, 50) });
       case 'pozo': return this.entrarPozo(p);
+      case 'senda': return this.cruzarSenda(p);
       case 'encargo': return this.encargo(p, m);
       case 'salirPj': { this.salir(s); await new Promise(r => setTimeout(r, 300)); return this.mandarLista(s); }
       case 'punto': return this.repartir(p, m.s, m.n | 0);
@@ -279,6 +280,7 @@ export class Mapa extends DurableObject {
     const max = R.VEL_JUGADOR * dt * 1.5 + 0.7;
     if (Math.hypot(x - p.x, z - p.z) > max) { p.priv.push(['tp', p.id, r2(p.x), r2(p.z)]); p.ultPos = ahora; return; }
     if (p.enPozo) { const dx = x - R.POZO.x, dz = z - R.POZO.z, d = Math.hypot(dx, dz); if (d > R.POZO.r) { x = R.POZO.x + dx / d * R.POZO.r; z = R.POZO.z + dz / d * R.POZO.r; } }
+    else if (R.enCosta(p.x, p.z)) { const dx = x - R.COSTA.x, d = Math.hypot(dx, z); if (d > R.COSTA.r) { x = R.COSTA.x + dx / d * R.COSTA.r; z = z / d * R.COSTA.r; } }
     else { x = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, x)); z = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, z)); }
     p.mueve = Math.hypot(x - p.x, z - p.z) > 0.01;
     p.x = x; p.z = z; p.ultPos = ahora;
@@ -503,6 +505,18 @@ export class Mapa extends DurableObject {
     this.ev.push(['n', p.id, 1]);
     this.msgTodos(`${p.nombre} renació por ${p.d.resets}ª vez.`);
     this.guardar(p);
+  }
+
+  // ----- la Senda Negra: portal a la Costa -----
+  cruzarSenda(p) {
+    const n = this.rolCerca(p, 'senda'); if (!n) return this.aviso(p, 'Acercate a la Senda Negra.');
+    if (p.muerto) return;
+    if (p.d.nivel < R.COSTA.nivel && !(p.d.resets > 0)) return this.aviso(p, `La Senda Negra no te deja pasar. Volvé en el nivel ${R.COSTA.nivel}.`);
+    const at = R.PUEBLOS[n.destino], a = Math.random() * 6.3;
+    p.x = at.x + Math.cos(a) * 3; p.z = at.z + Math.sin(a) * 3; p.ultPos = Date.now(); p.objetivo = null;
+    this.cancelarComercio(p, 'El comercio se cerró por un viaje.');
+    this.ev.push(['tp', p.id, r2(p.x), r2(p.z)], ['fx', 'cura', r2(p.x), r2(p.z), 2]);
+    this.aviso(p, n.destino === 5 ? 'Cruzaste la Senda Negra. Bienvenido a la Costa de la Sal Negra.' : 'Volviste al Páramo.');
   }
 
   // ----- Pozo de las Almas -----
@@ -890,7 +904,8 @@ export class Mapa extends DurableObject {
       let x, y;
       if (z.rmax) { const a = Math.random() * Math.PI * 2, r = entre(z.rmin, z.rmax); x = z.x + Math.cos(a) * r; y = z.z + Math.sin(a) * r; }
       else { const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * z.r; x = z.x + Math.cos(a) * r; y = z.z + Math.sin(a) * r; }
-      if (R.PUEBLOS.every(at => Math.hypot(x - at.x, y - at.z) > at.r + 3) && Math.abs(x) < R.MUNDO - 6 && Math.abs(y) < R.MUNDO - 6) return { x, z: y };
+      const dentro = z.x > 400 ? Math.hypot(x - R.COSTA.x, y - R.COSTA.z) < R.COSTA.r - 8 : Math.abs(x) < R.MUNDO - 6 && Math.abs(y) < R.MUNDO - 6;
+      if (R.PUEBLOS.every(at => Math.hypot(x - at.x, y - at.z) > at.r + 3) && dentro) return { x, z: y };
     }
     return { x: z.x, z: z.z };
   }
@@ -1048,7 +1063,8 @@ export class Mapa extends DurableObject {
     if (activo) {
       this.msgTodos(`${activo.nombre}: ${activo.desc}`);
       if (activo.id === 'noche') {
-        const l = R.MAPA.lugares[1 + Math.floor(Math.random() * (R.MAPA.lugares.length - 1))];
+        const opciones = R.MAPA.lugares.filter(l => l.x < 400 && (l.x || l.z) && !l.atalaya);
+        const l = opciones[Math.floor(Math.random() * opciones.length)];
         const h = this.crearMonstruo('heraldo', { x: l.x, z: l.z });
         this.ev.push(['a', h.id, 'nace']);
         this.msgTodos(`El Heraldo del Éter apareció en ${l.nombre}.`);

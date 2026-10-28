@@ -340,3 +340,6 @@ input:focus { outline: 1px solid var(--sangre-2); }
 .rk.cab { color: var(--hueso-2); font-size: .8em; letter-spacing: .05em; }
 .rk.yo { background: rgba(142,27,27,.25); }
 .rk:nth-child(2) span:nth-child(2) { color: #f2c46a; }
+.panel header .sonido { display: flex; gap: 4px; margin-left: auto; margin-right: 6px; }
+.panel header .sonido button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid #4a4440; background: #120f10; color: var(--hueso); cursor: pointer; font-size: 16px; }
+.panel header .sonido button.off { opacity: .35; text-decoration: line-through; }

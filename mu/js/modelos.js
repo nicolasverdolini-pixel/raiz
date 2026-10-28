@@ -49,6 +49,16 @@ export const VISUAL = {
                invoca: 'Taunt', hit: 'Hit_B', muere: 'Death_C_Skeletons', nace: 'Spawn_Ground_Skeletons' } },
   archimago: { archivo: 'anima.glb', tam: 3.6, arma: 'baculo_hueso.glb', tinte: '#6a4a9a', anims: MAGO },
   bestia:    { archivo: 'trex.glb', tam: 6.2, tinte: '#2a1a16', anims: { idle: 'TRex_Idle', run: 'TRex_Run', atk: 'TRex_Attack', pisoton: 'TRex_Jump', carga: 'TRex_Run', muere: 'TRex_Death' } },
+  ahogado:   { archivo: 'bruto.glb', tam: 2.4, tinte: '#8aa0a8', tinteK: 0.7, anims: { ...DEMONIO, pisoton: 'Weapon' } },
+  marinero:  { archivo: 'huesudo.glb', tam: 1.9, arma: 'hoja_hueso.glb', tinte: '#5a8a7a', anims: SK },
+  abisal:    { archivo: 'spider.glb', tam: 2.2, bajo: 1, tinte: '#1a4a4a', tinteK: 0.75, anims: ARANA },
+  farero:    { archivo: 'anima.glb', tam: 2.0, arma: 'baculo_hueso.glb', tinte: '#4a6a9a', anims: MAGO },
+  pirata:    { archivo: 'degollador.glb', tam: 1.9, arma: 'hoja_hueso.glb', tinte: '#6a4a3a', anims: { ...SK, idle: 'Idle_Combat', run: 'Running_C', atk: ['Dualwield_Melee_Attack_Slice', 'Dualwield_Melee_Attack_Chop'] } },
+  brutosal:  { archivo: 'bruto.glb', tam: 3.0, tinte: '#d8d4c8', tinteK: 0.7, anims: { ...DEMONIO, pisoton: 'Weapon' } },
+  leviatanmenor: { archivo: 'raptor.glb', tam: 2.8, bajo: 1, tinte: '#1a3050', tinteK: 0.8, anims: { idle: 'Velociraptor_Idle', run: 'Velociraptor_Run', atk: 'Velociraptor_Attack', carga: 'Velociraptor_Run', lanza: 'Velociraptor_Attack', muere: 'Velociraptor_Death' } },
+  reinaahogada: { archivo: 'frog.glb', tam: 5.5, bajo: 1, tinte: '#a8b8b0', tinteK: 0.7, anims: { idle: 'Frog_Idle', run: 'Frog_Jump', atk: 'Frog_Attack', muere: 'Frog_Death', pisoton: 'Frog_Jump', invoca: 'Frog_Attack' } },
+  capitan:   { archivo: 'centinela.glb', tam: 4.4, arma: 'hacha_hueso.glb', tinte: '#3a6a6a', anims: { idle: 'Idle_Combat', run: 'Running_C', atk: '1H_Melee_Attack_Chop', pisoton: '1H_Melee_Attack_Jump_Chop', invoca: 'Taunt', hit: 'Hit_B', muere: 'Death_C_Skeletons', nace: 'Spawn_Ground_Skeletons' } },
+  leviatan:  { archivo: 'trex.glb', tam: 7.5, tinte: '#10202e', tinteK: 0.8, anims: { idle: 'TRex_Idle', run: 'TRex_Run', atk: 'TRex_Attack', pisoton: 'TRex_Jump', carga: 'TRex_Run', lanza: 'TRex_Attack', muere: 'TRex_Death' } },
   heraldo:   { archivo: 'heraldo.glb', tam: 4.3, tinte: '#8a1a14', anims: DEMONIO },
 };
 

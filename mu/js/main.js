@@ -12,6 +12,7 @@ import { Paneles } from './paneles.js';
 import { Seleccion } from './seleccion.js';
 import * as MI from './misiones.js';
 import { Chat, soloEmoji } from './chat.js';
+import * as SND from './sonido.js';
 
 const E = crearEscena(document.getElementById('mundo'));
 const FX = crearEfectos(E.scene);
@@ -56,6 +57,13 @@ const seleccion = new Seleccion(E, {
   crear: (nombre, clase) => red.crearPj(nombre, clase),
   salir: () => { try { red.ws?.close(); } catch (e) {} red.cerrado = true; seleccion.ocultar(); document.getElementById('entrada').hidden = false; document.getElementById('btn-entrar').disabled = false; },
 });
+
+// El sonido arranca con el primer toque (lo pide el navegador).
+addEventListener('pointerdown', () => SND.despertar(), { capture: true });
+addEventListener('keydown', () => SND.despertar(), { capture: true });
+let ultimaPelea = -99;
+const sonar = (p, f) => { if (!yo || !p) return; const dx = p.x - lx, dz = p.z - lz; f(Math.hypot(dx, dz), Math.max(-1, Math.min(1, dx / 14))); };
+const HUESO = new Set(['huesudo', 'centinela', 'anima', 'degollador', 'archimago', 'siervo']);
 
 // ---------- entrada ----------
 const form = document.getElementById('form-entrar');
@@ -114,7 +122,7 @@ function alMensaje(m) {
   if (m.t === 'com') return paneles.comercio(m);
   if (m.t === 'ranking') return paneles.ranking(m.lista);
   if (m.t === 'chat') {
-    chat.recibir(m);
+    chat.recibir(m); SND.sfx.chat();
     const e = entes.get(m.de);
     if (e) e.globo = { txt: m.txt, emoji: soloEmoji(m.txt), t: soloEmoji(m.txt) ? 4 : 6 };
     return;
@@ -192,6 +200,9 @@ function evento(ev) {
     else if (t.tipo === 'huesudo' || t.tipo === 'centinela') FX.chispas(p.x, p.y + alto, p.z, '#e8dcc0', d ? 16 : 8);
     else FX.sangre(p.x, p.y + alto, p.z, d === 1 || d === 2);
     t.flash = 0.14;
+    if (a === yoId || b === yoId) ultimaPelea = performance.now();
+    if (b === yoId && d !== 5) SND.sfx.dolor();
+    else if (d !== 5) sonar(p, (dd, pan) => SND.sfx.golpe(HUESO.has(t.tipo) ? 'hueso' : 'carne', d === 1 || d === 2 || (t.def?.jefe), dd, pan));
     if (!t.esJ && !t.vis.muneco.unaVez && Math.random() < 0.5) t.vis.muneco.hacer('hit');
     if (b === yoId && d !== 5) { hud.dolor(); temblor = Math.max(temblor, 0.12); }
     if (a === yoId && (d === 1 || d === 2)) temblor = Math.max(temblor, 0.1);
@@ -199,6 +210,17 @@ function evento(ev) {
   } else if (tipo === 'a') {
     const e = entes.get(a); if (!e) return;
     const p = pos(e), mu = e.vis.muneco;
+    sonar(p, (dd, pan) => {
+      if (['spin', 'hachazo', 'apunala'].includes(b)) SND.sfx.hechizo('area', dd, pan);
+      else if (['lanza', 'tiro2', 'hechizo', 'tira'].includes(b)) SND.sfx.hechizo('proyectil', dd, pan);
+      else if (b === 'hechizo2') SND.sfx.hechizo('lluvia', dd, pan);
+      else if (b === 'invoca') SND.sfx.hechizo('invocar', dd, pan);
+      else if (b === 'pisoton') setTimeout(() => SND.sfx.hechizo('pisoton', dd, pan), 500);
+      else if (b === 'carga' || b === 'furia') SND.sfx.rugido(dd, pan);
+      else if (b === 'atk' && e.esJ && !C.CLASES[e.tipo]?.proyectil) SND.sfx.tajo(dd, pan);
+      else if (b === 'pot' && e === yo) SND.sfx.pocion();
+      else if (b === 'muralla' || b === 'esquiva' || b === 'festeja') SND.sfx.hechizo('buff', dd, pan);
+    });
     if (b === 'atk') {
       const dur = mu.duracion('atk') || 1, cad = e.esJ ? (e === yo ? mio?.der?.cadencia || 0.8 : 0.8) : e.def.cadencia;
       mu.hacer('atk', { vel: Math.max(1, dur / (cad * 0.9)) });
@@ -216,31 +238,37 @@ function evento(ev) {
     else if (b === 'pisoton') { mu.hacer('pisoton'); setTimeout(() => { FX.polvo(p.x, p.y, p.z); if (yo && Math.hypot(lx - p.x, lz - p.z) < 14) temblor = 0.35; }, 550); }
   } else if (tipo === 'p') {
     const o = entes.get(a), t = entes.get(b); if (!o || !t) return;
+    if (!o.esJ) sonar(pos(o), (dd, pan) => SND.sfx.hechizo('rayo', dd, pan));
     const po = pos(o), pt = pos(t);
     FX.proyectil({ x: po.x, y: po.y + o.vis.alto * 0.7, z: po.z }, { x: pt.x, y: pt.y + 1, z: pt.z }, c, d);
-  } else if (tipo === 'm') { const e = entes.get(a); if (e) morir(e); }
+  } else if (tipo === 'm') {
+    const e = entes.get(a); if (!e) return;
+    if (e === yo) SND.sfx.morir(); else if (!e.esJ && !e.aliado) sonar(pos(e), (dd, pan) => SND.sfx.muerteMonstruo(!!e.def?.jefe || e.campeon, dd, pan));
+    morir(e);
+  }
   else if (tipo === 'n') {
     const e = entes.get(a); if (!e) return;
     const p = pos(e); FX.nivel(p.x, p.y, p.z); e.vis.muneco.hacer('festeja');
+    if (a === yoId) SND.sfx.nivel();
     if (a === yoId) hud.toast(`Nivel ${b}. Tenés ${R.PUNTOS_POR_NIVEL} puntos nuevos para repartir.`, 'grande');
   }
   else if (tipo === 'x') hud.exp(a);
   else if (tipo === 'tp') { if (a === yoId) { lx = b; lz = c; enviado = { x: b, z: c }; } else { const e = entes.get(a); if (e) e.buf = [{ t: performance.now(), x: b, z: c, dir: e.vis.raiz.rotation.y }]; } }
   else if (tipo === 'rv') { const e = entes.get(a); if (e) revivir(e); if (a === yoId) { lx = b; lz = c; objetivo = null; destino = null; } }
   else if (tipo === 'aviso') hud.toast(a);
-  else if (tipo === 'mision') { hud.toast(`${a}. «${b}»`, 'grande'); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } }
-  else if (tipo === 'oro') hud.toast(`+${a} de oro`, 'exp');
-  else if (tipo === 'recoge') hud.toast(`Recogiste ${a}`, ['exp', 'excelente', 'legendario', 'mitico'][b] || 'exp');
-  else if (tipo === 'forja') { hud.toast(b, a === 'ok' ? 'grande' : 'malo'); const n = O.NPCS.find(x => x.id === 'herrero'); if (a === 'ok') FX.nivel(n.x, 0, n.z); else FX.chispas(n.x, 1.2, n.z, a === 'roto' ? '#ff3b2a' : '#8c7f6a', 30); }
+  else if (tipo === 'mision') { SND.sfx.nivel(); hud.toast(`${a}. «${b}»`, 'grande'); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } }
+  else if (tipo === 'oro') { hud.toast(`+${a} de oro`, 'exp'); SND.sfx.oro(); }
+  else if (tipo === 'recoge') SND.sfx.recoger(b), hud.toast(`Recogiste ${a}`, ['exp', 'excelente', 'legendario', 'mitico'][b] || 'exp');
+  else if (tipo === 'forja') { SND.sfx.forja(a === 'ok'); hud.toast(b, a === 'ok' ? 'grande' : 'malo'); const n = O.NPCS.find(x => x.id === 'herrero'); if (a === 'ok') FX.nivel(n.x, 0, n.z); else FX.chispas(n.x, 1.2, n.z, a === 'roto' ? '#ff3b2a' : '#8c7f6a', 30); }
   else if (tipo === 'fx') {
     const y = R.altura(b, c);
     if (a === 'hielo') { FX.golpeSuelo(b, y, c, '#9fd8ff'); FX.chispas(b, y + 0.5, c, '#bfe8ff', 30); }
     else if (a === 'lluvia') FX.golpeSuelo(b, y, c, '#c9b47a');
     else if (a === 'buff') FX.golpeSuelo(b, y, c, '#c9b47a');
-    else if (a === 'cura') { FX.golpeSuelo(b, y, c, '#7fe07a'); FX.chispas(b, y + 1, c, '#9fef8a', 16); }
+    else if (a === 'cura') { if (Math.hypot(b - lx, c - lz) < 20) SND.sfx.hechizo('cura'); FX.golpeSuelo(b, y, c, '#7fe07a'); FX.chispas(b, y + 1, c, '#9fef8a', 16); }
     else if (a === 'tajo') FX.tajo(b, y, c);
   }
-  else if (tipo === 'msg') { hud.toast(a, 'anuncio'); chat.recibir({ txt: a, sistema: true }); }
+  else if (tipo === 'msg') { hud.toast(a, 'anuncio'); SND.sfx.anuncio(); chat.recibir({ txt: a, sistema: true }); }
   else if (tipo === 'bye') quitarEnte(a);
 }
 
@@ -311,7 +339,7 @@ function elegir(sx, sy) {
   if (mejor && !mejor.esJ) { marcarObjetivo(mejor.id); return; }
   if (mejor && mejor.esJ) { hud.menuJugador(mejor, sx, sy); return; }
   ray.setFromCamera({ x: sx / innerWidth * 2 - 1, y: -(sy / innerHeight) * 2 + 1 }, E.camara);
-  const hit = ray.intersectObject(E.terreno)[0];
+  const hit = ray.intersectObjects(E.terrenos)[0];
   if (hit) { destino = { x: hit.point.x, z: hit.point.z }; soltarObjetivo(); FX.golpeSuelo(hit.point.x, hit.point.y, hit.point.z, '#8c7f6a'); }
 }
 function marcarObjetivo(id) { objetivo = id; destino = null; red.mandar({ t: 'atk', id }); }
@@ -356,6 +384,7 @@ function moverme(dt) {
   if (mx || mz) {
     lx += mx * vel * dt; lz += mz * vel * dt;
     if (R.enPozo(lx, lz)) { const dx = lx - R.POZO.x, dz = lz - R.POZO.z, d = Math.hypot(dx, dz); if (d > R.POZO.r) { lx = R.POZO.x + dx / d * R.POZO.r; lz = R.POZO.z + dz / d * R.POZO.r; } }
+    else if (R.enCosta(lx, lz)) { const dx = lx - R.COSTA.x, d = Math.hypot(dx, lz); if (d > R.COSTA.r) { lx = R.COSTA.x + dx / d * R.COSTA.r; lz = lz / d * R.COSTA.r; } }
     else { lx = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, lx)); lz = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, lz)); }
     ldir = Math.atan2(mx, mz);
   }
@@ -486,7 +515,7 @@ function datosHud() {
   const o = objetivo && entes.get(objetivo);
   let jefe = null;
   for (const e of entes.values()) if (e.def?.jefe && !e.muerto && Math.hypot(pos(e).x - lx, pos(e).z - lz) < 26) jefe = { nombre: e.def.nombre + (e.furioso ? ' · en furia' : ''), hp: e.hp };
-  let lugar = { nombre: R.MAPA.nombre, frase: 'La noche no se termina.' };
+  let lugar = R.enCosta(lx, lz) ? { nombre: 'Costa de la Sal Negra', frase: 'El mar también está muerto.' } : { nombre: R.MAPA.nombre, frase: 'La noche no se termina.' };
   if (R.enPozo(lx, lz)) lugar = { nombre: 'Pozo de las Almas', frase: estado?.pozo > 0 ? `Oleada ${estado.pozo} de ${R.POZO.oleadas}` : 'Esperá a que se cierre la entrada.' };
   if (!R.enPozo(lx, lz)) for (const l of R.MAPA.lugares) if (Math.hypot(l.x - lx, l.z - lz) < (l.x || l.z ? 14 : R.PUEBLO.r)) lugar = l;
   const puntos = [];
@@ -521,6 +550,7 @@ function abrirNpc(id) {
   if (MI.NPC_MISION.some(n => n.id === id)) { const n = npcs.find(x => x.def.id === id); n?.vis.muneco.hacer('saluda'); return paneles.misionNpc(id); }
   const def = O.NPCS.find(x => x.id === id); if (!def) return;
   if (def.rol === 'tablon') return paneles.tablon(def.atalaya);
+  if (def.rol === 'senda') return paneles.senda(def);
   if (def.rol === 'farol') return paneles.viajes();
   if (def.rol === 'baul') { paneles.sel = null; return paneles.baul(); }
   const n = npcs.find(x => x.def.id === id); if (n) n.vis.muneco.hacer('saluda');
@@ -568,6 +598,18 @@ function actualizarDrops(lista) {
   for (const [id, d] of drops) if (!vistos.has(id)) { E.scene.remove(d.obj); drops.delete(id); }
 }
 
+// ---------- música según dónde estás ----------
+let ambT = 0;
+function ambienteMusical() {
+  if (!yo) return 'menu';
+  if (R.enPozo(lx, lz)) return 'pozo';
+  for (const e of entes.values()) if (e.def?.jefe && !e.muerto && Math.hypot(pos(e).x - lx, pos(e).z - lz) < 26) return 'jefe';
+  if (estado?.evt?.[0] === 'noche') return 'noche';
+  if (performance.now() - ultimaPelea < 6000) return 'pelea';
+  if (R.enAtalaya(lx, lz) >= 0) return 'atalaya';
+  return 'paramo';
+}
+
 // ---------- bucle ----------
 const reloj = new THREE.Clock();
 const foco = new THREE.Vector3(), mira = new THREE.Vector3();
@@ -575,12 +617,14 @@ let angIntro = 0;
 function cuadro() {
   requestAnimationFrame(cuadro);
   const dt = Math.min(0.1, reloj.getDelta());
+  ambT += dt;
+  if (ambT > 0.5) { ambT = 0; SND.ponerAmbiente(ambienteMusical()); }
   if (seleccion.activa) {
     seleccion.update(dt, E.camara); foco.set(0, 0, 0);
   } else if (yo) {
     moverme(dt); actualizarEntes(dt);
     for (const e of entes.values()) if (e.aureola && !e.muerto && Math.random() < dt * 14) { const p = pos(e); FX.chispas(p.x + (Math.random() - 0.5) * 0.8, p.y + 0.3 + Math.random() * 1.4, p.z + (Math.random() - 0.5) * 0.8, e.aureola, 1); }
-    foco.lerp(v3.set(lx, R.altura(lx, lz), lz), Math.min(1, dt * 6));
+    v3.set(lx, R.altura(lx, lz), lz); if (foco.distanceTo(v3) > 25) foco.copy(v3); else foco.lerp(v3, Math.min(1, dt * 6));
     const vertical = innerWidth < innerHeight;
     E.camara.position.set(foco.x, foco.y + (vertical ? 15 : 12.5), foco.z + (vertical ? 12 : 10.5));
     if (temblor > 0) { temblor -= dt; E.camara.position.x += (Math.random() - 0.5) * temblor; E.camara.position.y += (Math.random() - 0.5) * temblor; }
