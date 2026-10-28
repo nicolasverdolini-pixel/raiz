@@ -211,7 +211,7 @@ export class Paneles {
     const n = O.NPCS.find(x => x.id === id), d = this.ctx.mio(); if (!n || !d) return;
     if (elegido) { this.forjaSel = elegido; this.sel = null; }
     const tabs = n.rol === 'herrero' ? [['tienda', 'Comprar'], ['forja', 'Forja'], ['vender', 'Vender']]
-      : n.rol === 'vidente' ? [['eventos', 'Eventos'], ['viajes', 'Velas de Paso']] : [['tienda', 'Comprar'], ['vender', 'Vender']];
+      : n.rol === 'vidente' ? [['eventos', 'Eventos'], ['pozo', 'Pozo'], ['tienda', 'Comprar'], ['renacer', 'Renacer'], ['ranking', 'Ranking'], ['viajes', 'Velas']] : [['tienda', 'Comprar'], ['vender', 'Vender']];
     tab = tab || tabs[0][0];
     let cuerpo = `<p class="frase">«${n.frase}»</p>`;
     if (tab === 'tienda') cuerpo += this.htmlTienda(n, d);
@@ -219,6 +219,9 @@ export class Paneles {
     if (tab === 'forja') cuerpo += this.htmlForja(d);
     if (tab === 'eventos') cuerpo += this.htmlEventos();
     if (tab === 'viajes') cuerpo += this.htmlVelas(d);
+    if (tab === 'pozo') cuerpo += this.htmlPozo(d);
+    if (tab === 'renacer') cuerpo += this.htmlRenacer(d);
+    if (tab === 'ranking') { cuerpo += this.htmlRanking(d); if (!this.pedidoRanking || Date.now() - this.pedidoRanking > 10000) { this.pedidoRanking = Date.now(); this.ctx.mandar({ t: 'ranking' }); } }
     this.marco(n.nombre, R.PUEBLOS[n.atalaya]?.nombre, tabs, tab, cuerpo, 'npc', [id, tab]);
     const m = this.ctx.mandar;
     this.el.querySelectorAll('[data-tsel]').forEach(b => b.onclick = () => { this.sel = 't:' + b.dataset.tsel; this.npc(id, tab); });
@@ -228,6 +231,8 @@ export class Paneles {
     this.el.querySelectorAll('[data-lugar]').forEach(b => b.onclick = () => { m({ t: 'vela', lugar: b.dataset.lugar }); this.cerrar(); });
     this.el.querySelectorAll('[data-fsel]').forEach(b => b.onclick = () => { const [t, k] = b.dataset.fsel.split(':'); this.forjaSel = t === 'e' ? { r: k } : { i: +k }; this.npc(id, 'forja'); });
     const bf = $('#p-forjar', this.el); if (bf) bf.onclick = () => m({ t: 'forjar', ...this.forjaSel });
+    const bp = $('#p-pozo', this.el); if (bp) bp.onclick = () => { m({ t: 'pozo' }); this.cerrar(); };
+    const br = $('#p-renacer', this.el); if (br) br.onclick = () => { if (br.dataset.ok) { m({ t: 'renacer' }); this.cerrar(); } else { br.dataset.ok = 1; br.textContent = 'Tocá otra vez para confirmar'; } };
   }
 
   htmlTienda(n, d) {
@@ -277,6 +282,32 @@ export class Paneles {
     return `<p class="nota">Velas de Paso: <b>${velas}</b>. Te llevan a cualquier lugar que ya conozcas, no solo a las atalayas.</p>
       <div class="lista">${R.MAPA.lugares.map(l => `<div class="fila-t ${d.lugares.includes(l.nombre) ? '' : 'gris'}"><span><b>${l.nombre}</b><small>${l.frase}</small></span>
         <button class="btn chico" data-lugar="${l.nombre}" ${d.lugares.includes(l.nombre) && velas ? '' : 'disabled'}>Ir</button></div>`).join('')}</div>`;
+  }
+
+  htmlPozo(d) {
+    const e = R.EVENTOS.find(x => x.id === 'pozo'), fase = ((Date.now() / 60000 - e.desfase) % e.cada + e.cada) % e.cada;
+    const abierta = fase < e.entrada, sellos = d.inv.reduce((a, x) => a + (x?.b === 'sello' ? x.c : 0), 0);
+    const min = abierta ? e.entrada - fase : e.cada - fase;
+    return `<div class="mision"><b>Pozo de las Almas</b><span class="m-texto">${e.desc}</span>
+      <span class="m-obj">${abierta ? `Entrada abierta · se cierra en ${Math.floor(min)}:${String(Math.floor(min % 1 * 60)).padStart(2, '0')}` : `Abre en ${Math.floor(min)}:${String(Math.floor(min % 1 * 60)).padStart(2, '0')}`}</span>
+      <span class="nota">${R.POZO.oleadas} oleadas, una más dura que la otra, y un jefe al final. Cada oleada da experiencia; el jefe deja un tesoro para cada uno. Nivel mínimo ${R.POZO.nivelMin}. Si caés, quedás afuera.</span>
+      <span>Sellos del Pozo: <b>${sellos}</b> (los vende Oria en "Comprar")</span>
+      <div class="acciones"><button class="btn" id="p-pozo" ${abierta && sellos ? '' : 'disabled'}>Bajar al Pozo</button></div></div>`;
+  }
+  htmlRenacer(d) {
+    const n = d.resets || 0, oro = R.RENACER.oro(n), puede = d.nivel >= R.RENACER.nivel && d.oro >= oro;
+    return `<div class="mision"><b>Renacer</b><span class="m-texto">El Farol te devuelve al nivel 1, pero no te olvidás de lo que aprendiste: renacés con puntos de regalo.</span>
+      <span>Renacimientos: <b>${n}</b></span>
+      <span>Pide nivel <b>${R.RENACER.nivel}</b> y <b>${oro.toLocaleString('es-AR')}</b> de oro.</span>
+      <span class="nota">Al renacer: nivel 1, atributos de base + ${R.RENACER.puntos} puntos por cada renacimiento (${(n + 1) * R.RENACER.puntos} en total), y +${R.RENACER.habilidad} puntos de habilidad por renacimiento. El árbol se reinicia. El equipo se queda.</span>
+      <div class="acciones"><button class="btn" id="p-renacer" ${puede ? '' : 'disabled'}>Renacer</button></div></div>`;
+  }
+  ranking(lista) { this.listaRanking = lista; if (this.abierto?.f === 'npc' && this.abierto.args[1] === 'ranking') this.refrescar(); }
+  htmlRanking(d) {
+    const l = this.listaRanking;
+    if (!l) return '<p class="nota">Buscando…</p>';
+    return `<div class="ranking"><div class="rk cab"><span>#</span><span>Nombre</span><span>Clase</span><span>Renac.</span><span>Nivel</span></div>
+      ${l.map((f, i) => `<div class="rk ${f.nombre === d.nombre ? 'yo' : ''}"><span>${i + 1}</span><span>${esc(f.nombre)}</span><span>${C.CLASES[f.clase]?.nombre || ''}</span><span>${f.resets}</span><span>${f.nivel}</span></div>`).join('')}</div>`;
   }
 
   // ---------- farol: viajar entre atalayas ----------

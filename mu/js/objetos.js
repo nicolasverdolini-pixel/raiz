@@ -43,6 +43,7 @@ B.vela = { id: 'vela', nombre: 'Vela de Paso', uso: 'viaje', precio: 120, pila: 
 B.forja = { id: 'forja', nombre: 'Gema de Forja', gema: true, precio: 0, pila: true, desc: 'Mejora un equipo de +0 a +6. Nunca falla.' };
 B.destino = { id: 'destino', nombre: 'Gema del Destino', gema: true, precio: 0, pila: true, desc: 'Mejora de +6 a +9. Puede fallar: si falla, baja un nivel.' };
 B.abismo = { id: 'abismo', nombre: 'Gema del Abismo', gema: true, precio: 0, pila: true, desc: 'Mejora de +9 a +15. Si falla vuelve a +0, y desde +12 el equipo se rompe.' };
+B.sello = { id: 'sello', nombre: 'Sello del Pozo', precio: 500, pila: true, desc: 'Entrada al Pozo de las Almas. Se gasta al entrar.' };
 B.guardiana = { id: 'guardiana', nombre: 'Piedra Guardiana', precio: 0, pila: true, desc: 'Si la tenés en la mochila, evita que un equipo se rompa en la forja (se gasta).' };
 export const BASES = B;
 export const esEquipo = b => !!BASES[b]?.r;
@@ -144,7 +145,7 @@ export const NPCS = ATALAYAS.flatMap((a, i) => {
   lista.push({ id: 'tablon' + i, rol: 'tablon', atalaya: i, nombre: 'Tablón de Encargos', x: a.x - 2.6, z: a.z + 3.4, giro: 2.4, frase: 'Pedidos clavados con cuchillo. Siempre hay uno nuevo.' });
   lista.push({ id: 'farol' + i, rol: 'farol', atalaya: i, nombre: 'Farol', x: a.x, z: a.z, frase: 'Desde acá se viaja a las atalayas que ya encendiste.' });
   if (a.vidente) lista.push({ id: 'vidente', rol: 'vidente', atalaya: i, nombre: 'Oria la Vidente', modelo: 'npc_vidente.glb', x: a.x, z: a.z + 4.6, giro: Math.PI,
-    frase: 'Veo la Marea antes que llegue. Veo el rojo de la noche. Preguntame.', eventos: true, vende: ['vela'] });
+    frase: 'Veo la Marea antes que llegue. Veo el rojo de la noche. Preguntame.', eventos: true, vende: ['vela', 'sello'] });
   return lista;
 });
 export const DIST_NPC = 4.5;

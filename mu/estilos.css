@@ -319,3 +319,24 @@ input:focus { outline: 1px solid var(--sangre-2); }
 .premio span { display: inline-flex; align-items: center; gap: 4px; }
 .premio svg { width: 20px; height: 20px; }
 .r-exc-t { color: #8fe8b4; } .r-leg-t { color: #f2c46a; } .r-mit-t { color: #ff6a74; }
+/* Chat */
+.hb.chatb { left: calc(10px + env(safe-area-inset-left)); top: calc(156px + env(safe-area-inset-top)); width: 46px; height: 46px; border-radius: 6px; background: none; border: 0; padding: 0; }
+.hb.chatb small { position: absolute; right: -4px; top: -4px; min-width: 18px; padding: 0 4px; border-radius: 9px; background: #8e1b1b; font-size: 11px; line-height: 18px; text-align: center; z-index: 4; }
+.hb.chatb small:empty { display: none; }
+#chat { position: absolute; left: calc(64px + env(safe-area-inset-left)); top: calc(104px + env(safe-area-inset-top)); width: min(360px, 60vw); max-height: 60vh; display: flex; flex-direction: column; gap: 6px; padding: 8px; z-index: 5; }
+.chat-log, #chat-vivo { display: flex; flex-direction: column; gap: 3px; font-size: .9em; }
+.chat-log { flex: 1; min-height: 80px; max-height: 32vh; overflow-y: auto; touch-action: pan-y; }
+.chat-log b, #chat-vivo b { font-family: var(--titulo); color: #e9c37a; }
+.chat-log .grupo b, #chat-vivo .grupo b { color: #8fd16e; }
+.chat-log .sistema, #chat-vivo .sistema { color: #f0c27a; font-style: italic; }
+.chat-emojis { display: flex; flex-wrap: wrap; gap: 2px; }
+.chat-emojis button { background: none; border: 0; font-size: 20px; padding: 2px 4px; cursor: pointer; }
+#chat-form { display: flex; gap: 6px; } #chat-form input { flex: 1; min-width: 0; padding: 6px 8px; font-size: 15px; user-select: text; }
+#chat-vivo { position: absolute; left: calc(64px + env(safe-area-inset-left)); top: calc(160px + env(safe-area-inset-top)); max-width: 50vw; pointer-events: none; text-shadow: 0 1px 3px #000; }
+#chat-vivo > div { background: rgba(6,6,8,.55); padding: 2px 8px; animation: aparecer 7s forwards; }
+/* Ranking */
+.ranking { display: flex; flex-direction: column; }
+.rk { display: grid; grid-template-columns: 2.4em 1fr 1fr 4em 4em; gap: 6px; padding: 5px 6px; border-bottom: 1px solid rgba(216,207,189,.08); font-variant-numeric: tabular-nums; }
+.rk.cab { color: var(--hueso-2); font-size: .8em; letter-spacing: .05em; }
+.rk.yo { background: rgba(142,27,27,.25); }
+.rk:nth-child(2) span:nth-child(2) { color: #f2c46a; }

@@ -95,6 +95,15 @@ export class Personaje extends DurableObject {
     const c = await this.leer(); c.personajes[nombre.toLowerCase()] = datos; if (baul) c.baul = baul;
     await this.ctx.storage.put('cuenta', c);
   }
+  // Ranking (este objeto es "#ranking"): los mejores 100 por renacimientos, nivel y experiencia.
+  async rankingPoner(fila) {
+    const lista = ((await this.ctx.storage.get('lista')) || []).filter(f => f.nombre !== fila.nombre);
+    lista.push(fila);
+    lista.sort((a, b) => b.resets - a.resets || b.nivel - a.nivel || b.exp - a.exp);
+    await this.ctx.storage.put('lista', lista.slice(0, 100));
+  }
+  async rankingVer() { return (await this.ctx.storage.get('lista')) || []; }
+
   // Registro de nombres (este objeto es "pj:<nombre>").
   async reservar(cuenta) {
     const dueno = await this.ctx.storage.get('dueno');
@@ -175,6 +184,10 @@ export class Mapa extends DurableObject {
       case 'com': return this.comercio(p, m);
       case 'baul': return this.usarBaul(p, m);
       case 'mision': return this.mision(p, m);
+      case 'chat': return this.chat(p, String(m.txt || ''));
+      case 'renacer': return this.renacer(p);
+      case 'ranking': return this.enviar(s, { t: 'ranking', lista: (await this.cuenta('#ranking').rankingVer()).slice(0, 50) });
+      case 'pozo': return this.entrarPozo(p);
       case 'encargo': return this.encargo(p, m);
       case 'salirPj': { this.salir(s); await new Promise(r => setTimeout(r, 300)); return this.mandarLista(s); }
       case 'punto': return this.repartir(p, m.s, m.n | 0);
@@ -238,6 +251,7 @@ export class Mapa extends DurableObject {
   salir(s) {
     const p = s.p; if (!p || !this.jug.has(p.id)) return;
     this.cancelarComercio(p, `${p.nombre} se fue.`);
+    if (p.enPozo) { p.enPozo = false; this.pozo?.dentro.delete(p.id); p.x = 0; p.z = 0; }
     this.dejarGrupo(p, true);
     this.guardar(p);
     this.jug.delete(p.id);
@@ -250,6 +264,7 @@ export class Mapa extends DurableObject {
   guardar(p) {
     p.guardadoT = 0;
     this.cuenta(p.cuenta).guardar(p.nombre, p.d, p.baul).catch(() => {});
+    this.cuenta('#ranking').rankingPoner({ nombre: p.nombre, clase: p.d.clase, nivel: p.d.nivel, resets: p.d.resets || 0, exp: p.d.exp }).catch(() => {});
   }
 
   aviso(p, texto) { p.priv.push(['aviso', texto]); }
@@ -263,7 +278,8 @@ export class Mapa extends DurableObject {
     const ahora = Date.now(), dt = Math.min(1, (ahora - p.ultPos) / 1000);
     const max = R.VEL_JUGADOR * dt * 1.5 + 0.7;
     if (Math.hypot(x - p.x, z - p.z) > max) { p.priv.push(['tp', p.id, r2(p.x), r2(p.z)]); p.ultPos = ahora; return; }
-    x = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, x)); z = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, z));
+    if (p.enPozo) { const dx = x - R.POZO.x, dz = z - R.POZO.z, d = Math.hypot(dx, dz); if (d > R.POZO.r) { x = R.POZO.x + dx / d * R.POZO.r; z = R.POZO.z + dz / d * R.POZO.r; } }
+    else { x = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, x)); z = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, z)); }
     p.mueve = Math.hypot(x - p.x, z - p.z) > 0.01;
     p.x = x; p.z = z; p.ultPos = ahora;
     if (isFinite(+m.dir)) p.dir = +m.dir;
@@ -457,6 +473,109 @@ export class Mapa extends DurableObject {
     const a = Math.random() * 6.3; p.x = l.x + Math.cos(a) * 2; p.z = l.z + Math.sin(a) * 2; p.ultPos = Date.now(); p.objetivo = null;
     this.ev.push(['tp', p.id, r2(p.x), r2(p.z)], ['fx', 'cura', r2(p.x), r2(p.z), 2]);
   }
+
+  // ----- chat -----
+  chat(p, txt) {
+    txt = txt.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 140);
+    if (!txt) return;
+    const ahora = Date.now();
+    if (ahora - (p.ultChat || 0) < 900) return this.aviso(p, 'Más despacio.');
+    p.ultChat = ahora;
+    if (txt.startsWith('/g ')) {
+      const g = p.grupo && this.grupos.get(p.grupo); if (!g) return this.aviso(p, 'No estás en un grupo.');
+      for (const id of g.miembros) { const q = this.jug.get(id); if (q) this.enviar(q.s, { t: 'chat', de: p.id, nombre: p.nombre, txt: txt.slice(3), grupo: 1 }); }
+      return;
+    }
+    for (const q of this.jug.values()) this.enviar(q.s, { t: 'chat', de: p.id, nombre: p.nombre, txt });
+  }
+
+  // ----- renacer -----
+  renacer(p) {
+    if (!this.rolCerca(p, 'vidente')) return this.aviso(p, 'Para renacer hablá con Oria la Vidente.');
+    const n = p.d.resets || 0, oro = R.RENACER.oro(n);
+    if (p.d.nivel < R.RENACER.nivel) return this.aviso(p, `Se renace desde el nivel ${R.RENACER.nivel}.`);
+    if (p.d.oro < oro) return this.aviso(p, `Renacer cuesta ${oro.toLocaleString('es-AR')} de oro.`);
+    p.d.oro -= oro; p.d.resets = n + 1;
+    const base = C.CLASES[p.d.clase].base;
+    Object.assign(p.d, { nivel: 1, exp: 0, ...base, puntos: p.d.resets * R.RENACER.puntos, arbol: {} });
+    p.d.arbol[C.ARBOL[p.d.clase][0].hab[0].id] = 1;
+    this.recalcular(p); p.hp = p.der.maxHp; p.mp = p.der.maxMp;
+    this.ev.push(['n', p.id, 1]);
+    this.msgTodos(`${p.nombre} renació por ${p.d.resets}ª vez.`);
+    this.guardar(p);
+  }
+
+  // ----- Pozo de las Almas -----
+  entrarPozo(p) {
+    if (!this.rolCerca(p, 'vidente')) return this.aviso(p, 'La entrada al Pozo la abre Oria la Vidente.');
+    if (this.pozo?.fase !== 'entrada') return this.aviso(p, 'La entrada al Pozo está cerrada. Abre cada hora, en el minuto 45.');
+    if (p.d.nivel < R.POZO.nivelMin && !(p.d.resets > 0)) return this.aviso(p, `Hace falta nivel ${R.POZO.nivelMin}.`);
+    if (!this.gastar(p, 'sello', 1)) return this.aviso(p, 'Necesitás un Sello del Pozo.');
+    const a = Math.random() * 6.3; p.x = R.POZO.x + Math.cos(a) * 4; p.z = R.POZO.z + Math.sin(a) * 4; p.enPozo = true; p.objetivo = null; p.ultPos = Date.now();
+    this.pozo.dentro.add(p.id);
+    this.ev.push(['tp', p.id, r2(p.x), r2(p.z)]);
+    this.aviso(p, 'Bajaste al Pozo. Cuando se cierre la entrada empiezan las oleadas.');
+  }
+
+  sacarDelPozo(p) {
+    if (!p.enPozo) return;
+    p.enPozo = false; this.pozo?.dentro.delete(p.id);
+    const a = Math.random() * 6.3; p.x = Math.cos(a) * 3; p.z = Math.sin(a) * 3; p.ultPos = Date.now();
+    this.ev.push(['tp', p.id, r2(p.x), r2(p.z)]);
+  }
+
+  tickPozo() {
+    const P = this.pozo; if (!P) return;
+    const dentro = [...P.dentro].map(id => this.jug.get(id)).filter(p => p && p.enPozo);
+    if (P.fase === 'entrada' && Date.now() - P.inicio > R.EVENTOS.find(e => e.id === 'pozo').entrada * 60000) {
+      if (!dentro.length) { P.fase = 'vacio'; return; }
+      P.fase = 'corriendo'; P.oleada = 0; P.espera = 2;
+      this.msgPozo('Se cerró la entrada. Que empiece.');
+    }
+    if (P.fase !== 'corriendo') return;
+    if (!dentro.length) { P.fase = 'vacio'; this.limpiarPozo(); return; }
+    const vivos = [...this.mons.values()].filter(m => m.pozo && !m.muerto).length;
+    if (vivos) return;
+    if (P.oleada && !P.pagada) {
+      P.pagada = true;
+      for (const p of dentro) if (!p.muerto) this.darExp(p, Math.round(R.expParaSubir(p.d.nivel) * 0.02 * P.oleada), null);
+      if (P.oleada >= R.POZO.oleadas) {
+        this.msgPozo('¡El Pozo quedó vacío! El premio cae al centro.');
+        const jefe = R.MONSTRUOS[P.jefe] || R.MONSTRUOS.ratareina;
+        for (const p of dentro) this.soltar({ x: R.POZO.x, z: R.POZO.z }, O.tirada(jefe, Math.random, 1.5), 'p' + p.id);
+        P.fase = 'fin'; return;
+      }
+      this.msgPozo(`Oleada ${P.oleada} superada.`);
+      P.espera = 4;
+    }
+    P.espera -= R.TICK; if (P.espera > 0) return;
+    P.oleada++; P.pagada = false; this.oleada(P, dentro);
+  }
+
+  oleada(P, dentro) {
+    const nv = Math.round(dentro.reduce((a, p) => a + p.d.nivel, 0) / dentro.length);
+    const comunes = R.TIPOS.filter(t => !R.MONSTRUOS[t].jefe && R.MONSTRUOS[t].nivel <= nv + 2).sort((a, b) => R.MONSTRUOS[b].nivel - R.MONSTRUOS[a].nivel).slice(0, 3);
+    if (!comunes.length) comunes.push('rata');
+    const k = P.oleada, n = Math.min(20, 3 + k * 2 + dentro.length), mult = 1 + k * 0.15;
+    const poner = (tipo, hp, campeon) => {
+      const a = Math.random() * 6.3, rr = 9 + Math.random() * 6;
+      const m = this.crearMonstruo(tipo, { x: R.POZO.x + Math.cos(a) * rr, z: R.POZO.z + Math.sin(a) * rr }, true);
+      m.pozo = true; m.campeon = !!campeon; m.maxHp = m.hp = Math.round(m.def.hp * hp); m.casa = { x: R.POZO.x, z: R.POZO.z };
+      m.obj = dentro[Math.floor(Math.random() * dentro.length)].id;
+      this.ev.push(['a', m.id, 'nace']);
+    };
+    for (let i = 0; i < n; i++) poner(comunes[i % comunes.length], mult);
+    if (k === 4) poner(comunes[0], mult * 3, true);
+    if (k === R.POZO.oleadas) {
+      const jefes = R.TIPOS.filter(t => R.MONSTRUOS[t].jefe && !R.MONSTRUOS[t].soloEvento && R.MONSTRUOS[t].nivel <= nv + 5);
+      P.jefe = jefes.sort((a, b) => R.MONSTRUOS[b].nivel - R.MONSTRUOS[a].nivel)[0] || 'ratareina';
+      poner(P.jefe, 0.4 + 0.15 * dentro.length);
+      this.msgPozo(`Última oleada: ${R.MONSTRUOS[P.jefe].nombre}.`);
+    } else this.msgPozo(`Oleada ${k} de ${R.POZO.oleadas}.`);
+  }
+
+  msgPozo(t) { for (const id of this.pozo?.dentro || []) { const p = this.jug.get(id); if (p) p.priv.push(['msg', t]); } }
+  limpiarPozo() { for (const m of [...this.mons.values()]) if (m.pozo) { this.mons.delete(m.id); this.ev.push(['bye', m.id]); } }
 
   // ----- misiones -----
   progreso(p, m) {
@@ -709,7 +828,7 @@ export class Mapa extends DurableObject {
     if (m.def.jefe) this.msgTodos(m.def.soloEvento ? `¡Cayó el ${m.def.nombre}! La Noche Roja pierde fuerza.` : `¡Cayó ${m.def.nombre}! Vuelve en ${Math.round(m.def.reaparece / 60)} minutos.`);
     else if (m.campeon) this.msgCerca(m, `Cayó un campeón: ${m.def.nombre}.`);
     let total = 0; for (const v of m.danos.values()) total += v;
-    const base = m.def.exp * (m.campeon ? R.CAMPEON.exp : 1) * (m.temporal ? 0.3 : 1) * (this.evento?.exp || 1);
+    const base = m.def.exp * (m.campeon ? R.CAMPEON.exp : 1) * (m.temporal && !m.pozo ? 0.3 : 1) * (m.pozo ? 1.5 : 1) * (this.evento?.exp || 1);
     for (const [bando, d] of m.danos) {
       const parte = base * d / total;
       if (bando[0] === 'p') { const p = this.jug.get(+bando.slice(1)); if (p && !p.muerto) this.darExp(p, parte, m); continue; }
@@ -873,7 +992,8 @@ export class Mapa extends DurableObject {
       if (p) m.obj = p.id;
     }
     const correa = def.jefe ? 24 : m.temporal ? 30 : 18;
-    if (!def.soloEvento && dist(m, m.casa) > correa) { m.obj = null; p = null; m.volviendo = true; m.carga = null; }
+    if (m.pozo && !p) { let md = 1e9; for (const q of this.jug.values()) { if (!q.enPozo || q.muerto) continue; const d = dist(q, m); if (d < md) { md = d; p = q; } } if (p) m.obj = p.id; }
+    if (!def.soloEvento && !m.pozo && dist(m, m.casa) > correa) { m.obj = null; p = null; m.volviendo = true; m.carga = null; }
     if (m.volviendo) {
       if (this.caminar(m, m.casa.x, m.casa.z, def.vel * 1.4, dt)) { m.volviendo = false; m.hp = m.maxHp; m.furioso = false; m.danos.clear(); }
       return;
@@ -919,6 +1039,12 @@ export class Mapa extends DurableObject {
     if (antes === 'noche') {
       for (const m of this.mons.values()) if (m.def.soloEvento && !m.muerto) { this.mons.delete(m.id); this.ev.push(['bye', m.id]); this.msgTodos('El Heraldo del Éter se retira. Volverá con la próxima Noche Roja.'); }
     }
+    if (antes === 'pozo') {
+      this.msgPozo('El Pozo se cierra. Volvés a la Atalaya.');
+      for (const id of this.pozo?.dentro || []) { const p = this.jug.get(id); if (p) this.sacarDelPozo(p); }
+      this.limpiarPozo(); this.pozo = null;
+    }
+    if (activo?.id === 'pozo') this.pozo = { fase: 'entrada', inicio: Date.now() - (activo.dura * 60 - activo.resta) * 1000, dentro: new Set() };
     if (activo) {
       this.msgTodos(`${activo.nombre}: ${activo.desc}`);
       if (activo.id === 'noche') {
@@ -934,11 +1060,13 @@ export class Mapa extends DurableObject {
   tick() {
     const dt = R.TICK; this.t += dt;
     if (!this.evT || this.t - this.evT > 1) { this.evT = this.t; this.revisarEventos(); }
+    this.tickPozo();
     for (const p of this.jug.values()) {
       if (p.muerto) {
         p.muerto -= dt;
         if (p.muerto <= 0) {
           p.muerto = 0; p.hp = p.der.maxHp; p.mp = p.der.maxMp;
+          if (p.enPozo) { p.enPozo = false; this.pozo?.dentro.delete(p.id); p.x = 0; p.z = 0; }
           const at = R.PUEBLOS[R.atalayaCercana(p.x, p.z, p.d.atalayas)], a = Math.random() * 6.3;
           p.x = at.x + Math.cos(a) * 3; p.z = at.z + Math.sin(a) * 3; p.ultPos = Date.now();
           this.ev.push(['rv', p.id, r2(p.x), r2(p.z)]);
@@ -989,6 +1117,7 @@ export class Mapa extends DurableObject {
     for (let i = 0; i < mons.length; i++) {
       const a = mons[i]; if (a.muerto) continue;
       for (const n of MI.NPC_MISION) { const dx = a.x - n.x, dz = a.z - n.z, d = Math.hypot(dx, dz); if (d < 3) { const k = 3 / (d || 1); a.x = n.x + dx * k; a.z = n.z + dz * k; } }
+      if (a.pozo) continue;
       for (const at of R.PUEBLOS) { const dx = a.x - at.x, dz = a.z - at.z, d = Math.hypot(dx, dz); if (d < at.r + 1) { const k = (at.r + 1) / (d || 1); a.x = at.x + dx * k; a.z = at.z + dz * k; } }
       for (let j = i + 1; j < mons.length; j++) {
         const b = mons[j]; if (b.muerto) continue;
@@ -1041,7 +1170,7 @@ export class Mapa extends DurableObject {
         hp: Math.round(p.hp), mp: Math.round(p.mp), maxHp: p.der.maxHp, maxMp: p.der.maxMp, nivel: p.d.nivel, exp: p.d.exp, sig: R.expParaSubir(p.d.nivel),
         puntos: p.d.puntos, fue: p.d.fue, agi: p.d.agi, vit: p.d.vit, ene: p.d.ene, dmin: p.der.dmin, dmax: p.der.dmax, def: p.der.def,
         cds: Object.fromEntries(Object.entries(p.cds).map(([k, v]) => [k, r2(v)])), muerto: r2(p.muerto), obj: p.objetivo, veneno: p.veneno ? r2(p.veneno.t) : 0, evt,
-        atalaya: R.enAtalaya(p.x, p.z), pociones: this.cuantos(p, 'pocion'), eteres: this.cuantos(p, 'eter'), buffs: p.buffs.map(b => [b.id, r2(b.t)]), alcance: p.der.alcance, clase: p.d.clase,
+        atalaya: R.enAtalaya(p.x, p.z), resets: p.d.resets || 0, pozo: p.enPozo ? (this.pozo?.oleada || 0) : -1, pociones: this.cuantos(p, 'pocion'), eteres: this.cuantos(p, 'eter'), buffs: p.buffs.map(b => [b.id, r2(b.t)]), alcance: p.der.alcance, clase: p.d.clase,
         grupo: g ? g.miembros.map(id => { const x = this.jug.get(id); return x ? [x.id, x.nombre, Math.round(x.hp / x.der.maxHp * 100), x.d.nivel, x.id === g.lider ? 1 : 0] : null; }).filter(Boolean) : null,
       };
       const sv = [];

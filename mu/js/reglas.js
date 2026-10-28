@@ -130,7 +130,14 @@ export const EVENTOS = [
     desc: 'El Éter desborda: doble experiencia y los monstruos vuelven más rápido.' },
   { id: 'noche', nombre: 'Noche Roja', cada: 120, desfase: 15, dura: 10, exp: 1.5,
     desc: 'El cielo sangra. Aparecen campeones por todos lados y llega el Heraldo del Éter.' },
+  { id: 'pozo', nombre: 'Pozo de las Almas', cada: 60, desfase: 45, dura: 13, entrada: 3,
+    desc: 'Se abre la entrada por 3 minutos (hace falta un Sello del Pozo, lo vende Oria). Adentro: oleadas cada vez peores y un jefe al final.' },
 ];
+// Arena del Pozo: un lugar aparte, lejos del Páramo.
+export const POZO = { x: 300, z: 300, r: 17, oleadas: 8, nivelMin: 10 };
+export const enPozo = (x, z) => Math.hypot(x - POZO.x, z - POZO.z) < POZO.r + 4;
+// Renacer: volver a nivel 1 con puntos de regalo que se suman cada vez.
+export const RENACER = { nivel: 150, puntos: 150, habilidad: 10, oro: n => 20000 * (n + 1) };
 export function estadoEventos(ms) {
   const min = ms / 60000;
   let activo = null, proximo = null;
@@ -174,6 +181,7 @@ export const CIENAGA = { x: MONSTRUOS.sapo.zona.x, z: MONSTRUOS.sapo.zona.z };
 
 // Altura del piso: suave, plana en la atalaya y en la ciénaga. La usan los dos lados.
 export function altura(x, z) {
+  if (Math.abs(x) > 200) return 0;
   let h = Math.sin(x * 0.11) * 0.45 + Math.cos(z * 0.09 + x * 0.04) * 0.5 + Math.sin((x + z) * 0.23) * 0.15;
   for (const p of PUEBLOS) { const dp = Math.hypot(x - p.x, z - p.z); if (dp < p.r + 5) h *= Math.max(0, (dp - p.r) / 5); }
   const dc = Math.hypot(x + 46, z - 20);

@@ -11,6 +11,7 @@ import * as C from './clases.js';
 import { Paneles } from './paneles.js';
 import { Seleccion } from './seleccion.js';
 import * as MI from './misiones.js';
+import { Chat, soloEmoji } from './chat.js';
 
 const E = crearEscena(document.getElementById('mundo'));
 const FX = crearEfectos(E.scene);
@@ -49,6 +50,7 @@ const paneles = new Paneles({
   mio: () => mio, mandar: o => red.mandar(o), npcCerca, rolCerca, toast: t => hud.toast(t), cambiarPj: () => red.salirPj(),
   comerciando: () => !!paneles.com, ofrecido: i => !!paneles.com?.mio.items.some(o => o.i === i),
 });
+const chat = new Chat(o => red.mandar(o));
 const seleccion = new Seleccion(E, {
   jugar: nombre => red.jugar(nombre),
   crear: (nombre, clase) => red.crearPj(nombre, clase),
@@ -110,6 +112,13 @@ function alMensaje(m) {
   if (m.t === 'inv') return hud.invitacion(m.de, m.nombre, m.nivel);
   if (m.t === 'compide') return hud.pedidoComercio(m.de, m.nombre);
   if (m.t === 'com') return paneles.comercio(m);
+  if (m.t === 'ranking') return paneles.ranking(m.lista);
+  if (m.t === 'chat') {
+    chat.recibir(m);
+    const e = entes.get(m.de);
+    if (e) e.globo = { txt: m.txt, emoji: soloEmoji(m.txt), t: soloEmoji(m.txt) ? 4 : 6 };
+    return;
+  }
   if (m.t === 's') return foto(m);
 }
 
@@ -231,7 +240,7 @@ function evento(ev) {
     else if (a === 'cura') { FX.golpeSuelo(b, y, c, '#7fe07a'); FX.chispas(b, y + 1, c, '#9fef8a', 16); }
     else if (a === 'tajo') FX.tajo(b, y, c);
   }
-  else if (tipo === 'msg') hud.toast(a, 'anuncio');
+  else if (tipo === 'msg') { hud.toast(a, 'anuncio'); chat.recibir({ txt: a, sistema: true }); }
   else if (tipo === 'bye') quitarEnte(a);
 }
 
@@ -345,8 +354,9 @@ function moverme(dt) {
   const atacando = !!yo.vis.muneco.unaVez;
   const vel = R.VEL_JUGADOR * (atacando && !(ix || iz) ? 0.3 : 1);
   if (mx || mz) {
-    lx = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, lx + mx * vel * dt));
-    lz = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, lz + mz * vel * dt));
+    lx += mx * vel * dt; lz += mz * vel * dt;
+    if (R.enPozo(lx, lz)) { const dx = lx - R.POZO.x, dz = lz - R.POZO.z, d = Math.hypot(dx, dz); if (d > R.POZO.r) { lx = R.POZO.x + dx / d * R.POZO.r; lz = R.POZO.z + dz / d * R.POZO.r; } }
+    else { lx = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, lx)); lz = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, lz)); }
     ldir = Math.atan2(mx, mz);
   }
   yo.vis.muneco.ponerBase(mx || mz ? 'run' : 'idle');
@@ -416,6 +426,27 @@ function dibujarTextos(dt) {
       }
     }
   }
+  for (const e of entes.values()) {
+    if (!e.globo) continue;
+    e.globo.t -= dt; if (e.globo.t <= 0) { e.globo = null; continue; }
+    const p = pos(e), s = proy(p.x, p.y + e.vis.alto + 0.9, p.z); if (!s) continue;
+    tc.globalAlpha = Math.min(1, e.globo.t * 2);
+    if (e.globo.emoji) {
+      tc.font = '40px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+      tc.fillText(e.globo.txt, s[0], s[1] - 18 - Math.sin(Math.min(1, (4 - e.globo.t) * 3) * Math.PI) * 10);
+    } else {
+      tc.font = '14px Spectral, Georgia, serif';
+      const palabras = e.globo.txt.split(' '), lineas = []; let l = '';
+      for (const w of palabras) { const t = l ? l + ' ' + w : w; if (tc.measureText(t).width > 190 && l) { lineas.push(l); l = w; } else l = t; } lineas.push(l);
+      const lin = lineas.slice(0, 3), ancho = Math.max(...lin.map(x => tc.measureText(x).width)) + 18, alto = lin.length * 17 + 10;
+      const x0 = s[0] - ancho / 2, y0 = s[1] - alto - 14;
+      tc.fillStyle = 'rgba(10,9,11,.88)'; tc.strokeStyle = 'rgba(216,207,189,.35)'; tc.lineWidth = 1;
+      tc.beginPath(); tc.roundRect ? tc.roundRect(x0, y0, ancho, alto, 6) : tc.rect(x0, y0, ancho, alto); tc.fill(); tc.stroke();
+      tc.beginPath(); tc.moveTo(s[0] - 6, y0 + alto); tc.lineTo(s[0], y0 + alto + 7); tc.lineTo(s[0] + 6, y0 + alto); tc.fill();
+      tc.fillStyle = '#e9e1cf'; lin.forEach((x, i) => tc.fillText(x, s[0], y0 + 14 + i * 17));
+    }
+    tc.globalAlpha = 1;
+  }
   tc.font = '600 13px Spectral, Georgia, serif'; tc.lineWidth = 3; tc.strokeStyle = 'rgba(0,0,0,.85)';
   for (const d of drops.values()) {
     if (Math.hypot(d.x - lx, d.z - lz) > 16) continue;
@@ -456,7 +487,8 @@ function datosHud() {
   let jefe = null;
   for (const e of entes.values()) if (e.def?.jefe && !e.muerto && Math.hypot(pos(e).x - lx, pos(e).z - lz) < 26) jefe = { nombre: e.def.nombre + (e.furioso ? ' · en furia' : ''), hp: e.hp };
   let lugar = { nombre: R.MAPA.nombre, frase: 'La noche no se termina.' };
-  for (const l of R.MAPA.lugares) if (Math.hypot(l.x - lx, l.z - lz) < (l.x || l.z ? 14 : R.PUEBLO.r)) lugar = l;
+  if (R.enPozo(lx, lz)) lugar = { nombre: 'Pozo de las Almas', frase: estado?.pozo > 0 ? `Oleada ${estado.pozo} de ${R.POZO.oleadas}` : 'Esperá a que se cierre la entrada.' };
+  if (!R.enPozo(lx, lz)) for (const l of R.MAPA.lugares) if (Math.hypot(l.x - lx, l.z - lz) < (l.x || l.z ? 14 : R.PUEBLO.r)) lugar = l;
   const puntos = [];
   for (const e of entes.values()) {
     if (e === yo || (e.muerto && !e.esJ)) continue;

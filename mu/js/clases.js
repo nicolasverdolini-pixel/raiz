@@ -179,7 +179,7 @@ export function buscarHab(clase, id) {
   for (const rama of ARBOL[clase] || []) for (const h of rama.hab) if (h.id === id) return h;
   return null;
 }
-export const puntosArbol = d => d.nivel; // 1 por nivel (el primero, de regalo)
+export const puntosArbol = d => d.nivel + (d.resets || 0) * 10; // 1 por nivel (el primero, de regalo) + 10 por renacer
 export const gastados = d => Object.values(d.arbol || {}).reduce((a, b) => a + b, 0);
 export function enRama(d, rama) { return rama.hab.reduce((a, h) => a + (d.arbol?.[h.id] || 0), 0); }
 

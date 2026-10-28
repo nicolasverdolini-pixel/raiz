@@ -38,6 +38,7 @@ export function crearEscena(canvas) {
   // Pocas luces de verdad (el celu sufre con muchas): dos faroles que se mudan al más cercano.
   const luces = [0, 1].map(() => { const l = new THREE.PointLight('#ff8a3d', 26, 22, 1.6); scene.add(l); return l; });
   const ceniza = crearCeniza(scene);
+  crearPozo(scene);
   const foso = new THREE.PointLight('#ff2a14', 18, 30, 1.5); foso.position.set(L('Foso del Éter').x, 3, L('Foso del Éter').z); scene.add(foso);
   const hemi = scene.children.find(o => o.isHemisphereLight);
   // Ambiente según el evento: normal, marea (ceniza azul) o noche roja (niebla de sangre).
@@ -191,6 +192,23 @@ function crearAtalaya(scene, P, i) {
     pil.rotation.z = (rnd() - 0.5) * 0.15; pil.castShadow = true; pil.receiveShadow = true; g.add(pil);
   }
   return { x: P.x, y: y0, z: P.z, llama, color };
+}
+
+// ---------- Pozo de las Almas: una arena en el vacío ----------
+function crearPozo(scene) {
+  const P = R.POZO, g = new THREE.Group(); g.position.set(P.x, 0, P.z); scene.add(g);
+  const piedra = sinBorde(new THREE.MeshStandardMaterial({ color: '#3a3532', roughness: 1, flatShading: true }));
+  const vacio = new THREE.Mesh(new THREE.CircleGeometry(70, 24), sinBorde(new THREE.MeshBasicMaterial({ color: '#050405' })));
+  vacio.rotation.x = -Math.PI / 2; vacio.position.y = -6; g.add(vacio);
+  const piso = new THREE.Mesh(new THREE.CylinderGeometry(P.r + 1.5, P.r - 1, 3, 18), piedra); piso.position.y = -1.5; piso.receiveShadow = true; g.add(piso);
+  const runa = new THREE.Mesh(new THREE.RingGeometry(5, 5.4, 6), sinBorde(new THREE.MeshBasicMaterial({ color: '#8e1b1b', side: THREE.DoubleSide })));
+  runa.rotation.x = -Math.PI / 2; runa.position.y = 0.02; g.add(runa);
+  for (let k = 0; k < 10; k++) {
+    const a = k / 10 * Math.PI * 2, h = 3 + (k % 3);
+    const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.65, h, 6), piedra); pil.position.set(Math.cos(a) * (P.r + 0.8), h / 2, Math.sin(a) * (P.r + 0.8)); pil.castShadow = true; g.add(pil);
+    if (k % 2 === 0) { const f = new THREE.Mesh(new THREE.OctahedronGeometry(0.25, 0), sinBorde(new THREE.MeshBasicMaterial({ color: '#ff4a2a' }))); f.position.set(pil.position.x, h + 0.3, pil.position.z); g.add(f); }
+  }
+  const luz = new THREE.PointLight('#ff3a1a', 30, 40, 1.4); luz.position.set(0, 8, 0); g.add(luz);
 }
 
 // ---------- Osario: tumbas y cruces ----------
