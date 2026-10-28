@@ -11,8 +11,8 @@ export class Red {
     setInterval(() => this.mandar({ t: 'ping', c: performance.now() }), 3000);
   }
 
-  entrar(nombre, clave, canal = 'prado-1') {
-    this.cuenta = { nombre, clave, canal }; this.cerrado = false;
+  entrar(nombre, clave, clase, canal = 'prado-1') {
+    this.cuenta = { nombre, clave, clase, canal }; this.cerrado = false;
     this.conectar();
   }
 
@@ -20,7 +20,7 @@ export class Red {
     try { this.ws?.close(); } catch (e) {}
     const ws = new WebSocket(`${SERVIDOR}/mapa/${this.cuenta.canal}`);
     this.ws = ws;
-    ws.onopen = () => ws.send(JSON.stringify({ t: 'entrar', nombre: this.cuenta.nombre, clave: this.cuenta.clave }));
+    ws.onopen = () => ws.send(JSON.stringify({ t: 'entrar', nombre: this.cuenta.nombre, clave: this.cuenta.clave, clase: this.cuenta.clase }));
     ws.onmessage = e => {
       let m; try { m = JSON.parse(e.data); } catch (err) { return; }
       if (m.t === 'pong') { this.ping = Math.round(performance.now() - m.c); return; }

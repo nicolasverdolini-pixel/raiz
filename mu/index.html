@@ -29,8 +29,14 @@
       <p class="sub">Páramo del Luto · Canal 1</p>
       <label>Nombre<input id="nombre" name="username" autocomplete="username" maxlength="14" required></label>
       <label>Clave<input id="clave" name="password" type="password" autocomplete="current-password" maxlength="40" required></label>
+      <fieldset class="clases"><legend>Clase (solo para personajes nuevos)</legend>
+        <label><input type="radio" name="clase" value="guardian" checked><b>Guardián</b><small>Espada y escudo. Aguanta.</small></label>
+        <label><input type="radio" name="clase" value="cazadora"><b>Cazadora</b><small>Ballesta. Pega de lejos.</small></label>
+        <label><input type="radio" name="clase" value="arcanista"><b>Arcanista</b><small>Magia en área. Frágil.</small></label>
+        <label><input type="radio" name="clase" value="barbaro"><b>Bárbaro</b><small>Dos hachas. Mucho daño.</small></label>
+      </fieldset>
       <button id="btn-entrar" type="submit">Entrar</button>
-      <p class="nota">Si el nombre es nuevo, se crea tu Guardián con esa clave.</p>
+      <p class="nota">Si el nombre es nuevo, se crea el personaje con esa clave y esa clase.</p>
       <p id="error-entrar" class="error" role="alert"></p>
       <p id="cargando" class="nota">Cargando el mundo…</p>
       <a class="creditos" href="CREDITOS.md" target="_blank" rel="noopener">Créditos</a>

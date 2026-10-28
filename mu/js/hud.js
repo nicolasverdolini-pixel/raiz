@@ -1,11 +1,20 @@
 // La pantalla de juego: vida, energía, experiencia, habilidades, grupo, puntos, avisos.
 import * as R from './reglas.js';
+import * as C from './clases.js';
 
 const IC = {
   atk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 19 19 5M14 5h5v5M4 15l5 5M7 17l-3 3"/></svg>',
   giro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4a8 8 0 1 1-8 8M12 8a4 4 0 1 1-4 4"/></svg>',
   muralla: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 20 6v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/></svg>',
   embestida: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h13M12 6l6 6-6 6M20 5v14"/></svg>',
+  mochila: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 8h12l1 12H5zM9 8V6a3 3 0 0 1 6 0v2M9 13h6"/></svg>',
+  area: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4a8 8 0 1 1-8 8M12 8a4 4 0 1 1-4 4"/></svg>',
+  golpe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h13M12 6l6 6-6 6M20 5v14"/></svg>',
+  proyectil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 20 4M14 4h6v6M4 14l2 2M8 18l-2-2"/></svg>',
+  lluvia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3l-2 6M12 3l-2 6M18 3l-2 6M8 13l-2 6M14 13l-2 6M20 13l-2 6"/></svg>',
+  buff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 20 6v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/></svg>',
+  cura: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  eter: '<svg viewBox="0 0 24 24" fill="none" stroke="#6f8fd8" stroke-width="2" stroke-linejoin="round"><path d="M9 3h6M10 3v5l-4 6a5 5 0 0 0 4 7h4a5 5 0 0 0 4-7l-4-6V3"/></svg>',
   pot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M9 3h6M10 3v5l-4 6a5 5 0 0 0 4 7h4a5 5 0 0 0 4-7l-4-6V3"/></svg>',
 };
 const $ = (sel, raiz = document) => raiz.querySelector(sel);
@@ -15,7 +24,8 @@ export class Hud {
     this.cb = cb; this.yo = null; this.lugar = ''; this.toastsVivos = 0;
     const h = document.getElementById('hud');
     h.innerHTML = `
-      <div class="caja arriba-izq"><div id="h-yo"><b id="h-nombre"></b><span id="h-nivel"></span></div><div id="h-grupo"></div></div>
+      <div class="caja arriba-izq"><div id="h-yo"><b id="h-nombre"></b><span id="h-nivel"></span><span id="h-buffs"></span></div><div id="h-grupo"></div></div>
+      <button id="b-mochila" class="hb mochila" aria-label="Personaje y mochila">${IC.mochila}</button>
       <div id="h-obj" class="caja" hidden><b id="h-obj-nombre"></b><div class="barra"><i id="h-obj-vida"></i></div><small id="h-obj-desc"></small></div>
       <div id="h-jefe" hidden><b id="h-jefe-nombre"></b><div class="barra"><i id="h-jefe-vida"></i></div></div>
       <div class="arriba-der"><canvas id="h-mini" width="140" height="140"></canvas><span id="h-lugar"></span><span id="h-evento"></span><span id="h-ping"></span></div>
@@ -25,8 +35,9 @@ export class Hud {
         <div class="orbe mana"><i id="h-mana"></i><span id="h-mana-n"></span></div>
       </div>
       <button id="b-atk" class="hb grande" aria-label="Atacar al más cercano">${IC.atk}</button>
-      ${R.HABILIDADES.map((x, i) => `<button id="b-h${i}" class="hb hab h${i}" aria-label="${x.nombre}">${IC[x.id]}<em></em></button>`).join('')}
-      <button id="b-pot" class="hb pot" aria-label="Poción">${IC.pot}<em></em><small id="h-pot">3</small></button>
+      ${[0, 1, 2, 3].map(i => `<button id="b-h${i}" class="hb hab h${i}" hidden><span class="ic"></span><em></em><i class="nom"></i></button>`).join('')}
+      <button id="b-pot" class="hb pot" aria-label="Poción de Sangre">${IC.pot}<small id="h-pot">0</small></button>
+      <button id="b-eter" class="hb eter" aria-label="Poción de Éter">${IC.eter}<small id="h-eter">0</small></button>
       <button id="b-puntos" class="boton-puntos" hidden>Puntos <b id="h-puntos">0</b></button>
       <div id="stick" hidden><i></i></div>
       <div id="toasts" aria-live="polite"></div>
@@ -38,34 +49,51 @@ export class Hud {
     this.el = h;
     const tocar = (id, f) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); f(); });
     tocar('#b-atk', () => cb.atacar());
-    R.HABILIDADES.forEach((_, i) => tocar('#b-h' + i, () => cb.hab(i)));
+    [0, 1, 2, 3].forEach(i => tocar('#b-h' + i, () => { if (this.habs[i]) cb.hab(this.habs[i].id); }));
     tocar('#b-pot', () => cb.pocion());
-    tocar('#b-puntos', () => this.panelPuntos());
+    tocar('#b-eter', () => cb.eter());
+    tocar('#b-puntos', () => cb.personaje('atributos'));
+    tocar('#b-mochila', () => cb.personaje('equipo'));
+    this.habs = [];
     h.addEventListener('pointerdown', e => { if (e.target.closest('.caja, button')) e.stopPropagation(); });
     this.mini = $('#h-mini').getContext('2d');
   }
 
-  mostrar(datos) { this.el.hidden = false; $('#h-nombre').textContent = datos.nombre; }
+  mostrar(datos) { this.el.hidden = false; $('#h-nombre').textContent = datos.nombre; this.clase = datos.clase; }
+
+  // Pone las habilidades aprendidas en los 4 botones.
+  ponerHabilidades(d) {
+    const ids = C.botones(d);
+    this.habs = ids.map(id => C.buscarHab(d.clase, id));
+    [0, 1, 2, 3].forEach(i => {
+      const b = $('#b-h' + i), h = this.habs[i];
+      b.hidden = !h; if (!h) return;
+      b.setAttribute('aria-label', h.nombre); b.classList.toggle('def', !!h.def);
+      b.querySelector('.ic').innerHTML = IC[h.tipo] || IC.area; b.querySelector('.nom').textContent = h.nombre;
+    });
+  }
 
   actualizar(yo, extra) {
     this.yo = yo;
-    $('#h-nivel').textContent = `Guardián · Nv ${yo.nivel}`;
+    $('#h-nivel').textContent = `${C.CLASES[yo.clase]?.nombre || ''} · Nv ${yo.nivel}`;
     $('#h-vida').style.height = (yo.hp / yo.maxHp * 100) + '%'; $('#h-vida-n').textContent = yo.hp;
     $('#h-mana').style.height = (yo.mp / yo.maxMp * 100) + '%'; $('#h-mana-n').textContent = yo.mp;
     const pe = yo.exp / yo.sig * 100; $('#h-exp').style.width = pe + '%'; $('#h-exp-n').textContent = `${pe.toFixed(1)}%`;
-    R.HABILIDADES.forEach((x, i) => {
-      const b = $('#b-h' + i), cd = yo.cds[i];
+    this.habs.forEach((x, i) => {
+      const b = $('#b-h' + i), cd = yo.cds[x.id] || 0;
       b.querySelector('em').style.setProperty('--k', cd > 0 ? cd / x.cd : 0);
       b.classList.toggle('sin-mp', yo.mp < x.mp);
     });
-    $('#b-pot em').style.setProperty('--k', yo.pot < 1 ? yo.potT / R.POCION.recarga : 0); $('#h-pot').textContent = yo.pot;
-    $('#b-puntos').hidden = !yo.puntos; $('#h-puntos').textContent = yo.puntos;
-    if (this.panelAbierto) this.panelPuntos(true);
+    $('#h-pot').textContent = yo.pociones; $('#h-eter').textContent = yo.eteres;
+    const libres = extra.puntosHab || 0;
+    $('#b-puntos').hidden = !yo.puntos && !libres; $('#h-puntos').textContent = yo.puntos + libres;
+    const bf = yo.buffs?.map(b => b[0]).join(',') || '';
+    if (bf !== this.bfAntes) { this.bfAntes = bf; $('#h-buffs').textContent = yo.buffs?.length ? '✦ ' + yo.buffs.map(b => C.buscarHab(yo.clase, b[0])?.nombre || b[0]).join(' · ') : ''; }
     $('#h-muerte').hidden = !(yo.muerto > 0); if (yo.muerto > 0) $('#h-muerte-n').textContent = `Volvés a la Atalaya en ${Math.ceil(yo.muerto)}…`;
     // Grupo
-    const g = $('#h-grupo');
-    if (!yo.grupo) g.innerHTML = '';
-    else g.innerHTML = yo.grupo.map(([id, n, hp, nv, lider]) => `<div class="miembro"><span>${lider ? '♛ ' : ''}${n} <small>Nv ${nv}</small></span><div class="barra chica"><i style="width:${hp}%"></i></div></div>`).join('')
+    const g = $('#h-grupo'), gk = JSON.stringify(yo.grupo);
+    if (gk === this.gk) {} else if (!yo.grupo) { g.innerHTML = ''; this.gk = gk; }
+    else this.gk = gk, g.innerHTML = yo.grupo.map(([id, n, hp, nv, lider]) => `<div class="miembro"><span>${lider ? '♛ ' : ''}${n} <small>Nv ${nv}</small></span><div class="barra chica"><i style="width:${hp}%"></i></div></div>`).join('')
       + `<button class="link" id="b-salir">Salir del grupo</button>`;
     const bs = $('#b-salir'); if (bs) bs.onclick = () => this.cb.salirGrupo();
     // Objetivo y jefe
@@ -125,6 +153,14 @@ export class Hud {
     s.style.left = x0 + 'px'; s.style.top = y0 + 'px'; s.firstElementChild.style.transform = `translate(${kx * 38}px, ${ky * 38}px)`;
   }
 
+  pedidoComercio(de, nombre) {
+    const m = $('#modal'); this.panelAbierto = false;
+    m.innerHTML = `<p><b>${esc(nombre)}</b> quiere comerciar con vos.</p><div class="fila"><button class="btn" id="m-si">Comerciar</button><button class="btn sec" id="m-no">No</button></div>`;
+    m.hidden = false;
+    $('#m-si').onclick = () => { m.hidden = true; this.cb.aceptarComercio(de); };
+    $('#m-no').onclick = () => { m.hidden = true; };
+  }
+
   invitacion(de, nombre, nivel) {
     const m = $('#modal'); this.panelAbierto = false; this.clavePanel = null;
     m.innerHTML = `<p><b>${esc(nombre)}</b> (Nv ${nivel}) te invita a su grupo.</p><p class="nota">La experiencia se reparte entre los que estén cerca, con un 10% extra por cada compañero.</p>
@@ -136,10 +172,11 @@ export class Hud {
 
   menuJugador(e, x, y) {
     const m = $('#menu-jug');
-    m.innerHTML = `<b>${esc(e.nombre)}</b><small>Nv ${e.nivel}</small><button class="btn" id="mj-inv">Invitar al grupo</button><button class="btn sec" id="mj-no">Cerrar</button>`;
+    m.innerHTML = `<b>${esc(e.nombre)}</b><small>${C.CLASES[e.tipo]?.nombre || ''} · Nv ${e.nivel}</small><button class="btn" id="mj-inv">Invitar al grupo</button><button class="btn" id="mj-com">Comerciar</button><button class="btn sec" id="mj-no">Cerrar</button>`;
     m.style.left = Math.min(innerWidth - 190, Math.max(10, x - 90)) + 'px'; m.style.top = Math.min(innerHeight - 150, Math.max(10, y - 140)) + 'px';
     m.hidden = false;
     $('#mj-inv').onclick = () => { m.hidden = true; this.cb.invitar(e.id); };
+    $('#mj-com').onclick = () => { m.hidden = true; this.cb.comerciar(e.id); };
     $('#mj-no').onclick = () => { m.hidden = true; };
   }
 

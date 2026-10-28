@@ -13,41 +13,34 @@ export const PUNTOS_POR_NIVEL = 5;
 export const NIVEL_MAX = 400;
 
 // ---------- Personaje ----------
+import { CLASES, ARBOL, calcular } from './clases.js';
+import { MOCHILA } from './objetos.js';
 export const STATS = ['fue', 'agi', 'vit', 'ene'];
 export const NOMBRE_STAT = { fue: 'Fuerza', agi: 'Agilidad', vit: 'Vitalidad', ene: 'Energía' };
-export const CLASES = {
-  guardian: { nombre: 'Guardián', base: { fue: 26, agi: 20, vit: 24, ene: 12 } },
-};
+export const EXPLICA_STAT = { fue: 'Más daño para Guardián y Bárbaro.', agi: 'Pegás más rápido y defendés. Más daño para la Cazadora.', vit: 'Más vida.', ene: 'Más energía. Más daño para el Arcanista.' };
 
-export function nuevoPersonaje(nombre) {
-  return { nombre, clase: 'guardian', nivel: 1, exp: 0, puntos: 0, ...CLASES.guardian.base, version: VERSION };
+export function nuevoPersonaje(nombre, clase) {
+  if (!CLASES[clase]) clase = 'guardian';
+  return normalizar({ nombre, clase, nivel: 1, exp: 0, puntos: 0, ...CLASES[clase].base, version: VERSION }, true);
+}
+
+// Completa lo que le falte a un personaje (los viejos no tenían clase, equipo ni mochila).
+export function normalizar(d, nuevo) {
+  if (!CLASES[d.clase]) d.clase = 'guardian';
+  if (!d.arbol) d.arbol = { [ARBOL[d.clase][nuevo ? 0 : 1].hab[0].id]: 1 };
+  if (!Array.isArray(d.inv)) {
+    d.inv = Array(MOCHILA).fill(null);
+    d.inv[0] = { b: 'pocion', c: 10 }; d.inv[1] = { b: 'eter', c: 5 }; d.inv[2] = { b: 'vela', c: 1 };
+  }
+  while (d.inv.length < MOCHILA) d.inv.push(null);
+  if (!d.equipo) { d.equipo = {}; for (const [r, b] of Object.entries(CLASES[d.clase].inicio)) d.equipo[r] = { b, n: 0 }; }
+  if (d.oro == null) d.oro = 150;
+  if (!d.lugares) d.lugares = ['Atalaya del Farol'];
+  return d;
 }
 
 export const expParaSubir = n => Math.round(30 * n * n + 70 * n);
-
-export function derivados(p) {
-  const n = p.nivel;
-  return {
-    maxHp: Math.round(50 + p.vit * 2 + (n - 1) * 3),
-    maxMp: Math.round(15 + p.ene * 1.5 + (n - 1)),
-    dmin: Math.round(p.fue / 7 + 3 + n * 0.5),
-    dmax: Math.round(p.fue / 5 + 6 + n * 0.5),
-    def: Math.round(p.agi / 5 + p.vit / 10),
-    cadencia: Math.max(0.42, 0.95 - p.agi * 0.0035),
-    alcance: 1.7,
-  };
-}
-
-// Habilidades del Guardián. mp = energía que gasta, cd = segundos de espera.
-export const HABILIDADES = [
-  { id: 'giro', nombre: 'Tajo giratorio', mp: 8, cd: 3.5, mult: 1.5, radio: 3.2, anim: 'spin',
-    desc: 'Golpea a todos los monstruos alrededor.' },
-  { id: 'muralla', nombre: 'Muralla', mp: 12, cd: 18, dura: 6, reduce: 0.5, anim: 'muralla',
-    desc: 'Durante 6 segundos recibís la mitad de daño.' },
-  { id: 'embestida', nombre: 'Embestida', mp: 10, cd: 7, mult: 2.4, salto: 8, anim: 'stab',
-    desc: 'Salta hacia el monstruo marcado y le pega fuerte.' },
-];
-export const POCION = { cargas: 3, recarga: 25, cura: 0.45 };
+export const derivados = d => calcular(d);
 
 // ---------- Monstruos ----------
 // zona: dónde aparecen. agresivo + vista: te atacan si te acercás. jefe: hace falta grupo.

@@ -6,13 +6,17 @@ import { crearEscena } from './escena.js';
 import { crearEfectos } from './efectos.js';
 import { Red } from './red.js';
 import { Hud } from './hud.js';
+import * as O from './objetos.js';
+import * as C from './clases.js';
+import { Paneles } from './paneles.js';
 
 const E = crearEscena(document.getElementById('mundo'));
 const FX = crearEfectos(E.scene);
 const lienzo = document.getElementById('textos'), tc = lienzo.getContext('2d');
 const RETRASO = 130;                 // ms de atraso para que los demás se muevan suave
 const entes = new Map();
-let yoId = null, yo = null, estado = null, objetivo = null, destino = null, listo = false;
+let yoId = null, yo = null, estado = null, objetivo = null, destino = null, listo = false, mio = null, npcPendiente = null;
+const drops = new Map(), npcs = [];
 let lx = 0, lz = 0, ldir = 0, ultEnvio = 0, enviado = { x: 0, z: 0 }, temblor = 0;
 const numeros = [];
 const v3 = new THREE.Vector3();
@@ -25,13 +29,22 @@ const red = new Red(alMensaje, estadoRed => {
 });
 const hud = new Hud({
   atacar: atacarCercano,
-  hab: n => usarHabilidad(n),
+  hab: id => usarHabilidad(id),
   pocion: () => red.mandar({ t: 'pot' }),
+  eter: () => red.mandar({ t: 'eter' }),
+  personaje: tab => paneles.personaje(tab),
+  comerciar: id => red.mandar({ t: 'com', a: 'pedir', id }),
+  aceptarComercio: de => red.mandar({ t: 'com', a: 'acepta', de }),
   punto: (s, n) => red.mandar({ t: 'punto', s, n }),
   invitar: id => red.mandar({ t: 'inv', id }),
   aceptar: de => red.mandar({ t: 'acepta', de }),
   rechazar: de => red.mandar({ t: 'rechaza', de }),
   salirGrupo: () => red.mandar({ t: 'salir' }),
+});
+const npcCerca = id => { const n = O.NPCS.find(x => x.id === id); return n && Math.hypot(lx - n.x, lz - n.z) < O.DIST_NPC + 1; };
+const paneles = new Paneles({
+  mio: () => mio, mandar: o => red.mandar(o), npcCerca, toast: t => hud.toast(t),
+  comerciando: () => !!paneles.com, ofrecido: i => !!paneles.com?.mio.items.some(o => o.i === i),
 });
 
 // ---------- entrada ----------
@@ -43,12 +56,12 @@ form.addEventListener('submit', e => {
   const nombre = document.getElementById('nombre').value.trim(), clave = document.getElementById('clave').value;
   try { localStorage.setItem('sendas-nombre', nombre); } catch (err) {}
   document.getElementById('btn-entrar').disabled = true; errorEntrar('');
-  red.entrar(nombre, clave);
+  red.entrar(nombre, clave, document.querySelector('input[name=clase]:checked')?.value || 'guardian');
 });
 function errorEntrar(t) { document.getElementById('error-entrar').textContent = t; if (t) document.getElementById('btn-entrar').disabled = false; }
 
 cargarTodo(k => { document.getElementById('cargando').textContent = `Cargando el mundo… ${Math.round(k * 100)}%`; }).then(() => {
-  E.poblar(); listo = true; document.getElementById('cargando').textContent = '';
+  E.poblar(); ponerNpcs(); listo = true; document.getElementById('cargando').textContent = '';
 }).catch(err => { document.getElementById('cargando').textContent = 'No se pudo cargar el mundo. Recargá la página.'; console.error(err); });
 
 // ---------- entidades ----------
@@ -57,7 +70,7 @@ function crearEnte(id, tipo, esJugador) {
   E.scene.add(vis.raiz);
   const e = { id, tipo, esJ: esJugador, vis, buf: [], hp: 100, nivel: 1, nombre: '', st: 0, visto: 0, muerto: false, muertoT: 0, flash: 0,
     radio: esJugador ? 0.45 : R.MONSTRUOS[tipo].radio, def: esJugador ? null : R.MONSTRUOS[tipo] };
-  if (esJugador) { e.aura = FX.crearAura(); e.aura.position.y = 1; vis.raiz.add(e.aura); }
+  if (esJugador) { e.aura = FX.crearAura(); e.aura.position.y = 1; vis.raiz.add(e.aura); e.brillo = 0; }
   entes.set(id, e);
   return e;
 }
@@ -77,22 +90,27 @@ function alMensaje(m) {
   if (m.t === 'bienvenida') {
     yoId = m.id; lx = m.x; lz = m.z;
     for (const id of [...entes.keys()]) quitarEnte(id);
-    yo = crearEnte(yoId, 'guardian', true); yo.nombre = m.datos.nombre;
+    mio = m.datos;
+    yo = crearEnte(yoId, mio.clase, true); yo.nombre = mio.nombre;
     document.getElementById('entrada').hidden = true;
-    hud.mostrar(m.datos);
+    hud.mostrar(mio); hud.ponerHabilidades(mio);
     if (m.nuevo) hud.lore();
     return;
   }
   if (m.t === 'inv') return hud.invitacion(m.de, m.nombre, m.nivel);
+  if (m.t === 'compide') return hud.pedidoComercio(m.de, m.nombre);
+  if (m.t === 'com') return paneles.comercio(m);
   if (m.t === 's') return foto(m);
 }
 
 function foto(s) {
   const ahora = performance.now();
-  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl] of s.j) {
+  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl, clase, brillo] of s.j) {
     const muralla = fl & 1, veneno = fl & 2;
     let e = entes.get(id);
-    if (!e) { e = crearEnte(id, 'guardian', true); e.vis.raiz.position.set(x, R.altura(x, z), z); }
+    if (e && e.tipo !== clase && VISUAL[clase]) { quitarEnte(id); e = null; }
+    if (!e) { e = crearEnte(id, VISUAL[clase] ? clase : 'guardian', true); e.vis.raiz.position.set(x, R.altura(x, z), z); if (id === yoId) yo = e; }
+    if (brillo !== e.brillo) { e.brillo = brillo; brillarArma(e); }
     Object.assign(e, { nombre, hp, nivel, st, grupo, muralla, veneno, visto: ahora });
     if (id !== yoId) { e.buf.push({ t: ahora, x, z, dir }); if (e.buf.length > 30) e.buf.shift(); }
     if (st === 4 && !e.muerto) morir(e);
@@ -113,8 +131,10 @@ function foto(s) {
     if (st === 4 && !e.muerto) morir(e);
   }
   for (const [id, e] of entes) if (id !== yoId && ahora - e.visto > 1500) quitarEnte(id);
+  if (s.inv) { Object.assign(mio, s.inv); mio.der = s.inv.der; hud.ponerHabilidades(mio); paneles.refrescar(); }
+  actualizarDrops(s.d || []);
   for (const ev of s.ev) evento(ev);
-  estado = s.yo;
+  estado = s.yo; mio.nivel = s.yo.nivel; mio.puntos = s.yo.puntos; for (const k of R.STATS) mio[k] = s.yo[k];
   const evt = s.yo.evt; E.ambiente(evt && evt[0][0] !== '-' ? evt[0] : 'normal');
   if (objetivo && s.yo.obj == null && !entes.get(objetivo)) objetivo = null;
 }
@@ -142,10 +162,11 @@ function evento(ev) {
     const e = entes.get(a); if (!e) return;
     const p = pos(e), mu = e.vis.muneco;
     if (b === 'atk') {
-      const dur = mu.duracion('atk') || 1, cad = e.esJ ? 0.8 : e.def.cadencia;
+      const dur = mu.duracion('atk') || 1, cad = e.esJ ? (e === yo ? mio?.der?.cadencia || 0.8 : 0.8) : e.def.cadencia;
       mu.hacer('atk', { vel: Math.max(1, dur / (cad * 0.9)) });
       if (e === yo && c != null) { const t = entes.get(c); if (t) ldir = Math.atan2(pos(t).x - lx, pos(t).z - lz); }
-    } else if (b === 'spin') { mu.hacer('spin', { vel: 1.4 }); FX.tajo(p.x, p.y, p.z); }
+    } else if (b === 'spin') mu.hacer('spin', { vel: 1.4 });
+    else if (['tiro2', 'hechizo', 'hechizo2', 'esquiva', 'hachazo', 'festeja'].includes(b)) mu.hacer(b, { vel: 1.3 });
     else if (b === 'muralla') { mu.hacer('muralla'); FX.golpeSuelo(p.x, p.y, p.z, '#7f95b8'); }
     else if (b === 'stab') { mu.hacer('stab', { vel: 1.3 }); FX.polvo(p.x, p.y, p.z); }
     else if (b === 'pot') { mu.hacer('pot', { vel: 1.5 }); FX.chispas(p.x, p.y + 1, p.z, '#c43b3b', 14); }
@@ -169,6 +190,17 @@ function evento(ev) {
   else if (tipo === 'tp') { if (a === yoId) { lx = b; lz = c; enviado = { x: b, z: c }; } else { const e = entes.get(a); if (e) e.buf = [{ t: performance.now(), x: b, z: c, dir: e.vis.raiz.rotation.y }]; } }
   else if (tipo === 'rv') { const e = entes.get(a); if (e) revivir(e); if (a === yoId) { lx = b; lz = c; objetivo = null; destino = null; } }
   else if (tipo === 'aviso') hud.toast(a);
+  else if (tipo === 'oro') hud.toast(`+${a} de oro`, 'exp');
+  else if (tipo === 'recoge') hud.toast(`Recogiste ${a}`, b ? 'excelente' : 'exp');
+  else if (tipo === 'forja') { hud.toast(b, a === 'ok' ? 'grande' : 'malo'); const n = O.NPCS.find(x => x.id === 'herrero'); if (a === 'ok') FX.nivel(n.x, 0, n.z); else FX.chispas(n.x, 1.2, n.z, a === 'roto' ? '#ff3b2a' : '#8c7f6a', 30); }
+  else if (tipo === 'fx') {
+    const y = R.altura(b, c);
+    if (a === 'hielo') { FX.golpeSuelo(b, y, c, '#9fd8ff'); FX.chispas(b, y + 0.5, c, '#bfe8ff', 30); }
+    else if (a === 'lluvia') FX.golpeSuelo(b, y, c, '#c9b47a');
+    else if (a === 'buff') FX.golpeSuelo(b, y, c, '#c9b47a');
+    else if (a === 'cura') { FX.golpeSuelo(b, y, c, '#7fe07a'); FX.chispas(b, y + 1, c, '#9fef8a', 16); }
+    else if (a === 'tajo') FX.tajo(b, y, c);
+  }
   else if (tipo === 'msg') hud.toast(a, 'anuncio');
   else if (tipo === 'bye') quitarEnte(a);
 }
@@ -180,9 +212,12 @@ addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   teclas.add(e.key.toLowerCase());
   if (e.key === ' ') { e.preventDefault(); atacarCercano(); }
-  if (['1', '2', '3'].includes(e.key)) usarHabilidad(+e.key - 1);
+  if (['1', '2', '3', '4'].includes(e.key)) { const h = hud.habs[+e.key - 1]; if (h) usarHabilidad(h.id); }
   if (e.key.toLowerCase() === 'q') red.mandar({ t: 'pot' });
-  if (e.key.toLowerCase() === 'p') hud.panelPuntos();
+  if (e.key.toLowerCase() === 'p') paneles.personaje('atributos');
+  if (e.key.toLowerCase() === 'i') paneles.personaje('equipo');
+  if (e.key.toLowerCase() === 'k') paneles.personaje('habilidades');
+  if (e.key.toLowerCase() === 'e') red.mandar({ t: 'eter' });
 });
 addEventListener('keyup', e => teclas.delete(e.key.toLowerCase()));
 addEventListener('blur', () => teclas.clear());
@@ -222,6 +257,16 @@ function elegir(sx, sy) {
     const d = Math.hypot(x - sx, y - sy) - (e.esJ ? 0 : 8) - (e.def?.jefe ? 30 : 0);
     if (d < md) { md = d; mejor = e; }
   }
+  for (const n of npcs) {
+    const p = n.vis.raiz.position; v3.set(p.x, p.y + 1, p.z).project(E.camara);
+    const x = (v3.x * 0.5 + 0.5) * innerWidth, y = (-v3.y * 0.5 + 0.5) * innerHeight;
+    if (Math.hypot(x - sx, y - sy) < 50) { if (npcCerca(n.def.id)) abrirNpc(n.def.id); else { destino = { x: n.def.x, z: n.def.z }; npcPendiente = n.def.id; soltarObjetivo(); } return; }
+  }
+  for (const d of drops.values()) {
+    const p = d.obj.position; v3.set(p.x, p.y, p.z).project(E.camara);
+    const x = (v3.x * 0.5 + 0.5) * innerWidth, y = (-v3.y * 0.5 + 0.5) * innerHeight;
+    if (Math.hypot(x - sx, y - sy) < 36) { destino = { x: d.x, z: d.z }; soltarObjetivo(); return; }
+  }
   if (mejor && !mejor.esJ) { marcarObjetivo(mejor.id); return; }
   if (mejor && mejor.esJ) { hud.menuJugador(mejor, sx, sy); return; }
   ray.setFromCamera({ x: sx / innerWidth * 2 - 1, y: -(sy / innerHeight) * 2 + 1 }, E.camara);
@@ -236,9 +281,13 @@ function cercano(max) {
   return mejor;
 }
 function atacarCercano() { const e = cercano(14); if (e) marcarObjetivo(e.id); else hud.toast('No hay monstruos cerca.'); }
-function usarHabilidad(n) {
-  if (n === 2) { const t = (objetivo && entes.get(objetivo)) || cercano(10); if (!t) return hud.toast('Marcá un monstruo primero.'); marcarObjetivo(t.id); red.mandar({ t: 'hab', n, id: t.id }); }
-  else red.mandar({ t: 'hab', n });
+function usarHabilidad(id) {
+  const h = C.buscarHab(mio.clase, id); if (!h) return;
+  if (['golpe', 'proyectil', 'lluvia'].includes(h.tipo)) {
+    const t = (objetivo && entes.get(objetivo)) || cercano(14);
+    if (!t) return hud.toast('No hay monstruos cerca.');
+    marcarObjetivo(t.id); red.mandar({ t: 'hab', h: id, id: t.id });
+  } else red.mandar({ t: 'hab', h: id });
 }
 
 // ---------- mi movimiento ----------
@@ -249,17 +298,17 @@ function moverme(dt) {
   if (teclas.has('w') || teclas.has('arrowup')) iz -= 1; if (teclas.has('s') || teclas.has('arrowdown')) iz += 1;
   if (teclas.has('a') || teclas.has('arrowleft')) ix -= 1; if (teclas.has('d') || teclas.has('arrowright')) ix += 1;
   let mx = 0, mz = 0;
-  if (ix || iz) { const l = Math.hypot(ix, iz); mx = ix / Math.max(1, l); mz = iz / Math.max(1, l); soltarObjetivo(); destino = null; }
+  if (ix || iz) { const l = Math.hypot(ix, iz); mx = ix / Math.max(1, l); mz = iz / Math.max(1, l); soltarObjetivo(); destino = null; npcPendiente = null; }
   else if (objetivo) {
     const t = entes.get(objetivo);
     if (!t || t.muerto) objetivo = null;
     else {
       const dx = pos(t).x - lx, dz = pos(t).z - lz, d = Math.hypot(dx, dz);
-      if (d > 1.7 + t.radio - 0.15) { mx = dx / d; mz = dz / d; } else ldir = Math.atan2(dx, dz);
+      if (d > (estado?.alcance || 1.7) + t.radio - 0.15) { mx = dx / d; mz = dz / d; } else ldir = Math.atan2(dx, dz);
     }
   } else if (destino) {
     const dx = destino.x - lx, dz = destino.z - lz, d = Math.hypot(dx, dz);
-    if (d < 0.25) destino = null; else { mx = dx / d; mz = dz / d; }
+    if (d < 0.25 || (npcPendiente && npcCerca(npcPendiente))) { destino = null; if (npcPendiente) { abrirNpc(npcPendiente); npcPendiente = null; } } else { mx = dx / d; mz = dz / d; }
   }
   const atacando = !!yo.vis.muneco.unaVez;
   const vel = R.VEL_JUGADOR * (atacando && !(ix || iz) ? 0.3 : 1);
@@ -335,6 +384,18 @@ function dibujarTextos(dt) {
       }
     }
   }
+  tc.font = '600 13px Spectral, Georgia, serif'; tc.lineWidth = 3; tc.strokeStyle = 'rgba(0,0,0,.85)';
+  for (const d of drops.values()) {
+    if (Math.hypot(d.x - lx, d.z - lz) > 16) continue;
+    const s = proy(d.x, d.obj.position.y + 0.45, d.z); if (!s) continue;
+    tc.fillStyle = d.color; tc.strokeText(d.nombre, s[0], s[1]); tc.fillText(d.nombre, s[0], s[1]);
+  }
+  for (const n of npcs) {
+    const p = n.vis.raiz.position; if (Math.hypot(p.x - lx, p.z - lz) > 25) continue;
+    const s = proy(p.x, p.y + 2.25, p.z); if (!s) continue;
+    tc.font = '15px "IM Fell English SC", Georgia, serif'; tc.fillStyle = '#e9c37a';
+    tc.strokeText(n.def.nombre, s[0], s[1]); tc.fillText(n.def.nombre, s[0], s[1]);
+  }
   for (let i = numeros.length - 1; i >= 0; i--) {
     const n = numeros[i]; n.t += dt;
     if (n.t > 1) { numeros.splice(i, 1); continue; }
@@ -363,7 +424,55 @@ function datosHud() {
     const p = pos(e);
     puntos.push(e.esJ ? { x: p.x, z: p.z, r: 3, c: estado?.grupo?.some(g => g[0] === e.id) ? '#8fd16e' : '#8fb2d8' } : { x: p.x, z: p.z, r: e.def.jefe ? 5 : e.campeon ? 3 : 1.8, c: e.def.jefe ? '#ff4a2a' : e.campeon ? '#f0a050' : '#a8382c' });
   }
-  return { objetivo: o && !o.muerto ? { nombre: o.nombre, nivel: o.def.nivel, hp: o.hp, desc: o.def.desc } : null, jefe, lugar, ping: red.ping, mini: { yo: { x: lx, z: lz }, puntos } };
+  const puntosHab = mio ? C.puntosArbol(mio) - C.gastados(mio) : 0;
+  return { puntosHab, objetivo: o && !o.muerto ? { nombre: o.nombre, nivel: o.def.nivel, hp: o.hp, desc: o.def.desc } : null, jefe, lugar, ping: red.ping, mini: { yo: { x: lx, z: lz }, puntos } };
+}
+
+// ---------- NPCs de la Atalaya ----------
+function ponerNpcs() {
+  for (const def of O.NPCS) {
+    const vis = crear(def.modelo.replace('.glb', ''));
+    vis.raiz.position.set(def.x, R.altura(def.x, def.z), def.z); vis.raiz.rotation.y = def.giro;
+    E.scene.add(vis.raiz); npcs.push({ def, vis, t: Math.random() * 5 });
+  }
+}
+function abrirNpc(id) {
+  const n = npcs.find(x => x.def.id === id); if (n) n.vis.muneco.hacer('saluda');
+  paneles.npc(id);
+}
+
+// ---------- brillo del arma (+7 o excelente) ----------
+function brillarArma(e) {
+  const mano = e.vis.cuerpo.getObjectByName('handslotr'); if (!mano) return;
+  const color = e.brillo & 2 ? [0.25, 0.9, 0.55] : e.brillo & 1 ? [0.45, 0.6, 1] : [0, 0, 0];
+  mano.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.emissive?.setRGB(...color.map(v => v * (e.brillo === 3 ? 1.3 : 0.9))); } });
+}
+
+// ---------- objetos en el piso ----------
+const geoMoneda = new THREE.CylinderGeometry(0.16, 0.16, 0.05, 10), geoObjeto = new THREE.OctahedronGeometry(0.2, 0);
+const geoRayo = new THREE.CylinderGeometry(0.05, 0.05, 2.6, 6, 1, true);
+function actualizarDrops(lista) {
+  const vistos = new Set();
+  for (const [id, x, z, b, n, exc] of lista) {
+    vistos.add(id);
+    if (drops.has(id)) continue;
+    const g = new THREE.Group(); g.position.set(x, R.altura(x, z) + 0.25, z);
+    const esOro = b === 'oro', base = O.BASES[b];
+    const color = esOro ? '#e6b84a' : exc ? '#6fe0a0' : base?.gema ? '#b48cff' : base?.r ? (n >= 7 ? '#8fb2ff' : '#d8cfbd') : '#d0453a';
+    const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6, metalness: 0.4, roughness: 0.4 });
+    mat.userData.outlineParameters = { visible: false };
+    if (esOro) for (let k = 0; k < 3; k++) { const m = new THREE.Mesh(geoMoneda, mat); m.position.set((k - 1) * 0.12, k * 0.05 - 0.15, (k % 2) * 0.1); g.add(m); }
+    else g.add(new THREE.Mesh(geoObjeto, mat));
+    if (exc || (base?.r && n >= 7) || b === 'abismo') {
+      const rm = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false });
+      rm.userData.outlineParameters = { visible: false };
+      const rayo = new THREE.Mesh(geoRayo, rm); rayo.position.y = 1.2; g.add(rayo);
+    }
+    E.scene.add(g);
+    const nombre = esOro ? `${n} de oro` : O.nombreObjeto({ b, n: base?.r ? n : 0, x: exc ? [0] : null }) + (!base?.r && n > 1 ? ` × ${n}` : '');
+    drops.set(id, { id, x, z, obj: g, nombre, color, esOro });
+  }
+  for (const [id, d] of drops) if (!vistos.has(id)) { E.scene.remove(d.obj); drops.delete(id); }
 }
 
 // ---------- bucle ----------
@@ -387,6 +496,8 @@ function cuadro() {
     angIntro += dt * 0.08; foco.set(0, 0, 0);
     E.camara.position.set(Math.sin(angIntro) * 16, 9, Math.cos(angIntro) * 16); E.camara.lookAt(0, 2, 0);
   }
+  for (const n of npcs) n.vis.muneco.update(dt);
+  for (const d of drops.values()) { d.obj.rotation.y += dt * 1.5; d.obj.children[0].position.y = d.esOro ? -0.15 : Math.sin(performance.now() / 400 + d.id) * 0.06; }
   E.actualizar(dt, foco); FX.update(dt);
   E.efecto.render(E.scene, E.camara);
   dibujarTextos(dt);

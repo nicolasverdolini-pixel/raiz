@@ -15,6 +15,8 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import * as R from '../../js/reglas.js';
+import * as C from '../../js/clases.js';
+import * as O from '../../js/objetos.js';
 
 const CORS = { 'Access-Control-Allow-Origin': '*' };
 const MAX_JUGADORES = 40;
@@ -43,12 +45,12 @@ async function hashClave(clave, sal) {
 function iguales(a, b) { if (a.length !== b.length) return false; let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i); return r === 0; }
 
 export class Personaje extends DurableObject {
-  async entrar(nombre, clave) {
+  async entrar(nombre, clave, clase) {
     const datos = await this.ctx.storage.get('datos');
     if (!datos) {
       const sal = crypto.getRandomValues(new Uint8Array(16));
       await this.ctx.storage.put('clave', { sal: hex(sal), hash: await hashClave(clave, sal) });
-      const nuevo = { ...R.nuevoPersonaje(nombre), creado: Date.now() };
+      const nuevo = { ...R.nuevoPersonaje(nombre, clase), creado: Date.now() };
       await this.ctx.storage.put('datos', nuevo);
       return { ok: true, datos: nuevo, nuevo: true };
     }
@@ -61,7 +63,7 @@ export class Personaje extends DurableObject {
       return { error: 'Ese nombre ya existe y la clave no coincide.' };
     }
     if (fallos.n) await this.ctx.storage.delete('fallos');
-    return { ok: true, datos };
+    return { ok: true, datos: R.normalizar(datos) };
   }
   async guardar(datos) { await this.ctx.storage.put('datos', datos); }
 }
@@ -71,6 +73,8 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const enPueblo = p => Math.hypot(p.x - R.PUEBLO.x, p.z - R.PUEBLO.z) < R.PUEBLO.r;
 const r2 = n => Math.round(n * 100) / 100;
 const entre = (a, b) => a + Math.random() * (b - a);
+// Qué tan bien equipado se ve: arma excelente o +7 brilla.
+const brillo = q => { const a = q.d.equipo?.arma; return a ? (a.x?.length ? 2 : 0) + ((a.n || 0) >= 7 ? 1 : 0) : 0; };
 
 export class Mapa extends DurableObject {
   constructor(ctx, env) {
@@ -82,6 +86,7 @@ export class Mapa extends DurableObject {
     this.sigId = 1; this.sigMon = 1000; this.sigGrupo = 1;
     this.t = 0; this.reloj = null;
     this.evento = null; this.proximo = null;
+    this.drops = new Map(); this.sigDrop = 1;
     for (const tipo of R.TIPOS) for (let i = 0; i < R.MONSTRUOS[tipo].cantidad; i++) this.crearMonstruo(tipo);
   }
 
@@ -106,8 +111,18 @@ export class Mapa extends DurableObject {
     switch (m.t) {
       case 'pos': return this.moverJugador(p, m);
       case 'atk': return this.marcar(p, m.id);
-      case 'hab': return this.habilidad(p, m.n | 0, m.id);
-      case 'pot': return this.pocion(p);
+      case 'hab': return this.habilidad(p, String(m.h || ''), m.id);
+      case 'pot': return this.beber(p, 'pocion');
+      case 'eter': return this.beber(p, 'eter');
+      case 'usar': return this.usar(p, m.i | 0);
+      case 'equipar': return this.equipar(p, m.i | 0);
+      case 'quitar': return this.quitar(p, String(m.r || ''));
+      case 'comprar': return this.comprar(p, String(m.npc || ''), String(m.b || ''), m.c | 0);
+      case 'vender': return this.vender(p, m.i | 0);
+      case 'forjar': return this.forjar(p, m.i, m.r);
+      case 'aprender': return this.aprender(p, String(m.h || ''));
+      case 'vela': return this.vela(p, String(m.lugar || ''));
+      case 'com': return this.comercio(p, m);
       case 'punto': return this.repartir(p, m.s, m.n | 0);
       case 'inv': return this.invitar(p, m.id);
       case 'acepta': return this.aceptar(p, m.de);
@@ -123,7 +138,7 @@ export class Mapa extends DurableObject {
     if (clave.length < 4 || clave.length > 40) return this.enviar(s, { t: 'error', msg: 'La clave tiene que tener al menos 4 caracteres.' });
     if (this.jug.size >= MAX_JUGADORES) return this.enviar(s, { t: 'error', msg: 'El mapa está lleno. Probá en un rato.' });
     s.entrando = true;
-    const r = await this.env.PERSONAJES.get(this.env.PERSONAJES.idFromName(nombre.toLowerCase())).entrar(nombre, clave);
+    const r = await this.env.PERSONAJES.get(this.env.PERSONAJES.idFromName(nombre.toLowerCase())).entrar(nombre, clave, String(m.clase || 'guardian'));
     s.entrando = false;
     if (r.error) return this.enviar(s, { t: 'error', msg: r.error });
     // Si ya estaba conectado (otro celu o se le cortó), se cierra la conexión vieja.
@@ -132,7 +147,7 @@ export class Mapa extends DurableObject {
     const p = {
       id: this.sigId++, s, nombre: r.datos.nombre, d: r.datos,
       x: Math.cos(a) * 3, z: Math.sin(a) * 3, dir: 0, mueve: false,
-      hp: 0, mp: 0, objetivo: null, cdAtk: 0, cds: [0, 0, 0], pot: R.POCION.cargas, potT: 0, muralla: 0, muerto: 0,
+      hp: 0, mp: 0, objetivo: null, cdAtk: 0, cds: {}, buffs: [], muerto: 0, com: null, cambioInv: true, lugarT: 0,
       grupo: null, invitacion: null, ultPos: Date.now(), guardadoT: 0, priv: [],
     };
     p.der = R.derivados(p.d); p.hp = p.der.maxHp; p.mp = p.der.maxMp;
@@ -144,6 +159,7 @@ export class Mapa extends DurableObject {
 
   salir(s) {
     const p = s.p; if (!p || !this.jug.has(p.id)) return;
+    this.cancelarComercio(p, `${p.nombre} se fue.`);
     this.dejarGrupo(p, true);
     this.guardar(p);
     this.jug.delete(p.id);
@@ -180,45 +196,265 @@ export class Mapa extends DurableObject {
     p.objetivo = m && !m.muerto ? id : null;
   }
 
-  habilidad(p, n, id) {
-    const h = R.HABILIDADES[n];
-    if (!h || p.muerto) return;
-    if (p.cds[n] > 0) return;
+  // Suma lo que dan las mejoras temporales (buffs) activas.
+  buff(p, k) { let t = 0; for (const b of p.buffs) t += b.ef[k] || 0; return t; }
+  cadencia(p) { return p.der.cadencia / (1 + this.buff(p, 'vel') / 100); }
+
+  habilidad(p, id, objId) {
+    const h = C.buscarHab(p.d.clase, id), rk = p.d.arbol?.[id];
+    if (!h || !rk || h.tipo === 'pasiva' || p.muerto) return;
+    if (p.cds[id] > 0) return;
     if (p.mp < h.mp) return this.aviso(p, 'No te alcanza la energía.');
-    if (h.id === 'embestida') {
-      const m = this.mons.get(id ?? p.objetivo);
-      if (!m || m.muerto) return this.aviso(p, 'Marcá un monstruo primero.');
-      const d = dist(p, m);
-      if (d > h.salto + 2) return this.aviso(p, 'Está muy lejos.');
-      const k = Math.max(0, d - (p.der.alcance + m.def.radio) * 0.8) / (d || 1);
-      p.x += (m.x - p.x) * k; p.z += (m.z - p.z) * k; p.ultPos = Date.now();
-      p.dir = Math.atan2(m.x - p.x, m.z - p.z);
-      this.ev.push(['tp', p.id, r2(p.x), r2(p.z)], ['a', p.id, h.anim, m.id]);
-      p.mp -= h.mp; p.cds[n] = h.cd; p.objetivo = m.id; p.cdAtk = p.der.cadencia;
-      this.golpear(p, m, h.mult, true);
-      return;
+    const objetivo = () => {
+      let m = this.mons.get(objId ?? p.objetivo);
+      if (!m || m.muerto) { let md = 12; for (const x of this.mons.values()) { if (x.muerto) continue; const d = dist(p, x); if (d < md) { md = d; m = x; } } }
+      return m && !m.muerto ? m : null;
+    };
+    let m = null;
+    if (['golpe', 'proyectil', 'lluvia'].includes(h.tipo)) {
+      m = objetivo(); if (!m) return this.aviso(p, 'No hay a quién pegarle.');
+      const lim = h.tipo === 'golpe' ? (h.salto ? h.salto + 2 : p.der.alcance + m.def.radio + 1.2) : h.tipo === 'lluvia' ? h.alcance + 1 : p.der.alcance + 3;
+      if (dist(p, m) > lim) return this.aviso(p, 'Está muy lejos.');
     }
-    p.mp -= h.mp; p.cds[n] = h.cd;
-    this.ev.push(['a', p.id, h.anim]);
-    if (h.id === 'giro') {
-      for (const m of this.mons.values()) if (!m.muerto && dist(p, m) < h.radio + m.def.radio) this.golpear(p, m, h.mult, true);
-      p.cdAtk = Math.max(p.cdAtk, 0.5);
-    } else if (h.id === 'muralla') p.muralla = h.dura;
+    p.mp -= h.mp; p.cds[id] = h.cd;
+    const mult = h.mult ? h.mult(rk) : 1;
+    this.ev.push(['a', p.id, h.anim, m?.id ?? null]);
+    if (h.tipo === 'area') {
+      for (const x of this.mons.values()) if (!x.muerto && dist(p, x) < h.radio + x.def.radio) { this.golpear(p, x, mult, true); if (h.frena) x.frenado = Math.max(x.frenado || 0, h.frena); }
+      this.ev.push(['fx', h.frena ? 'hielo' : 'tajo', r2(p.x), r2(p.z), h.radio]);
+    } else if (h.tipo === 'golpe') {
+      if (h.salto) {
+        const d = dist(p, m), k = Math.max(0, d - (p.der.alcance + m.def.radio) * 0.8) / (d || 1);
+        p.x += (m.x - p.x) * k; p.z += (m.z - p.z) * k; p.ultPos = Date.now();
+        this.ev.push(['tp', p.id, r2(p.x), r2(p.z)]);
+      }
+      p.dir = Math.atan2(m.x - p.x, m.z - p.z); p.objetivo = m.id;
+      this.golpear(p, m, mult, true); if (h.frena) m.frenado = Math.max(m.frenado || 0, h.frena);
+    } else if (h.tipo === 'proyectil') {
+      this.ev.push(['p', p.id, m.id, p.der.proyectil || 'saeta', 0]);
+      p.objetivo = m.id; this.golpear(p, m, mult, true);
+    } else if (h.tipo === 'lluvia') {
+      const cx = m.x, cz = m.z;
+      this.ev.push(['p', p.id, m.id, p.der.proyectil || 'saeta', h.radio], ['fx', 'lluvia', r2(cx), r2(cz), h.radio]);
+      for (const x of this.mons.values()) if (!x.muerto && Math.hypot(x.x - cx, x.z - cz) < h.radio + x.def.radio) this.golpear(p, x, mult, true);
+    } else if (h.tipo === 'buff' || h.tipo === 'cura') {
+      const quienes = [p];
+      const g = h.grupo && p.grupo && this.grupos.get(p.grupo);
+      if (g) for (const id2 of g.miembros) { const q = this.jug.get(id2); if (q && q !== p && !q.muerto && dist(p, q) < R.DIST_GRUPO) quienes.push(q); }
+      for (const q of quienes) {
+        if (h.tipo === 'buff') { q.buffs = q.buffs.filter(b => b.id !== h.id); q.buffs.push({ id: h.id, ef: h.efecto(rk), t: h.dura }); }
+        else q.hp = Math.min(q.der.maxHp, q.hp + q.der.maxHp * h.valor(rk) / 100);
+        this.ev.push(['fx', h.tipo, r2(q.x), r2(q.z), 1.5]);
+        if (q !== p) this.aviso(q, `${p.nombre} usó ${h.nombre} en vos.`);
+      }
+    }
   }
 
-  pocion(p) {
-    if (p.muerto || p.pot < 1) return;
-    p.pot--; if (!p.potT) p.potT = R.POCION.recarga;
-    p.hp = Math.min(p.der.maxHp, p.hp + p.der.maxHp * R.POCION.cura);
+  // ----- mochila -----
+  agregar(p, it) {
+    const b = O.BASES[it.b]; if (!b) return false;
+    if (b.pila) {
+      for (const x of p.d.inv) if (x && x.b === it.b && (x.c || 1) < O.PILA) { const cabe = O.PILA - (x.c || 1), pone = Math.min(cabe, it.c || 1); x.c = (x.c || 1) + pone; it.c = (it.c || 1) - pone; if (it.c <= 0) { p.cambioInv = true; return true; } }
+    }
+    const i = p.d.inv.indexOf(null); if (i < 0) return false;
+    p.d.inv[i] = b.pila ? { b: it.b, c: it.c || 1 } : { b: it.b, n: it.n || 0, ...(it.x ? { x: it.x } : {}) };
+    p.cambioInv = true; return true;
+  }
+  cuantos(p, b) { return p.d.inv.reduce((a, x) => a + (x && x.b === b ? (x.c || 1) : 0), 0); }
+  gastar(p, b, n = 1) {
+    for (let i = 0; i < p.d.inv.length && n > 0; i++) { const x = p.d.inv[i]; if (!x || x.b !== b) continue; const usa = Math.min(n, x.c || 1); x.c = (x.c || 1) - usa; n -= usa; if (x.c <= 0) p.d.inv[i] = null; }
+    p.cambioInv = true; return n === 0;
+  }
+  bloqueado(p, i) { return p.com && p.com.ofertas[p.id].items.includes(i); }
+  recalcular(p) { const antes = p.der; p.der = R.derivados(p.d); p.hp = Math.min(p.der.maxHp, p.hp + Math.max(0, p.der.maxHp - antes.maxHp)); p.mp = Math.min(p.der.maxMp, p.mp); p.cambioInv = true; }
+
+  beber(p, b) {
+    if (p.muerto) return;
+    if (!this.gastar(p, b, 1)) return this.aviso(p, b === 'pocion' ? 'No te quedan Pociones de Sangre. Comprá en la Atalaya.' : 'No te quedan Pociones de Éter.');
+    const base = O.BASES[b];
+    if (base.uso === 'cura') p.hp = Math.min(p.der.maxHp, p.hp + p.der.maxHp * base.valor);
+    else p.mp = Math.min(p.der.maxMp, p.mp + p.der.maxMp * base.valor);
     this.ev.push(['a', p.id, 'pot']);
+  }
+
+  usar(p, i) {
+    const it = p.d.inv[i]; if (!it || this.bloqueado(p, i)) return;
+    const b = O.BASES[it.b];
+    if (b.uso === 'cura' || b.uso === 'mana') return this.beber(p, it.b);
+    if (b.r) return this.equipar(p, i);
+  }
+
+  equipar(p, i) {
+    const it = p.d.inv[i]; if (!it || this.bloqueado(p, i)) return;
+    const b = O.BASES[it.b]; if (!b?.r) return;
+    if (!O.puedeUsar(it.b, p.d.clase)) return this.aviso(p, `Tu clase no puede usar ${b.nombre}.`);
+    if (b.req > p.d.nivel) return this.aviso(p, `Necesitás nivel ${b.req}.`);
+    const viejo = p.d.equipo[b.r] || null;
+    p.d.equipo[b.r] = it; p.d.inv[i] = viejo;
+    this.recalcular(p);
+  }
+
+  quitar(p, r) {
+    const it = p.d.equipo[r]; if (!it) return;
+    const i = p.d.inv.indexOf(null); if (i < 0) return this.aviso(p, 'La mochila está llena.');
+    p.d.inv[i] = it; delete p.d.equipo[r];
+    this.recalcular(p);
+  }
+
+  npcCerca(p, id) { const n = O.NPCS.find(x => x.id === id); return n && Math.hypot(p.x - n.x, p.z - n.z) < O.DIST_NPC + 1.5 ? n : null; }
+
+  comprar(p, npcId, b, c) {
+    const n = this.npcCerca(p, npcId); if (!n || !n.vende.includes(b)) return this.aviso(p, 'Acercate al vendedor.');
+    const base = O.BASES[b]; c = base.pila ? Math.max(1, Math.min(50, c || 1)) : 1;
+    const total = base.precio * c;
+    if (p.d.oro < total) return this.aviso(p, 'No te alcanza el oro.');
+    if (!this.agregar(p, base.pila ? { b, c } : { b, n: 0 })) return this.aviso(p, 'La mochila está llena.');
+    p.d.oro -= total; p.cambioInv = true;
+    this.aviso(p, `Compraste ${c > 1 ? c + ' × ' : ''}${base.nombre}.`);
+  }
+
+  vender(p, i) {
+    if (!O.NPCS.some(n => (n.id === 'herrero' || n.id === 'mercader') && this.npcCerca(p, n.id))) return this.aviso(p, 'Para vender, acercate a Úrsula o a Tordo.');
+    const it = p.d.inv[i]; if (!it || this.bloqueado(p, i)) return;
+    const oro = O.precioVenta(it) * (it.c || 1);
+    p.d.inv[i] = null; p.d.oro += oro; p.cambioInv = true;
+    this.aviso(p, `Vendiste ${O.nombreObjeto(it)} por ${oro} de oro.`);
+  }
+
+  forjar(p, i, r) {
+    if (!this.npcCerca(p, 'herrero')) return this.aviso(p, 'La forja está con Tordo el Herrero.');
+    const enInv = i != null && i !== '';
+    const it = enInv ? p.d.inv[i | 0] : p.d.equipo[String(r)];
+    if (!it || !O.esEquipo(it.b) || (enInv && this.bloqueado(p, i | 0))) return;
+    const n = it.n || 0, gema = O.FORJA.gemaPara(n);
+    if (!gema) return this.aviso(p, 'Ya está en +15. No se puede más.');
+    if (!this.cuantos(p, gema)) return this.aviso(p, `Necesitás una ${O.BASES[gema].nombre}.`);
+    const oro = O.FORJA.oro(n); if (p.d.oro < oro) return this.aviso(p, `La forja cuesta ${oro} de oro.`);
+    this.gastar(p, gema, 1); p.d.oro -= oro;
+    let res;
+    if (Math.random() < O.FORJA.chance(n)) { it.n = n + 1; res = ['ok', `¡Salió! ${O.nombreObjeto(it)}.`]; }
+    else if (n < 9) { it.n = Math.max(0, n - 1); res = ['mal', `Falló. Bajó a +${it.n}.`]; }
+    else if (n >= 12 && !this.cuantos(p, 'guardiana')) {
+      if (enInv) p.d.inv[i | 0] = null; else delete p.d.equipo[String(r)];
+      res = ['roto', `Falló y ${O.BASES[it.b].nombre} se rompió.`];
+    } else {
+      if (n >= 12) this.gastar(p, 'guardiana', 1);
+      it.n = 0; res = ['mal', n >= 12 ? 'Falló. La Piedra Guardiana lo salvó, pero volvió a +0.' : 'Falló. Volvió a +0.'];
+    }
+    p.priv.push(['forja', res[0], res[1]]);
+    if (res[0] === 'ok' && it.n >= 10) this.msgTodos(`${p.nombre} forjó ${O.nombreObjeto(it)}.`);
+    this.recalcular(p); this.guardar(p);
+  }
+
+  aprender(p, id) {
+    const motivo = C.puedeAprender(p.d, id);
+    if (motivo) return this.aviso(p, motivo);
+    p.d.arbol[id] = (p.d.arbol[id] || 0) + 1;
+    this.recalcular(p);
+  }
+
+  vela(p, lugar) {
+    const l = R.MAPA.lugares.find(x => x.nombre === lugar);
+    if (!l || !p.d.lugares.includes(lugar)) return this.aviso(p, 'Todavía no conocés ese lugar.');
+    if (p.muerto) return;
+    if (!this.gastar(p, 'vela', 1)) return this.aviso(p, 'No tenés Velas de Paso.');
+    const a = Math.random() * 6.3; p.x = l.x + Math.cos(a) * 2; p.z = l.z + Math.sin(a) * 2; p.ultPos = Date.now(); p.objetivo = null;
+    this.ev.push(['tp', p.id, r2(p.x), r2(p.z)], ['fx', 'cura', r2(p.x), r2(p.z), 2]);
+  }
+
+  // ----- comercio entre jugadores -----
+  comercio(p, m) {
+    const T = p.com;
+    if (m.a === 'pedir') {
+      const q = this.jug.get(m.id); if (!q || q === p) return;
+      if (dist(p, q) > 10) return this.aviso(p, 'Acercate para comerciar.');
+      if (q.com || p.com) return this.aviso(p, 'Ya hay un comercio abierto.');
+      q.pedidoCom = { de: p.id, t: Date.now() };
+      this.enviar(q.s, { t: 'compide', de: p.id, nombre: p.nombre });
+      return this.aviso(p, `Le ofreciste comerciar a ${q.nombre}.`);
+    }
+    if (m.a === 'acepta') {
+      const q = this.jug.get(m.de);
+      if (!q || p.pedidoCom?.de !== q.id || Date.now() - p.pedidoCom.t > 60_000 || q.com || p.com) return this.aviso(p, 'El pedido ya no vale.');
+      p.pedidoCom = null;
+      const N = { a: q.id, b: p.id, ofertas: { [q.id]: { items: [], oro: 0 }, [p.id]: { items: [], oro: 0 } }, listo: {}, conf: {} };
+      p.com = q.com = N; return this.mandarComercio(N);
+    }
+    if (!T) return;
+    const otro = this.jug.get(T.a === p.id ? T.b : T.a);
+    if (m.a === 'cancelar') return this.cancelarComercio(p, `${p.nombre} cerró el comercio.`);
+    const mia = T.ofertas[p.id];
+    if (m.a === 'poner') { const i = m.i | 0; const it = p.d.inv[i]; if (!it || mia.items.includes(i) || mia.items.length >= 8) return; mia.items.push(i); }
+    else if (m.a === 'sacar') mia.items = mia.items.filter(x => x !== (m.i | 0));
+    else if (m.a === 'oro') mia.oro = Math.max(0, Math.min(p.d.oro, m.n | 0));
+    else if (m.a === 'listo') { T.listo[p.id] = true; return this.mandarComercio(T); }
+    else if (m.a === 'confirmar') {
+      if (!T.listo[T.a] || !T.listo[T.b]) return;
+      T.conf[p.id] = true;
+      if (T.conf[T.a] && T.conf[T.b]) return this.cerrarComercio(T);
+      return this.mandarComercio(T);
+    } else return;
+    T.listo = {}; T.conf = {};   // si algo cambió, los dos vuelven a confirmar
+    this.mandarComercio(T);
+  }
+
+  mandarComercio(T) {
+    for (const id of [T.a, T.b]) {
+      const p = this.jug.get(id), oId = id === T.a ? T.b : T.a, q = this.jug.get(oId); if (!p || !q) continue;
+      const ver = (x, of) => ({ items: of.items.map(i => ({ i, it: x.d.inv[i] })).filter(o => o.it), oro: of.oro });
+      this.enviar(p.s, { t: 'com', otro: q.nombre, mio: ver(p, T.ofertas[id]), suyo: ver(q, T.ofertas[oId]), listo: [!!T.listo[id], !!T.listo[oId]], conf: [!!T.conf[id], !!T.conf[oId]] });
+    }
+  }
+
+  cancelarComercio(p, motivo) {
+    const T = p.com; if (!T) return;
+    for (const id of [T.a, T.b]) { const x = this.jug.get(id); if (x) { x.com = null; this.enviar(x.s, { t: 'com', fin: true }); this.aviso(x, motivo); } }
+  }
+
+  cerrarComercio(T) {
+    const a = this.jug.get(T.a), b = this.jug.get(T.b);
+    if (!a || !b) return;
+    const sacar = (x, of) => of.items.map(i => x.d.inv[i]).filter(Boolean);
+    const ia = sacar(a, T.ofertas[a.id]), ib = sacar(b, T.ofertas[b.id]);
+    const libres = x => x.d.inv.filter(v => v === null).length;
+    if (libres(a) + ia.length < ib.length || libres(b) + ib.length < ia.length) { this.cancelarComercio(a, 'No hay lugar en la mochila para el cambio.'); return; }
+    if (a.d.oro < T.ofertas[a.id].oro || b.d.oro < T.ofertas[b.id].oro) { this.cancelarComercio(a, 'Alguien no tiene el oro que ofreció.'); return; }
+    for (const i of T.ofertas[a.id].items) a.d.inv[i] = null;
+    for (const i of T.ofertas[b.id].items) b.d.inv[i] = null;
+    for (const it of ib) a.d.inv[a.d.inv.indexOf(null)] = it;
+    for (const it of ia) b.d.inv[b.d.inv.indexOf(null)] = it;
+    a.d.oro += T.ofertas[b.id].oro - T.ofertas[a.id].oro; b.d.oro += T.ofertas[a.id].oro - T.ofertas[b.id].oro;
+    a.cambioInv = b.cambioInv = true; a.com = b.com = null;
+    for (const x of [a, b]) { this.enviar(x.s, { t: 'com', fin: true }); this.aviso(x, 'Comercio hecho.'); this.guardar(x); }
+  }
+
+  // ----- objetos en el piso -----
+  soltar(m, cosas, bando) {
+    for (const c of cosas) {
+      const a = Math.random() * 6.3, r = 0.4 + Math.random() * 1.4;
+      const d = { id: this.sigDrop++, x: m.x + Math.cos(a) * r, z: m.z + Math.sin(a) * r, oro: c.oro || 0, item: c.item || null, dueno: bando, t: 0 };
+      this.drops.set(d.id, d);
+    }
+  }
+
+  recoger(p) {
+    for (const d of this.drops.values()) {
+      if (Math.hypot(d.x - p.x, d.z - p.z) > 1.5) continue;
+      const mio = !d.dueno || d.t > 15 || d.dueno === 'p' + p.id || d.dueno === 'g' + p.grupo;
+      if (!mio) continue;
+      if (d.oro) { p.d.oro += d.oro; p.cambioInv = true; p.priv.push(['oro', d.oro]); this.drops.delete(d.id); continue; }
+      if (this.agregar(p, { ...d.item })) {
+        this.drops.delete(d.id); p.priv.push(['recoge', O.nombreObjeto(d.item), d.item.x?.length ? 1 : 0]);
+        if (d.item.x?.length) this.msgCerca(p, `${p.nombre} encontró ${O.nombreObjeto(d.item)}.`);
+      } else if (!p.avisoLleno || this.t - p.avisoLleno > 5) { p.avisoLleno = this.t; this.aviso(p, 'La mochila está llena.'); }
+    }
   }
 
   repartir(p, stat, n) {
     if (!R.STATS.includes(stat) || n < 1) return;
     n = Math.min(n, p.d.puntos); if (!n) return;
     p.d.puntos -= n; p.d[stat] += n;
-    const antes = p.der; p.der = R.derivados(p.d);
-    p.hp += p.der.maxHp - antes.maxHp; p.mp += p.der.maxMp - antes.maxMp;
+    this.recalcular(p);
     this.guardar(p);
   }
 
@@ -263,9 +499,9 @@ export class Mapa extends DurableObject {
   // ----- combate -----
   golpear(p, m, mult, hab) {
     if (m.muerto) return;
-    let tipo = hab ? R.GOLPE.HABILIDAD : R.GOLPE.NORMAL, f = mult;
-    const r = Math.random();
-    if (r < 0.04) { tipo = R.GOLPE.EXCELENTE; f *= 2; } else if (r < 0.12) { tipo = hab ? tipo : R.GOLPE.CRITICO; f *= 1.5; }
+    let tipo = hab ? R.GOLPE.HABILIDAD : R.GOLPE.NORMAL, f = mult * (1 + this.buff(p, 'dmgPct') / 100);
+    const r = Math.random() * 100;
+    if (r < p.der.exc) { tipo = R.GOLPE.EXCELENTE; f *= 2; } else if (r < p.der.exc + p.der.crit) { tipo = hab ? tipo : R.GOLPE.CRITICO; f *= 1.5; }
     const dano = Math.max(1, Math.round(entre(p.der.dmin, p.der.dmax) * f - m.def.def * 0.5));
     m.hp -= dano;
     const bando = p.grupo ? 'g' + p.grupo : 'p' + p.id;
@@ -273,10 +509,16 @@ export class Mapa extends DurableObject {
     if (!m.obj || !m.def.jefe) m.obj = p.id;
     if (!m.def.jefe) m.frenado = 0.25;
     this.ev.push(['g', p.id, m.id, dano, tipo]);
-    if (m.hp <= 0) this.matar(m);
+    if (m.hp <= 0) {
+      if (p.der.vidaKill) p.hp = Math.min(p.der.maxHp, p.hp + p.der.maxHp * p.der.vidaKill / 100);
+      if (p.der.manaKill) p.mp = Math.min(p.der.maxMp, p.mp + p.der.maxMp * p.der.manaKill / 100);
+      this.matar(m, bando);
+    }
   }
 
-  matar(m) {
+  matar(m, bandoFinal) {
+    let mayor = bandoFinal, md = -1; for (const [b, v] of m.danos) if (v > md) { md = v; mayor = b; }
+    if (!m.temporal) this.soltar(m, O.tirada(m.def, Math.random, m.campeon ? 2.2 : 1), mayor);
     m.muerto = true; m.hp = 0; m.obj = null; m.muertoT = 0; m.carga = null;
     const marea = this.evento?.id === 'marea';
     m.reaparece = m.def.reaparece * (marea ? 0.4 : 1);
@@ -320,7 +562,9 @@ export class Mapa extends DurableObject {
   herirJugador(p, dano, m, tipo = 4) {
     if (p.muerto) return;
     dano = tipo === 5 ? Math.round(dano) : Math.max(1, Math.round(dano - p.der.def * 0.5));
-    if (p.muralla > 0) dano = Math.max(1, Math.round(dano * 0.5));
+    const menos = Math.min(75, p.der.menos + this.buff(p, 'menos'));
+    if (menos) dano = Math.max(1, Math.round(dano * (1 - menos / 100)));
+    if (m && p.der.refleja && !m.muerto) { m.hp -= Math.round(dano * p.der.refleja / 100); if (m.hp <= 0) this.matar(m, 'p' + p.id); }
     p.hp -= dano;
     this.ev.push(['g', m?.id || 0, p.id, dano, tipo]);
     if (m && tipo === 4 && m.def.veneno && Math.random() < m.def.veneno.prob) { p.veneno = { dps: m.def.veneno.dps, t: m.def.veneno.dura }; this.aviso(p, 'Estás envenenado.'); }
@@ -514,9 +758,15 @@ export class Mapa extends DurableObject {
         }
         continue;
       }
-      for (let i = 0; i < 3; i++) if (p.cds[i] > 0) p.cds[i] = Math.max(0, p.cds[i] - dt);
-      if (p.muralla > 0) p.muralla = Math.max(0, p.muralla - dt);
-      if (p.potT > 0) { p.potT -= dt; if (p.potT <= 0) { p.pot = Math.min(R.POCION.cargas, p.pot + 1); p.potT = p.pot < R.POCION.cargas ? R.POCION.recarga : 0; } }
+      for (const k in p.cds) { p.cds[k] -= dt; if (p.cds[k] <= 0) delete p.cds[k]; }
+      if (p.buffs.length) { for (const b of p.buffs) b.t -= dt; p.buffs = p.buffs.filter(b => b.t > 0); }
+      this.recoger(p);
+      p.lugarT += dt;
+      if (p.lugarT > 1) {
+        p.lugarT = 0;
+        for (const l of R.MAPA.lugares) if (!p.d.lugares.includes(l.nombre) && Math.hypot(l.x - p.x, l.z - p.z) < 14) { p.d.lugares.push(l.nombre); this.aviso(p, `Descubriste ${l.nombre}. Ya podés volver con una Vela de Paso.`); p.cambioInv = true; }
+        if (p.com) { const o = this.jug.get(p.com.a === p.id ? p.com.b : p.com.a); if (!o || dist(o, p) > 14) this.cancelarComercio(p, 'Se alejaron demasiado: el comercio se cerró.'); }
+      }
       if (p.veneno) {
         p.veneno.t -= dt; p.venT = (p.venT || 0) + dt;
         if (p.venT >= 1) { p.venT = 0; this.herirJugador(p, p.veneno.dps, null, 5); }
@@ -524,19 +774,21 @@ export class Mapa extends DurableObject {
         if (p.muerto) continue;
       }
       p.hp = Math.min(p.der.maxHp, p.hp + p.der.maxHp * (enPueblo(p) ? 0.04 : 0.005) * dt);
-      p.mp = Math.min(p.der.maxMp, p.mp + (enPueblo(p) ? 6 : 2) * dt);
+      p.mp = Math.min(p.der.maxMp, p.mp + (enPueblo(p) ? 6 : p.der.regenMp) * dt);
       p.cdAtk -= dt;
       if (p.objetivo) {
         const m = this.mons.get(p.objetivo);
         if (!m || m.muerto) p.objetivo = null;
         else if (dist(p, m) <= p.der.alcance + m.def.radio * (m.campeon ? R.CAMPEON.escala : 1) + 0.6 && p.cdAtk <= 0) {
-          p.cdAtk = p.der.cadencia; p.dir = Math.atan2(m.x - p.x, m.z - p.z);
+          p.cdAtk = this.cadencia(p); p.dir = Math.atan2(m.x - p.x, m.z - p.z);
           this.ev.push(['a', p.id, 'atk', m.id]);
+          if (p.der.distancia) this.ev.push(['p', p.id, m.id, p.der.proyectil, 0]);
           this.golpear(p, m, 1, false);
         }
       }
       p.guardadoT += dt; if (p.guardadoT > GUARDAR_CADA) this.guardar(p);
     }
+    for (const d of this.drops.values()) { d.t += dt; if (d.t > 90) this.drops.delete(d.id); }
     const mons = [...this.mons.values()];
     for (const m of mons) this.tickMonstruo(m, dt);
     // Que no se encimen.
@@ -556,21 +808,25 @@ export class Mapa extends DurableObject {
 
   enviarFotos() {
     const ev = this.ev; this.ev = [];
-    const filaJ = q => [q.id, q.nombre, r2(q.x), r2(q.z), r2(q.dir), Math.round(q.hp / q.der.maxHp * 100), q.d.nivel, q.muerto ? 4 : q.mueve ? 1 : 0, q.grupo || 0, (q.muralla > 0 ? 1 : 0) | (q.veneno ? 2 : 0)];
+    const filaJ = q => [q.id, q.nombre, r2(q.x), r2(q.z), r2(q.dir), Math.round(q.hp / q.der.maxHp * 100), q.d.nivel, q.muerto ? 4 : q.mueve ? 1 : 0, q.grupo || 0, (q.buffs.some(b => b.ef.menos) ? 1 : 0) | (q.veneno ? 2 : 0) | (q.buffs.some(b => b.ef.dmgPct || b.ef.vel) ? 4 : 0), q.d.clase, brillo(q)];
     const filaM = m => [m.id, m.ti, r2(m.x), r2(m.z), r2(m.dir), Math.round(Math.max(0, m.hp) / m.maxHp * 100), m.muerto ? 4 : m.mueve ? 1 : 0, (m.campeon ? 1 : 0) | (m.furioso ? 2 : 0) | (m.temporal ? 4 : 0)];
     const evt = this.evento ? [this.evento.id, Math.round(this.evento.resta)] : this.proximo ? ['-' + this.proximo.id, Math.round(this.proximo.en)] : null;
     for (const p of this.jug.values()) {
-      const j = [], m = [];
+      const j = [], m = [], dr = [];
+      for (const d of this.drops.values()) if (Math.hypot(d.x - p.x, d.z - p.z) < VISTA) dr.push([d.id, r2(d.x), r2(d.z), d.oro ? 'oro' : d.item.b, d.oro || d.item.n || d.item.c || 0, d.item?.x?.length ? 1 : 0]);
       for (const q of this.jug.values()) if (q === p || dist(q, p) < VISTA) j.push(filaJ(q));
       for (const x of this.mons.values()) if (dist(x, p) < VISTA) m.push(filaM(x));
       const g = p.grupo && this.grupos.get(p.grupo);
       const yo = {
         hp: Math.round(p.hp), mp: Math.round(p.mp), maxHp: p.der.maxHp, maxMp: p.der.maxMp, nivel: p.d.nivel, exp: p.d.exp, sig: R.expParaSubir(p.d.nivel),
         puntos: p.d.puntos, fue: p.d.fue, agi: p.d.agi, vit: p.d.vit, ene: p.d.ene, dmin: p.der.dmin, dmax: p.der.dmax, def: p.der.def,
-        cds: p.cds.map(r2), pot: p.pot, potT: r2(p.potT), muralla: r2(p.muralla), muerto: r2(p.muerto), obj: p.objetivo, veneno: p.veneno ? r2(p.veneno.t) : 0, evt,
+        cds: Object.fromEntries(Object.entries(p.cds).map(([k, v]) => [k, r2(v)])), muerto: r2(p.muerto), obj: p.objetivo, veneno: p.veneno ? r2(p.veneno.t) : 0, evt,
+        pociones: this.cuantos(p, 'pocion'), eteres: this.cuantos(p, 'eter'), buffs: p.buffs.map(b => [b.id, r2(b.t)]), alcance: p.der.alcance, clase: p.d.clase,
         grupo: g ? g.miembros.map(id => { const x = this.jug.get(id); return x ? [x.id, x.nombre, Math.round(x.hp / x.der.maxHp * 100), x.d.nivel, x.id === g.lider ? 1 : 0] : null; }).filter(Boolean) : null,
       };
-      this.enviar(p.s, { t: 's', j, m, ev: p.priv.length ? ev.concat(p.priv) : ev, yo });
+      const foto = { t: 's', j, m, d: dr, ev: p.priv.length ? ev.concat(p.priv) : ev, yo };
+      if (p.cambioInv) { p.cambioInv = false; foto.inv = { oro: p.d.oro, inv: p.d.inv, equipo: p.d.equipo, arbol: p.d.arbol, lugares: p.d.lugares, der: p.der }; }
+      this.enviar(p.s, foto);
       p.priv = [];
     }
   }

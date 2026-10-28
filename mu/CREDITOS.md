@@ -11,3 +11,4 @@ Los modelos se achicaron (menos animaciones, compresión meshopt) para que cargu
 Monstruos agregados después (también CC0):
 - Esqueleto mago y pícaro, y su báculo: KayKit — Skeletons Character Pack 1.0 (Kay Lousberg).
 - Lobo y ciervo (Animals Pack), raptor y tiranosaurio (Dinosaurs Pack), serpiente (Easy Enemies Pack), orco, demonio y demonio azul (Ultimate Monsters): Quaternius.
+- Clases jugables (Cazadora, Arcanista, Bárbaro) y NPCs de la Atalaya: KayKit — Adventurers Character Pack 1.0 (Kay Lousberg).
