@@ -20,6 +20,12 @@ export const VISUAL = {
                muralla: 'Block', hit: 'Hit_A', muere: 'Death_A', festeja: 'Spellcast_Raise', pot: 'Use_Item' } },
   barbaro:   { archivo: 'barbaro.glb', tam: 1.9, anims: { idle: 'Idle', run: 'Running_A', atk: ['Dualwield_Melee_Attack_Chop', 'Dualwield_Melee_Attack_Slice', 'Dualwield_Melee_Attack_Stab'],
                spin: '2H_Melee_Attack_Spin', hachazo: '2H_Melee_Attack_Chop', muralla: 'Block', hit: 'Hit_A', muere: 'Death_A', festeja: 'Cheer', pot: 'Use_Item' } },
+  sombra:    { archivo: 'sombra.glb', tam: 1.8, tinte: '#1e1d24', tinteK: 0.85, anims: { idle: 'Idle', run: 'Running_A', atk: ['Dualwield_Melee_Attack_Stab', 'Dualwield_Melee_Attack_Slice', 'Dualwield_Melee_Attack_Chop'],
+               apunala: 'Dualwield_Melee_Attack_Stab', tira: 'Throw', esquiva: 'Dodge_Forward', spin: '2H_Melee_Attack_Spinning', hit: 'Hit_A', muere: 'Death_A', festeja: 'Cheer', pot: 'Use_Item' } },
+  nigromante: { archivo: 'nigromante.glb', tam: 1.9, arma: 'baculo_hueso.glb', tinte: '#7a8a6a', anims: { idle: 'Idle', run: 'Running_A', atk: 'Spellcast_Shoot', hechizo: 'Spellcast_Shoot', hechizo2: 'Spellcast_Long',
+               invoca: 'Spellcast_Summon', festeja: 'Spellcast_Raise', hit: 'Hit_A', muere: 'Death_A', pot: 'Use_Item' } },
+  desterrado: { archivo: 'engendro.glb', tam: 2.1, tinte: '#3a2e3e', anims: { idle: 'Idle', run: 'Run', atk: 'Punch', puno: 'Weapon', festeja: 'Wave', hit: 'HitReact', muere: 'Death', pot: 'Wave' } },
+  siervo:    { archivo: 'huesudo.glb', tam: 1.6, arma: 'hoja_hueso.glb', tinte: '#6a8a5a', anims: { idle: 'Idle', run: 'Walking_D_Skeletons', atk: '1H_Melee_Attack_Chop', muere: 'Death_C_Skeletons', nace: 'Spawn_Ground_Skeletons' } },
   npc_mercader: { archivo: 'npc_mercader.glb', tam: 1.8, tinte: '#5a4a3a', anims: { idle: 'Idle', saluda: 'Interact' } },
   npc_herrero:  { archivo: 'npc_herrero.glb', tam: 2.0, tinte: '#6a4a30', anims: { idle: 'Idle', saluda: 'Cheer' } },
   npc_vidente:  { archivo: 'npc_vidente.glb', tam: 1.9, tinte: '#3a2a4a', anims: { idle: 'Idle', saluda: 'Interact' } },
@@ -86,7 +92,7 @@ export function crear(tipo) {
   cuerpo.traverse(o => {
     if (!o.isMesh) return;
     o.material = Array.isArray(o.material) ? o.material.map(m => m.clone()) : o.material.clone();
-    if (v.tinte) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.color && m.name !== 'Glow') m.color.lerp(new THREE.Color(v.tinte), 0.55); });
+    if (v.tinte) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.color && m.name !== 'Glow') m.color.lerp(new THREE.Color(v.tinte), v.tinteK || 0.55); });
     (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => mats.push(m));
   });
   if (v.arma) {

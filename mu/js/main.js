@@ -9,6 +9,7 @@ import { Hud } from './hud.js';
 import * as O from './objetos.js';
 import * as C from './clases.js';
 import { Paneles } from './paneles.js';
+import { Seleccion } from './seleccion.js';
 
 const E = crearEscena(document.getElementById('mundo'));
 const FX = crearEfectos(E.scene);
@@ -42,9 +43,15 @@ const hud = new Hud({
   salirGrupo: () => red.mandar({ t: 'salir' }),
 });
 const npcCerca = id => { const n = O.NPCS.find(x => x.id === id); return n && Math.hypot(lx - n.x, lz - n.z) < O.DIST_NPC + 1; };
+const rolCerca = rol => yo && O.NPCS.find(n => n.rol === rol && Math.hypot(lx - n.x, lz - n.z) < O.DIST_NPC + 1);
 const paneles = new Paneles({
-  mio: () => mio, mandar: o => red.mandar(o), npcCerca, toast: t => hud.toast(t),
+  mio: () => mio, mandar: o => red.mandar(o), npcCerca, rolCerca, toast: t => hud.toast(t), cambiarPj: () => red.salirPj(),
   comerciando: () => !!paneles.com, ofrecido: i => !!paneles.com?.mio.items.some(o => o.i === i),
+});
+const seleccion = new Seleccion(E, {
+  jugar: nombre => red.jugar(nombre),
+  crear: (nombre, clase) => red.crearPj(nombre, clase),
+  salir: () => { try { red.ws?.close(); } catch (e) {} red.cerrado = true; seleccion.ocultar(); document.getElementById('entrada').hidden = false; document.getElementById('btn-entrar').disabled = false; },
 });
 
 // ---------- entrada ----------
@@ -56,7 +63,7 @@ form.addEventListener('submit', e => {
   const nombre = document.getElementById('nombre').value.trim(), clave = document.getElementById('clave').value;
   try { localStorage.setItem('sendas-nombre', nombre); } catch (err) {}
   document.getElementById('btn-entrar').disabled = true; errorEntrar('');
-  red.entrar(nombre, clave, document.querySelector('input[name=clase]:checked')?.value || 'guardian');
+  red.login(nombre, clave);
 });
 function errorEntrar(t) { document.getElementById('error-entrar').textContent = t; if (t) document.getElementById('btn-entrar').disabled = false; }
 
@@ -69,7 +76,7 @@ function crearEnte(id, tipo, esJugador) {
   const vis = crear(tipo);
   E.scene.add(vis.raiz);
   const e = { id, tipo, esJ: esJugador, vis, buf: [], hp: 100, nivel: 1, nombre: '', st: 0, visto: 0, muerto: false, muertoT: 0, flash: 0,
-    radio: esJugador ? 0.45 : R.MONSTRUOS[tipo].radio, def: esJugador ? null : R.MONSTRUOS[tipo] };
+    radio: esJugador ? 0.45 : R.MONSTRUOS[tipo]?.radio || 0.5, def: esJugador ? null : R.MONSTRUOS[tipo] || { nombre: 'Siervo', radio: 0.5, nivel: 0, aliado: true } };
   if (esJugador) { e.aura = FX.crearAura(); e.aura.position.y = 1; vis.raiz.add(e.aura); e.brillo = 0; }
   entes.set(id, e);
   return e;
@@ -86,8 +93,10 @@ function revivir(e) { e.muerto = false; e.muertoT = 0; e.vis.raiz.visible = true
 
 // ---------- mensajes del servidor ----------
 function alMensaje(m) {
-  if (m.t === 'error') return errorEntrar(m.msg);
+  if (m.t === 'error') { if (seleccion.activa) return seleccion.error(m.msg); if (yo) return hud.toast(m.msg); return errorEntrar(m.msg); }
+  if (m.t === 'cuenta') return entrarSeleccion(m);
   if (m.t === 'bienvenida') {
+    seleccion.ocultar(); for (const n of npcs) n.vis.raiz.visible = true;
     yoId = m.id; lx = m.x; lz = m.z;
     for (const id of [...entes.keys()]) quitarEnte(id);
     mio = m.datos;
@@ -103,7 +112,19 @@ function alMensaje(m) {
   if (m.t === 's') return foto(m);
 }
 
+// Elegir personaje: se limpia el mundo y se muestran los personajes al pie de la Atalaya.
+function entrarSeleccion(m) {
+  for (const id of [...entes.keys()]) quitarEnte(id);
+  for (const d of drops.values()) E.scene.remove(d.obj); drops.clear();
+  yo = null; yoId = null; mio = null; estado = null; objetivo = null; destino = null;
+  paneles.cerrar(); document.getElementById('hud').hidden = true;
+  document.getElementById('entrada').hidden = true;
+  for (const n of npcs) n.vis.raiz.visible = false;
+  seleccion.mostrar(m.personajes, m.creado);
+}
+
 function foto(s) {
+  if (!mio) return;
   const ahora = performance.now();
   for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl, clase, brillo] of s.j) {
     const muralla = fl & 1, veneno = fl & 2;
@@ -129,6 +150,12 @@ function foto(s) {
     }
     e.buf.push({ t: ahora, x, z, dir }); if (e.buf.length > 30) e.buf.shift();
     if (st === 4 && !e.muerto) morir(e);
+  }
+  for (const [id, x, z, dir, st, dueno] of s.sv || []) {
+    let e = entes.get(id);
+    if (!e) { e = crearEnte(id, 'siervo', false); e.vis.raiz.position.set(x, R.altura(x, z), z); e.nombre = 'Siervo'; e.aliado = true; }
+    Object.assign(e, { st, visto: ahora, dueno });
+    e.buf.push({ t: ahora, x, z, dir }); if (e.buf.length > 30) e.buf.shift();
   }
   for (const [id, e] of entes) if (id !== yoId && ahora - e.visto > 1500) quitarEnte(id);
   if (s.inv) { Object.assign(mio, s.inv); mio.der = s.inv.der; hud.ponerHabilidades(mio); paneles.refrescar(); }
@@ -191,7 +218,7 @@ function evento(ev) {
   else if (tipo === 'rv') { const e = entes.get(a); if (e) revivir(e); if (a === yoId) { lx = b; lz = c; objetivo = null; destino = null; } }
   else if (tipo === 'aviso') hud.toast(a);
   else if (tipo === 'oro') hud.toast(`+${a} de oro`, 'exp');
-  else if (tipo === 'recoge') hud.toast(`Recogiste ${a}`, b ? 'excelente' : 'exp');
+  else if (tipo === 'recoge') hud.toast(`Recogiste ${a}`, ['exp', 'excelente', 'legendario', 'mitico'][b] || 'exp');
   else if (tipo === 'forja') { hud.toast(b, a === 'ok' ? 'grande' : 'malo'); const n = O.NPCS.find(x => x.id === 'herrero'); if (a === 'ok') FX.nivel(n.x, 0, n.z); else FX.chispas(n.x, 1.2, n.z, a === 'roto' ? '#ff3b2a' : '#8c7f6a', 30); }
   else if (tipo === 'fx') {
     const y = R.altura(b, c);
@@ -223,6 +250,7 @@ addEventListener('keyup', e => teclas.delete(e.key.toLowerCase()));
 addEventListener('blur', () => teclas.clear());
 
 lienzo.addEventListener('pointerdown', e => {
+  if (seleccion.activa) return seleccion.tocar(e.clientX, e.clientY, E.camara);
   if (!yo) return;
   document.getElementById('menu-jug').hidden = true;
   if (e.pointerType !== 'mouse' && !stick && e.clientX < innerWidth * 0.45 && e.clientY > innerHeight * 0.3) {
@@ -250,17 +278,18 @@ const ray = new THREE.Raycaster();
 function elegir(sx, sy) {
   let mejor = null, md = 60;
   for (const e of entes.values()) {
-    if (e === yo || e.muerto) continue;
+    if (e === yo || e.muerto || e.aliado) continue;
     const p = pos(e); v3.set(p.x, p.y + e.vis.alto * 0.5, p.z).project(E.camara);
     if (v3.z > 1) continue;
     const x = (v3.x * 0.5 + 0.5) * innerWidth, y = (-v3.y * 0.5 + 0.5) * innerHeight;
     const d = Math.hypot(x - sx, y - sy) - (e.esJ ? 0 : 8) - (e.def?.jefe ? 30 : 0);
     if (d < md) { md = d; mejor = e; }
   }
-  for (const n of npcs) {
-    const p = n.vis.raiz.position; v3.set(p.x, p.y + 1, p.z).project(E.camara);
+  for (const n of O.NPCS) {
+    if (Math.hypot(n.x - lx, n.z - lz) > 30) continue;
+    v3.set(n.x, R.altura(n.x, n.z) + (n.rol === 'farol' ? 2.5 : 1), n.z).project(E.camara);
     const x = (v3.x * 0.5 + 0.5) * innerWidth, y = (-v3.y * 0.5 + 0.5) * innerHeight;
-    if (Math.hypot(x - sx, y - sy) < 50) { if (npcCerca(n.def.id)) abrirNpc(n.def.id); else { destino = { x: n.def.x, z: n.def.z }; npcPendiente = n.def.id; soltarObjetivo(); } return; }
+    if (Math.hypot(x - sx, y - sy) < 46) { if (npcCerca(n.id)) abrirNpc(n.id); else { destino = { x: n.x, z: n.z }; npcPendiente = n.id; soltarObjetivo(); } return; }
   }
   for (const d of drops.values()) {
     const p = d.obj.position; v3.set(p.x, p.y, p.z).project(E.camara);
@@ -277,7 +306,7 @@ function marcarObjetivo(id) { objetivo = id; destino = null; red.mandar({ t: 'at
 function soltarObjetivo() { if (objetivo !== null) { objetivo = null; red.mandar({ t: 'atk', id: null }); } }
 function cercano(max) {
   let mejor = null, md = max;
-  for (const e of entes.values()) { if (e.esJ || e.muerto) continue; const d = Math.hypot(pos(e).x - lx, pos(e).z - lz); if (d < md) { md = d; mejor = e; } }
+  for (const e of entes.values()) { if (e.esJ || e.muerto || e.aliado) continue; const d = Math.hypot(pos(e).x - lx, pos(e).z - lz); if (d < md) { md = d; mejor = e; } }
   return mejor;
 }
 function atacarCercano() { const e = cercano(14); if (e) marcarObjetivo(e.id); else hud.toast('No hay monstruos cerca.'); }
@@ -369,7 +398,7 @@ function dibujarTextos(dt) {
     if (Math.hypot(p.x - lx, p.z - lz) > 30) continue;
     if (e.esJ) {
       const mismo = estado?.grupo?.some(g => g[0] === e.id);
-      tc.font = '600 14px Spectral, Georgia, serif';
+      tc.font = '600 14px "Spectral SC", Spectral, Georgia, serif';
       tc.lineWidth = 3; tc.strokeStyle = 'rgba(0,0,0,.8)';
       const t = `${e.nombre} · ${e.nivel}`;
       tc.fillStyle = e === yo ? '#efe6d2' : mismo ? '#a8d48f' : '#b9c1c9';
@@ -378,7 +407,7 @@ function dibujarTextos(dt) {
     } else if (e.id === objetivo || e.hp < 100 || e.def.jefe || e.campeon) {
       barra(s[0], s[1], e.def.jefe ? 90 : 50, e.def.jefe ? 6 : 4, e.hp, '#9c1f1f');
       if (e.id === objetivo || e.def.jefe || e.campeon) {
-        tc.font = `${e.def.jefe ? 17 : 14}px "IM Fell English SC", Georgia, serif`; tc.lineWidth = 3; tc.strokeStyle = 'rgba(0,0,0,.85)';
+        tc.font = `600 ${e.def.jefe ? 17 : 14}px "Spectral SC", Spectral, Georgia, serif`; tc.lineWidth = 3; tc.strokeStyle = 'rgba(0,0,0,.85)';
         tc.fillStyle = e.def.jefe ? '#e0543f' : e.campeon ? '#f0a050' : '#d8cfbd';
         tc.strokeText(e.nombre, s[0], s[1] - 13); tc.fillText(e.nombre, s[0], s[1] - 13);
       }
@@ -393,7 +422,7 @@ function dibujarTextos(dt) {
   for (const n of npcs) {
     const p = n.vis.raiz.position; if (Math.hypot(p.x - lx, p.z - lz) > 25) continue;
     const s = proy(p.x, p.y + 2.25, p.z); if (!s) continue;
-    tc.font = '15px "IM Fell English SC", Georgia, serif'; tc.fillStyle = '#e9c37a';
+    tc.font = '15px "Spectral SC", Spectral, Georgia, serif'; tc.fillStyle = '#e9c37a';
     tc.strokeText(n.def.nombre, s[0], s[1]); tc.fillText(n.def.nombre, s[0], s[1]);
   }
   for (let i = numeros.length - 1; i >= 0; i--) {
@@ -430,22 +459,31 @@ function datosHud() {
 
 // ---------- NPCs de la Atalaya ----------
 function ponerNpcs() {
-  for (const def of O.NPCS) {
+  for (const def of O.NPCS.filter(n => n.modelo)) {
     const vis = crear(def.modelo.replace('.glb', ''));
     vis.raiz.position.set(def.x, R.altura(def.x, def.z), def.z); vis.raiz.rotation.y = def.giro;
     E.scene.add(vis.raiz); npcs.push({ def, vis, t: Math.random() * 5 });
   }
 }
 function abrirNpc(id) {
+  const def = O.NPCS.find(x => x.id === id); if (!def) return;
+  if (def.rol === 'farol') return paneles.viajes();
+  if (def.rol === 'baul') { paneles.sel = null; return paneles.baul(); }
   const n = npcs.find(x => x.def.id === id); if (n) n.vis.muneco.hacer('saluda');
-  paneles.npc(id);
+  paneles.sel = null; paneles.npc(id);
 }
 
 // ---------- brillo del arma (+7 o excelente) ----------
+const COLOR_RAREZA = [null, '#4fdf90', '#ffb13a', '#ff2a3a'];
 function brillarArma(e) {
-  const mano = e.vis.cuerpo.getObjectByName('handslotr'); if (!mano) return;
-  const color = e.brillo & 2 ? [0.25, 0.9, 0.55] : e.brillo & 1 ? [0.45, 0.6, 1] : [0, 0, 0];
-  mano.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.emissive?.setRGB(...color.map(v => v * (e.brillo === 3 ? 1.3 : 0.9))); } });
+  const raArma = (e.brillo >> 3) & 3, raMax = (e.brillo >> 1) & 3, mas7 = e.brillo & 1;
+  e.aureola = raMax >= 2 ? COLOR_RAREZA[raMax] : null;
+  const color = raArma ? new THREE.Color(COLOR_RAREZA[raArma]) : mas7 ? new THREE.Color('#6f90ff') : new THREE.Color(0, 0, 0);
+  const k = raArma ? 0.6 + raArma * 0.25 : 0.7;
+  for (const nombre of ['handslotr', 'handslotl']) {
+    const mano = e.vis.cuerpo.getObjectByName(nombre); if (!mano) continue;
+    mano.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); if (o.material.emissive) { o.material.emissive.copy(color); o.material.emissiveIntensity = k; } } });
+  }
 }
 
 // ---------- objetos en el piso ----------
@@ -458,7 +496,7 @@ function actualizarDrops(lista) {
     if (drops.has(id)) continue;
     const g = new THREE.Group(); g.position.set(x, R.altura(x, z) + 0.25, z);
     const esOro = b === 'oro', base = O.BASES[b];
-    const color = esOro ? '#e6b84a' : exc ? '#6fe0a0' : base?.gema ? '#b48cff' : base?.r ? (n >= 7 ? '#8fb2ff' : '#d8cfbd') : '#d0453a';
+    const color = esOro ? '#e6b84a' : exc ? COLOR_RAREZA[exc] : base?.gema ? '#b48cff' : base?.r ? (n >= 7 ? '#8fb2ff' : '#d8cfbd') : '#d0453a';
     const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6, metalness: 0.4, roughness: 0.4 });
     mat.userData.outlineParameters = { visible: false };
     if (esOro) for (let k = 0; k < 3; k++) { const m = new THREE.Mesh(geoMoneda, mat); m.position.set((k - 1) * 0.12, k * 0.05 - 0.15, (k % 2) * 0.1); g.add(m); }
@@ -469,7 +507,8 @@ function actualizarDrops(lista) {
       const rayo = new THREE.Mesh(geoRayo, rm); rayo.position.y = 1.2; g.add(rayo);
     }
     E.scene.add(g);
-    const nombre = esOro ? `${n} de oro` : O.nombreObjeto({ b, n: base?.r ? n : 0, x: exc ? [0] : null }) + (!base?.r && n > 1 ? ` × ${n}` : '');
+    const nombre = esOro ? `${n} de oro` : O.nombreObjeto({ b, n: base?.r ? n : 0, x: exc ? [0] : null, ra: exc > 1 ? exc : 0 }) + (!base?.r && n > 1 ? ` × ${n}` : '');
+    if (exc >= 2) { FX.nivel(x, R.altura(x, z), z); }
     drops.set(id, { id, x, z, obj: g, nombre, color, esOro });
   }
   for (const [id, d] of drops) if (!vistos.has(id)) { E.scene.remove(d.obj); drops.delete(id); }
@@ -482,8 +521,11 @@ let angIntro = 0;
 function cuadro() {
   requestAnimationFrame(cuadro);
   const dt = Math.min(0.1, reloj.getDelta());
-  if (yo) {
+  if (seleccion.activa) {
+    seleccion.update(dt, E.camara); foco.set(0, 0, 0);
+  } else if (yo) {
     moverme(dt); actualizarEntes(dt);
+    for (const e of entes.values()) if (e.aureola && !e.muerto && Math.random() < dt * 14) { const p = pos(e); FX.chispas(p.x + (Math.random() - 0.5) * 0.8, p.y + 0.3 + Math.random() * 1.4, p.z + (Math.random() - 0.5) * 0.8, e.aureola, 1); }
     foco.lerp(v3.set(lx, R.altura(lx, lz), lz), Math.min(1, dt * 6));
     const vertical = innerWidth < innerHeight;
     E.camara.position.set(foco.x, foco.y + (vertical ? 15 : 12.5), foco.z + (vertical ? 12 : 10.5));

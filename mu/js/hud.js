@@ -1,6 +1,7 @@
 // La pantalla de juego: vida, energía, experiencia, habilidades, grupo, puntos, avisos.
 import * as R from './reglas.js';
 import * as C from './clases.js';
+import { iconoHab, iconoAtaque, iconoObjeto, iconoBoton } from './iconos.js';
 
 const IC = {
   atk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 19 19 5M14 5h5v5M4 15l5 5M7 17l-3 3"/></svg>',
@@ -25,7 +26,7 @@ export class Hud {
     const h = document.getElementById('hud');
     h.innerHTML = `
       <div class="caja arriba-izq"><div id="h-yo"><b id="h-nombre"></b><span id="h-nivel"></span><span id="h-buffs"></span></div><div id="h-grupo"></div></div>
-      <button id="b-mochila" class="hb mochila" aria-label="Personaje y mochila">${IC.mochila}</button>
+      <button id="b-mochila" class="hb mochila" aria-label="Personaje y mochila">${iconoBoton('mochila', '#5a3a20')}</button>
       <div id="h-obj" class="caja" hidden><b id="h-obj-nombre"></b><div class="barra"><i id="h-obj-vida"></i></div><small id="h-obj-desc"></small></div>
       <div id="h-jefe" hidden><b id="h-jefe-nombre"></b><div class="barra"><i id="h-jefe-vida"></i></div></div>
       <div class="arriba-der"><canvas id="h-mini" width="140" height="140"></canvas><span id="h-lugar"></span><span id="h-evento"></span><span id="h-ping"></span></div>
@@ -34,10 +35,10 @@ export class Hud {
         <div class="expw"><span id="h-exp-n"></span><div class="exp"><i id="h-exp"></i></div></div>
         <div class="orbe mana"><i id="h-mana"></i><span id="h-mana-n"></span></div>
       </div>
-      <button id="b-atk" class="hb grande" aria-label="Atacar al más cercano">${IC.atk}</button>
+      <button id="b-atk" class="hb grande" aria-label="Atacar al más cercano"><span class="ic"></span></button>
       ${[0, 1, 2, 3].map(i => `<button id="b-h${i}" class="hb hab h${i}" hidden><span class="ic"></span><em></em><i class="nom"></i></button>`).join('')}
-      <button id="b-pot" class="hb pot" aria-label="Poción de Sangre">${IC.pot}<small id="h-pot">0</small></button>
-      <button id="b-eter" class="hb eter" aria-label="Poción de Éter">${IC.eter}<small id="h-eter">0</small></button>
+      <button id="b-pot" class="hb pot" aria-label="Poción de Sangre">${iconoObjeto('pocion')}<small id="h-pot">0</small></button>
+      <button id="b-eter" class="hb eter" aria-label="Poción de Éter">${iconoObjeto('eter')}<small id="h-eter">0</small></button>
       <button id="b-puntos" class="boton-puntos" hidden>Puntos <b id="h-puntos">0</b></button>
       <div id="stick" hidden><i></i></div>
       <div id="toasts" aria-live="polite"></div>
@@ -59,7 +60,7 @@ export class Hud {
     this.mini = $('#h-mini').getContext('2d');
   }
 
-  mostrar(datos) { this.el.hidden = false; $('#h-nombre').textContent = datos.nombre; this.clase = datos.clase; }
+  mostrar(datos) { this.el.hidden = false; $('#h-nombre').textContent = datos.nombre; this.clase = datos.clase; $('#b-atk .ic').innerHTML = iconoAtaque(datos.clase); }
 
   // Pone las habilidades aprendidas en los 4 botones.
   ponerHabilidades(d) {
@@ -69,7 +70,8 @@ export class Hud {
       const b = $('#b-h' + i), h = this.habs[i];
       b.hidden = !h; if (!h) return;
       b.setAttribute('aria-label', h.nombre); b.classList.toggle('def', !!h.def);
-      b.querySelector('.ic').innerHTML = IC[h.tipo] || IC.area; b.querySelector('.nom').textContent = h.nombre;
+      if (b.dataset.h !== h.id) { b.dataset.h = h.id; b.querySelector('.ic').innerHTML = iconoHab(d.clase, h.id); }
+      b.querySelector('.nom').textContent = h.nombre;
     });
   }
 

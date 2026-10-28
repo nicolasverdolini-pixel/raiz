@@ -18,7 +18,7 @@ export function crearEscena(canvas) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(NIEBLA);
   scene.fog = new THREE.FogExp2(NIEBLA, 0.026);
-  const camara = new THREE.PerspectiveCamera(38, 1, 0.5, 75);
+  const camara = new THREE.PerspectiveCamera(38, 1, 0.5, 60);
 
   scene.add(new THREE.HemisphereLight('#8a97b0', '#2a1f15', 1.6));
   const luna = new THREE.DirectionalLight('#b3c4e4', 2.3);
@@ -29,13 +29,16 @@ export function crearEscena(canvas) {
 
   const terreno = crearTerreno(); scene.add(terreno);
   const agua = new THREE.Mesh(new THREE.CircleGeometry(6.6, 28), sinBorde(new THREE.MeshStandardMaterial({ color: '#16211b', roughness: 0.12, metalness: 0.4, transparent: true, opacity: 0.92 })));
-  agua.rotation.x = -Math.PI / 2; agua.position.set(-32, -0.18, 14); agua.receiveShadow = true; scene.add(agua);
+  agua.rotation.x = -Math.PI / 2; agua.position.set(R.CIENAGA.x, -0.18, R.CIENAGA.z); agua.receiveShadow = true; scene.add(agua);
 
-  const farol = crearAtalaya(scene);
-  const osario = crearOsario(scene, 40, -38, 42, -42, 31);
-  const cripta = crearOsario(scene, 64, -66, 64, -72, 57);
+  const atalayas = R.PUEBLOS.map((p, i) => crearAtalaya(scene, p, i));
+  const zOs = R.MONSTRUOS.centinela.zona, zCr = R.MONSTRUOS.archimago.zona, lOs = L('Osario'), lCr = L('Cripta Abierta');
+  const osario = crearOsario(scene, lOs.x, lOs.z, zOs.x, zOs.z, 31);
+  const cripta = crearOsario(scene, lCr.x, lCr.z, zCr.x, zCr.z, 57);
+  // Pocas luces de verdad (el celu sufre con muchas): dos faroles que se mudan al más cercano.
+  const luces = [0, 1].map(() => { const l = new THREE.PointLight('#ff8a3d', 26, 22, 1.6); scene.add(l); return l; });
   const ceniza = crearCeniza(scene);
-  const foso = new THREE.PointLight('#ff2a14', 18, 30, 1.5); foso.position.set(62, 3, 64); scene.add(foso);
+  const foso = new THREE.PointLight('#ff2a14', 18, 30, 1.5); foso.position.set(L('Foso del Éter').x, 3, L('Foso del Éter').z); scene.add(foso);
   const hemi = scene.children.find(o => o.isHemisphereLight);
   // Ambiente según el evento: normal, marea (ceniza azul) o noche roja (niebla de sangre).
   const AMB = { normal: { niebla: NIEBLA, cielo: '#8a97b0', ceniza: '#b8b2a6' }, marea: { niebla: '#101a24', cielo: '#7fa2c8', ceniza: '#8fd0ff' }, noche: { niebla: '#2a0c0b', cielo: '#b06a62', ceniza: '#ff6a4a' } };
@@ -53,8 +56,9 @@ export function crearEscena(canvas) {
   function actualizar(dt, foco) {
     t += dt;
     luna.position.set(foco.x - 14, 30, foco.z + 10); luna.target.position.set(foco.x, 0, foco.z);
-    farol.luz.intensity = 26 + Math.sin(t * 9) * 3 + Math.sin(t * 23) * 2;
-    farol.llama.scale.setScalar(1 + Math.sin(t * 13) * 0.08);
+    const cerca = atalayas.map(a => [a, Math.hypot(a.x - foco.x, a.z - foco.z)]).sort((u, v) => u[1] - v[1]);
+    luces.forEach((l, i) => { const a = cerca[i][0]; l.position.set(a.x + 1.05, a.y + 3.6, a.z); l.color.set(a.color); l.intensity = 26 + Math.sin(t * 9 + i) * 3 + Math.sin(t * 23) * 2; });
+    for (const a of atalayas) a.llama.scale.setScalar(1 + Math.sin(t * 13 + a.x) * 0.08);
     osario.fuego.intensity = 10 + Math.sin(t * 7 + 1) * 2;
     ceniza.update(dt, foco, t);
     const a = AMB[amb], k = Math.min(1, dt * 0.8);
@@ -66,8 +70,12 @@ export function crearEscena(canvas) {
 }
 
 // ---------- terreno ----------
+const L = n => R.MAPA.lugares.find(l => l.nombre === n);
+const TINTES_ZONA = [['Ciénaga Podrida', 15, '#26301f', 1], ['Osario', 19, '#5a5650', 0.8], ['Colmena Negra', 18, '#3a2219', 0.6], ['Nido de Tejedoras', 19, '#3b3a36', 0.6],
+  ['Bosque de los Colgados', 23, '#262a1e', 0.6], ['Cripta Abierta', 21, '#4a4640', 0.7], ['Pantano de los Brutos', 23, '#2b3020', 0.7], ['Foso del Éter', 24, '#3a1612', 0.75]]
+  .map(([n, r, c, k]) => [L(n).x, L(n).z, r, c, k]);
 function crearTerreno() {
-  const N = 150, T = R.MUNDO * 2 + 24;
+  const N = 190, T = R.MUNDO * 2 + 24;
   const geo = new THREE.PlaneGeometry(T, T, N, N); geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) pos.setY(i, R.altura(pos.getX(i), pos.getZ(i)));
@@ -76,14 +84,9 @@ function crearTerreno() {
   for (let i = 0; i < p.count; i += 3) {
     const x = (p.getX(i) + p.getX(i + 1) + p.getX(i + 2)) / 3, z = (p.getZ(i) + p.getZ(i + 1) + p.getZ(i + 2)) / 3;
     c.set(barro[Math.floor(rnd() * barro.length)]);
-    const dP = Math.hypot(x, z);
-    if (dP < R.PUEBLO.r + 1) c.set(rnd() < 0.5 ? '#4b4740' : '#55504a');
+    if (R.PUEBLOS.some(p => Math.hypot(x - p.x, z - p.z) < p.r + 1)) c.set(rnd() < 0.5 ? '#4b4740' : '#55504a');
     else if (R.enCamino(x, z)) c.set(rnd() < 0.5 ? '#54473a' : '#4c4034');
-    const dc = Math.hypot(x + 32, z - 14); if (dc < 11) c.lerp(new THREE.Color('#26301f'), Math.max(0, 1 - dc / 11));
-    const dh = Math.hypot(x - 40, z + 38); if (dh < 14) c.lerp(new THREE.Color('#5a5650'), Math.max(0, 1 - dh / 14) * 0.8);
-    const dv = Math.hypot(x + 6, z + 38); if (dv < 13) c.lerp(new THREE.Color('#3a2219'), Math.max(0, 1 - dv / 13) * 0.6);
-    const dn = Math.hypot(x - 36, z - 8); if (dn < 14) c.lerp(new THREE.Color('#3b3a36'), Math.max(0, 1 - dn / 14) * 0.6);
-    const zonas = [[-56, 48, 16, '#262a1e', 0.6], [64, -66, 15, '#4a4640', 0.7], [-60, -62, 16, '#2b3020', 0.7], [62, 64, 17, '#3a1612', 0.75]];
+    const zonas = TINTES_ZONA;
     for (const [zx, zz, zr, zc, zk] of zonas) { const d = Math.hypot(x - zx, z - zz); if (d < zr) c.lerp(new THREE.Color(zc), Math.max(0, 1 - d / zr) * zk); }
     c.multiplyScalar(0.85 + rnd() * 0.25);
     for (let k = 0; k < 3; k++) cols.push(c.r, c.g, c.b);
@@ -106,7 +109,7 @@ function instanciar(scene, nombre, lista, { sombra = true, tinte = null, oscurec
     if (mat.color) { if (tinte) mat.color.lerp(new THREE.Color(tinte), 0.5); mat.color.multiplyScalar(oscurecer); }
     mat.flatShading = true; sinBorde(mat);
     const pedazos = new Map();
-    for (const it of lista) { const k = Math.floor(it.x / 30) + ',' + Math.floor(it.z / 30); if (!pedazos.has(k)) pedazos.set(k, []); pedazos.get(k).push(it); }
+    for (const it of lista) { const k = Math.floor(it.x / 22) + ',' + Math.floor(it.z / 22); if (!pedazos.has(k)) pedazos.set(k, []); pedazos.get(k).push(it); }
     for (const grupo of pedazos.values()) {
       const im = new THREE.InstancedMesh(o.geometry, mat, grupo.length);
       grupo.forEach((it, i) => {
@@ -127,7 +130,8 @@ function poblar(scene) {
   const libre = (x, z, margen = 0) => {
     if (Math.hypot(x, z) < R.PUEBLO.r + 4 + margen) return false;
     if (R.enCamino(x, z)) return false;
-    if (Math.hypot(x + 32, z - 14) < 8) return false;
+    if (Math.hypot(x - R.CIENAGA.x, z - R.CIENAGA.z) < 8) return false;
+    if (R.PUEBLOS.some(p => Math.hypot(x - p.x, z - p.z) < p.r + 5 + margen)) return false;
     for (const l of R.MAPA.lugares) if (Math.hypot(x - l.x, z - l.z) < 5 + margen) return false;
     return true;
   };
@@ -135,15 +139,15 @@ function poblar(scene) {
   const grupos = Object.fromEntries([...arboles, 'Rock_1', 'Rock_2', 'Rock_3', 'Rock_5', 'Rock_Moss_1', 'TreeStump', 'TreeStump_Moss', 'WoodLog', 'WoodLog_Moss', 'Bush_1', 'Grass'].map(n => [n, []]));
   const poner = (n, x, z, alto, extra = {}) => grupos[n].push({ x, z, alto, giro: rnd() * 6.28, ...extra });
   // Bosque muerto en el borde y salpicado adentro.
-  for (let i = 0; i < 700; i++) {
+  for (let i = 0; i < 850; i++) {
     const x = (rnd() * 2 - 1) * (R.MUNDO + 8), z = (rnd() * 2 - 1) * (R.MUNDO + 8);
     const borde = Math.max(Math.abs(x), Math.abs(z)) > R.MUNDO - 10;
     if (!borde && (rnd() < 0.55 || !libre(x, z, 2))) continue;
     poner(arboles[Math.floor(rnd() * arboles.length)], x, z, 4.5 + rnd() * 4.5);
   }
-  for (let i = 0; i < 340; i++) { const x = (rnd() * 2 - 1) * R.MUNDO, z = (rnd() * 2 - 1) * R.MUNDO; if (libre(x, z)) poner(['Rock_1', 'Rock_2', 'Rock_3', 'Rock_5', 'Rock_Moss_1'][i % 5], x, z, 0.4 + rnd() * 1.4); }
-  for (let i = 0; i < 150; i++) { const x = (rnd() * 2 - 1) * R.MUNDO, z = (rnd() * 2 - 1) * R.MUNDO; if (libre(x, z)) poner(['TreeStump', 'TreeStump_Moss', 'WoodLog', 'WoodLog_Moss'][i % 4], x, z, 0.5 + rnd() * 0.4); }
-  for (let i = 0; i < 240; i++) { const x = (rnd() * 2 - 1) * R.MUNDO, z = (rnd() * 2 - 1) * R.MUNDO; if (libre(x, z)) poner('Bush_1', x, z, 0.5 + rnd() * 0.6); }
+  for (let i = 0; i < 400; i++) { const x = (rnd() * 2 - 1) * R.MUNDO, z = (rnd() * 2 - 1) * R.MUNDO; if (libre(x, z)) poner(['Rock_1', 'Rock_2', 'Rock_3', 'Rock_5', 'Rock_Moss_1'][i % 5], x, z, 0.4 + rnd() * 1.4); }
+  for (let i = 0; i < 260; i++) { const x = (rnd() * 2 - 1) * R.MUNDO, z = (rnd() * 2 - 1) * R.MUNDO; if (libre(x, z)) poner(['TreeStump', 'TreeStump_Moss', 'WoodLog', 'WoodLog_Moss'][i % 4], x, z, 0.5 + rnd() * 0.4); }
+  for (let i = 0; i < 250; i++) { const x = (rnd() * 2 - 1) * R.MUNDO, z = (rnd() * 2 - 1) * R.MUNDO; if (libre(x, z)) poner('Bush_1', x, z, 0.5 + rnd() * 0.6); }
   for (let i = 0; i < 500; i++) { const x = (rnd() * 2 - 1) * R.MUNDO, z = (rnd() * 2 - 1) * R.MUNDO; if (Math.hypot(x, z) > R.PUEBLO.r && !R.enCamino(x, z)) poner('Grass', x, z, 0.35 + rnd() * 0.4); }
   for (const [n, lista] of Object.entries(grupos)) {
     const arbol = arboles.includes(n);
@@ -151,26 +155,35 @@ function poblar(scene) {
   }
 }
 
-// ---------- Atalaya del Farol (zona segura) ----------
-function crearAtalaya(scene) {
+// ---------- Atalayas (zonas seguras) ----------
+const COLOR_FAROL = ['#ff8a3d', '#7fb0c8', '#d8cfa8', '#9fbf7a', '#ff3b1f'];
+function crearAtalaya(scene, P, i) {
+  const g = new THREE.Group(), y0 = R.altura(P.x, P.z); g.position.set(P.x, y0, P.z); scene.add(g);
   const piedra = sinBorde(new THREE.MeshStandardMaterial({ color: '#4a4741', roughness: 0.95, flatShading: true }));
   const hierro = sinBorde(new THREE.MeshStandardMaterial({ color: '#1d1b19', roughness: 0.6, metalness: 0.6, flatShading: true }));
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.6, 0.35, 10), piedra); base.position.y = 0.1; base.receiveShadow = true; scene.add(base);
-  const poste = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 4.2, 6), hierro); poste.position.y = 2.2; poste.castShadow = true; scene.add(poste);
-  const brazo = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.1), hierro); brazo.position.set(0.5, 4.1, 0); scene.add(brazo);
-  const jaula = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.6, 6, 1, true), hierro); jaula.position.set(1.05, 3.7, 0); scene.add(jaula);
-  const llama = new THREE.Mesh(new THREE.OctahedronGeometry(0.2, 0), sinBorde(new THREE.MeshBasicMaterial({ color: '#ffb35c' })));
-  llama.position.set(1.05, 3.7, 0); scene.add(llama);
-  const luz = new THREE.PointLight('#ff8a3d', 26, 22, 1.6); luz.position.set(1.05, 3.6, 0); luz.castShadow = false; scene.add(luz);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(P.r - 3.8, P.r - 3.4, 0.35, 10), piedra); base.position.y = 0.1; base.receiveShadow = true; g.add(base);
+  const poste = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 4.2, 6), hierro); poste.position.y = 2.2; poste.castShadow = true; g.add(poste);
+  const brazo = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.1), hierro); brazo.position.set(0.5, 4.1, 0); g.add(brazo);
+  const jaula = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.6, 6, 1, true), hierro); jaula.position.set(1.05, 3.7, 0); g.add(jaula);
+  const color = COLOR_FAROL[i] || '#ff8a3d';
+  const llama = new THREE.Mesh(new THREE.OctahedronGeometry(0.2, 0), sinBorde(new THREE.MeshBasicMaterial({ color })));
+  llama.position.set(1.05, 3.7, 0); g.add(llama);
+  // Baúl de la cuenta, junto al farol.
+  const madera = sinBorde(new THREE.MeshStandardMaterial({ color: '#4a3020', roughness: 0.9, flatShading: true }));
+  const baul = new THREE.Group(); baul.position.set(1.8, 0.3, 1.6); baul.rotation.y = 0.6;
+  const caja = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.6, 0.7), madera); caja.position.y = 0.3; caja.castShadow = true; baul.add(caja);
+  const tapa = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.1, 8, 1, false, 0, Math.PI), madera); tapa.rotation.z = Math.PI / 2; tapa.position.y = 0.6; baul.add(tapa);
+  const herraje = new THREE.Mesh(new THREE.BoxGeometry(1.14, 0.08, 0.74), hierro); herraje.position.y = 0.45; baul.add(herraje);
+  g.add(baul);
   // Pilares rotos alrededor.
-  const rnd = R.azar(9);
-  for (let i = 0; i < 7; i++) {
-    const a = i / 7 * Math.PI * 2 + 0.3, h = 1 + rnd() * 2.6;
+  const rnd = R.azar(9 + i);
+  for (let k = 0; k < 7; k++) {
+    const a = k / 7 * Math.PI * 2 + 0.3, h = 1 + rnd() * 2.6, x = Math.cos(a) * (P.r - 1.8), z = Math.sin(a) * (P.r - 1.8);
     const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, h, 6), piedra);
-    pil.position.set(Math.cos(a) * 7.2, h / 2 + R.altura(Math.cos(a) * 7.2, Math.sin(a) * 7.2) - 0.1, Math.sin(a) * 7.2);
-    pil.rotation.z = (rnd() - 0.5) * 0.15; pil.castShadow = true; pil.receiveShadow = true; scene.add(pil);
+    pil.position.set(x, h / 2 + R.altura(P.x + x, P.z + z) - y0 - 0.1, z);
+    pil.rotation.z = (rnd() - 0.5) * 0.15; pil.castShadow = true; pil.receiveShadow = true; g.add(pil);
   }
-  return { luz, llama };
+  return { x: P.x, y: y0, z: P.z, llama, color };
 }
 
 // ---------- Osario: tumbas y cruces ----------

@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="icono.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Spectral:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Spectral+SC:wght@500;700&family=Spectral:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="estilos.css">
   <script type="importmap">{ "imports": { "three": "./vendor/three/build/three.module.min.js", "three/addons/": "./vendor/three/examples/jsm/" } }</script>
 </head>
@@ -23,20 +23,15 @@
   <canvas id="mundo"></canvas>
   <canvas id="textos"></canvas>
   <div id="hud" hidden></div>
+  <div id="seleccion" hidden></div>
   <div id="entrada">
     <form id="form-entrar" autocomplete="on">
       <h1>Sendas del Éter</h1>
       <p class="sub">Páramo del Luto · Canal 1</p>
-      <label>Nombre<input id="nombre" name="username" autocomplete="username" maxlength="14" required></label>
+      <label>Cuenta<input id="nombre" name="username" autocomplete="username" maxlength="14" required></label>
       <label>Clave<input id="clave" name="password" type="password" autocomplete="current-password" maxlength="40" required></label>
-      <fieldset class="clases"><legend>Clase (solo para personajes nuevos)</legend>
-        <label><input type="radio" name="clase" value="guardian" checked><b>Guardián</b><small>Espada y escudo. Aguanta.</small></label>
-        <label><input type="radio" name="clase" value="cazadora"><b>Cazadora</b><small>Ballesta. Pega de lejos.</small></label>
-        <label><input type="radio" name="clase" value="arcanista"><b>Arcanista</b><small>Magia en área. Frágil.</small></label>
-        <label><input type="radio" name="clase" value="barbaro"><b>Bárbaro</b><small>Dos hachas. Mucho daño.</small></label>
-      </fieldset>
       <button id="btn-entrar" type="submit">Entrar</button>
-      <p class="nota">Si el nombre es nuevo, se crea el personaje con esa clave y esa clase.</p>
+      <p class="nota">Si la cuenta es nueva, se crea con esa clave. Después elegís o creás tus personajes.</p>
       <p id="error-entrar" class="error" role="alert"></p>
       <p id="cargando" class="nota">Cargando el mundo…</p>
       <a class="creditos" href="CREDITOS.md" target="_blank" rel="noopener">Créditos</a>

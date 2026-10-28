@@ -3,8 +3,23 @@
 
 export const VERSION = 1;
 export const TICK = 0.1;                 // el servidor actualiza 10 veces por segundo
-export const MUNDO = 90;                 // el mapa va de -90 a 90
-export const PUEBLO = { x: 0, z: 0, r: 9 };   // zona segura: los monstruos no entran
+export const MUNDO = 125;                // el mapa va de -125 a 125
+// Atalayas: pueblos seguros (los monstruos no entran). Se viaja entre las que ya visitaste.
+// nivel: para qué nivel es lo que venden sus NPCs (1 a 4).
+export const PUEBLOS = [
+  { nombre: 'Atalaya del Farol', x: 0, z: 0, r: 9, tier: 1, frase: 'El último farol que todavía arde.' },
+  { nombre: 'Atalaya Ahogada', x: -62, z: 46, r: 8, tier: 2, frase: 'El agua le llega a las rodillas. Nadie se acuerda de cuándo subió.' },
+  { nombre: 'Atalaya de los Huesos', x: 78, z: -46, r: 8, tier: 3, frase: 'Construida con lo que el Osario no quiso.' },
+  { nombre: 'Atalaya Hundida', x: -60, z: -74, r: 8, tier: 3, frase: 'La torre se va tragando a sí misma, piedra por piedra.' },
+  { nombre: 'Atalaya Roja', x: 60, z: 70, r: 8, tier: 4, frase: 'El farol arde rojo. Dicen que lo alimentan con Éter del Foso.' },
+];
+export const PUEBLO = PUEBLOS[0];
+export const enAtalaya = (x, z) => PUEBLOS.findIndex(p => Math.hypot(x - p.x, z - p.z) < p.r);
+export const atalayaCercana = (x, z, visitadas) => {
+  let mejor = 0, md = 1e9;
+  PUEBLOS.forEach((p, i) => { if (visitadas && !visitadas.includes(i)) return; const d = Math.hypot(x - p.x, z - p.z); if (d < md) { md = d; mejor = i; } });
+  return mejor;
+};
 export const VEL_JUGADOR = 5.2;
 export const MAX_GRUPO = 5;
 export const BONUS_GRUPO = 0.1;          // +10% de experiencia por cada compañero
@@ -36,6 +51,7 @@ export function normalizar(d, nuevo) {
   if (!d.equipo) { d.equipo = {}; for (const [r, b] of Object.entries(CLASES[d.clase].inicio)) d.equipo[r] = { b, n: 0 }; }
   if (d.oro == null) d.oro = 150;
   if (!d.lugares) d.lugares = ['Atalaya del Farol'];
+  if (!d.atalayas) d.atalayas = [0];
   return d;
 }
 
@@ -102,6 +118,8 @@ export const MONSTRUOS = {
                furia: 0.3, desc: 'Llega con la Noche Roja. Viene a buscar Guardianes.' }),
 };
 export const TIPOS = Object.keys(MONSTRUOS);
+const K = 1.45;   // el mapa es más grande: todo lo que no es el centro se aleja
+for (const m of Object.values(MONSTRUOS)) if (m.zona.x || m.zona.z) { m.zona.x = Math.round(m.zona.x * K); m.zona.z = Math.round(m.zona.z * K); if (m.zona.r > 1) m.zona.r = Math.round(m.zona.r * 1.2); }
 export const CAMPEON = { prob: 0.06, probNoche: 0.25, hp: 3, dano: 1.4, exp: 3.5, escala: 1.3 };
 
 // ---------- Eventos con horario (hora del servidor) ----------
@@ -149,13 +167,15 @@ export const MAPA = {
     { nombre: 'Foso del Éter', x: 62, z: 64, frase: 'Donde el Éter se junta, la tierra sangra.' },
   ],
 };
+for (const l of MAPA.lugares) { l.x = Math.round(l.x * K); l.z = Math.round(l.z * K); }
+MAPA.lugares.push(...PUEBLOS.slice(1).map(p => ({ nombre: p.nombre, x: p.x, z: p.z, frase: p.frase, atalaya: true })));
+export const CIENAGA = { x: MONSTRUOS.sapo.zona.x, z: MONSTRUOS.sapo.zona.z };
 
 // Altura del piso: suave, plana en la atalaya y en la ciénaga. La usan los dos lados.
 export function altura(x, z) {
   let h = Math.sin(x * 0.11) * 0.45 + Math.cos(z * 0.09 + x * 0.04) * 0.5 + Math.sin((x + z) * 0.23) * 0.15;
-  const dp = Math.hypot(x, z);
-  if (dp < 14) h *= Math.max(0, (dp - 9) / 5);
-  const dc = Math.hypot(x + 32, z - 14);
+  for (const p of PUEBLOS) { const dp = Math.hypot(x - p.x, z - p.z); if (dp < p.r + 5) h *= Math.max(0, (dp - p.r) / 5); }
+  const dc = Math.hypot(x + 46, z - 20);
   if (dc < 9) h = h * Math.max(0, (dc - 6) / 3) - (dc < 6 ? 0.25 : 0);
   const borde = Math.max(0, Math.abs(x) - (MUNDO - 8)) + Math.max(0, Math.abs(z) - (MUNDO - 8));
   return h + borde * borde * 0.35;

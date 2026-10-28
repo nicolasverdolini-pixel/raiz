@@ -27,6 +27,24 @@ export const CLASES = {
     vida: [55, 2.2, 2.8], energia: [12, 1.4, 0.8], dano: [6.5, 4.2], defensa: [7, 12], cadencia: [0.85, 0.004],
     inicio: { arma: 'hacha1', armadura: 'armadura_cuero' },
   },
+  sombra: {
+    nombre: 'Sombra', desc: 'Dos dagas. Golpes críticos, veneno y desaparecer. Muy rápida, muy frágil.',
+    base: { fue: 18, agi: 32, vit: 18, ene: 12 }, atributo: 'agi', arma: 'dagas', alcance: 1.6, crit: 8,
+    vida: [45, 2, 2.3], energia: [15, 1.5, 1], dano: [6.5, 4.2], defensa: [6, 12], cadencia: [0.78, 0.0045],
+    inicio: { arma: 'dagas1', armadura: 'armadura_cuero' },
+  },
+  nigromante: {
+    nombre: 'Nigromante', desc: 'Un muerto que volvió del Éter. Levanta siervos de hueso que pelean por él.',
+    base: { fue: 10, agi: 16, vit: 20, ene: 32 }, atributo: 'ene', arma: 'cetro', alcance: 8, proyectil: 'verde',
+    vida: [42, 1.9, 2.1], energia: [24, 2.4, 1.4], dano: [6.5, 4.2], defensa: [7, 12], cadencia: [1.15, 0.003],
+    inicio: { arma: 'cetro1', armadura: 'armadura_cuero' },
+  },
+  desterrado: {
+    nombre: 'Desterrado', desc: 'Mitad demonio. Pega con los puños en llamas y se cura con la sangre que derrama.',
+    base: { fue: 26, agi: 20, vit: 26, ene: 14 }, atributo: 'fue', arma: 'garras', alcance: 1.7, robo: 3,
+    vida: [58, 2.3, 2.9], energia: [14, 1.5, 1], dano: [7, 4.6], defensa: [6, 10], cadencia: [0.9, 0.0035],
+    inicio: { arma: 'garras1', armadura: 'armadura_cuero' },
+  },
 };
 export const LISTA_CLASES = Object.keys(CLASES);
 
@@ -104,6 +122,57 @@ export const ARBOL = {
       A('terremoto', 'Terremoto', { tipo: 'area', def: true, max: 3, mp: 35, cd: 45, radio: 7, frena: 2, mult: r => 2 + r * 0.5, desc: r => `Parte el piso y aturde 2 s (${Math.round((2 + r * 0.5) * 100)}%).`, anim: 'hachazo' }),
     ] },
   ],
+  sombra: [
+    { rama: 'Filo', hab: [
+      A('punalada', 'Puñalada', { tipo: 'golpe', mp: 8, cd: 4, mult: r => 2.4 + r * 0.25, desc: r => `Una puñalada por la espalda (${Math.round((2.4 + r * 0.25) * 100)}%).`, anim: 'apunala' }),
+      A('sangrado', 'Sangrado', { tipo: 'pasiva', efecto: r => ({ crit: r * 3 }), desc: r => `+${r * 3}% de críticos.` }),
+      A('milcortes', 'Mil Cortes', { tipo: 'area', def: true, max: 3, mp: 30, cd: 35, radio: 3.5, mult: r => 4 + r, desc: r => `Corta todo alrededor (${(4 + r) * 100}%).`, anim: 'spin' }),
+    ] },
+    { rama: 'Veneno', hab: [
+      A('nube', 'Nube Tóxica', { tipo: 'lluvia', mp: 10, cd: 6, radio: 3.5, alcance: 7, mult: r => 1.3 + r * 0.15, desc: r => `Tira un frasco que revienta en veneno (${Math.round((1.3 + r * 0.15) * 100)}%).`, anim: 'tira' }),
+      A('toxinas', 'Toxinas', { tipo: 'pasiva', efecto: r => ({ dmgPct: r * 4 }), desc: r => `+${r * 4}% daño.` }),
+      A('plaga', 'Plaga', { tipo: 'lluvia', def: true, max: 3, mp: 35, cd: 40, radio: 6, alcance: 9, mult: r => 3 + r * 0.6, desc: r => `Una nube enorme (${Math.round((3 + r * 0.6) * 100)}%).`, anim: 'tira' }),
+    ] },
+    { rama: 'Sombra', hab: [
+      A('desvanecer', 'Desvanecerse', { tipo: 'buff', mp: 12, cd: 18, dura: 4, efecto: r => ({ menos: 35 + r * 5, vel: 25 }), desc: r => `Recibís ${35 + r * 5}% menos daño y atacás más rápido por 4 s.`, anim: 'esquiva' }),
+      A('evasion', 'Evasión', { tipo: 'pasiva', efecto: r => ({ menos: r * 3 }), desc: r => `Recibís ${r * 3}% menos daño.` }),
+      A('danza', 'Danza Sombría', { tipo: 'buff', def: true, max: 3, mp: 30, cd: 60, dura: 8, efecto: r => ({ vel: 40 + r * 5, dmgPct: 30 + r * 5 }), desc: r => `+${40 + r * 5}% velocidad y +${30 + r * 5}% daño por 8 s.`, anim: 'festeja' }),
+    ] },
+  ],
+  nigromante: [
+    { rama: 'Muerte', hab: [
+      A('levantar', 'Levantar Muertos', { tipo: 'invocar', mp: 20, cd: 22, dura: 30, n: r => 1 + Math.floor(r / 2), desc: r => `Levanta ${1 + Math.floor(r / 2)} siervo${r > 1 ? 's' : ''} de hueso por 30 s.`, anim: 'invoca' }),
+      A('ejercito', 'Ejército', { tipo: 'pasiva', efecto: r => ({ siervos: r * 12 }), desc: r => `Tus siervos pegan ${r * 12}% más.` }),
+      A('legion', 'Legión', { tipo: 'invocar', def: true, max: 3, mp: 45, cd: 60, dura: 30, n: r => 4 + r, desc: r => `Levanta ${4 + r} siervos de golpe.`, anim: 'invoca' }),
+    ] },
+    { rama: 'Plaga', hab: [
+      A('rayohueso', 'Rayo de Hueso', { tipo: 'proyectil', mp: 7, cd: 2.5, mult: r => 1.9 + r * 0.25, desc: r => `Dispara una astilla de hueso (${Math.round((1.9 + r * 0.25) * 100)}%).`, anim: 'hechizo' }),
+      A('fragiles', 'Huesos Frágiles', { tipo: 'pasiva', efecto: r => ({ dmgPct: r * 4 }), desc: r => `+${r * 4}% daño.` }),
+      A('lluviahuesos', 'Lluvia de Huesos', { tipo: 'lluvia', def: true, max: 3, mp: 40, cd: 45, radio: 6, alcance: 11, mult: r => 3.5 + r, desc: r => `Llueven huesos (${Math.round((3.5 + r) * 100)}%).`, anim: 'hechizo2' }),
+    ] },
+    { rama: 'Pacto', hab: [
+      A('sifon', 'Sifón de Vida', { tipo: 'proyectil', mp: 10, cd: 6, robo: 40, mult: r => 1.4 + r * 0.15, desc: r => `Roba vida: te curás 40% de lo que pega (${Math.round((1.4 + r * 0.15) * 100)}%).`, anim: 'hechizo' }),
+      A('pactoscuro', 'Pacto Oscuro', { tipo: 'pasiva', efecto: r => ({ vidaKill: r * 3 }), desc: r => `Recuperás ${r * 3}% de vida al matar.` }),
+      A('velo', 'Velo de los Muertos', { tipo: 'buff', grupo: true, def: true, max: 3, mp: 35, cd: 60, dura: 8, efecto: r => ({ menos: 20 + r * 5 }), desc: r => `El grupo recibe ${20 + r * 5}% menos daño por 8 s.`, anim: 'festeja' }),
+    ] },
+  ],
+  desterrado: [
+    { rama: 'Brasa', hab: [
+      A('punoigneo', 'Puño Ígneo', { tipo: 'golpe', mp: 8, cd: 4, mult: r => 2.2 + r * 0.22, desc: r => `Un golpe en llamas (${Math.round((2.2 + r * 0.22) * 100)}%).`, anim: 'puno' }),
+      A('hirviente', 'Sangre Hirviente', { tipo: 'pasiva', efecto: r => ({ dmgPct: r * 4 }), desc: r => `+${r * 4}% daño.` }),
+      A('erupcion', 'Erupción', { tipo: 'area', def: true, max: 3, mp: 35, cd: 40, radio: 5, mult: r => 3.5 + r, desc: r => `El piso explota alrededor (${Math.round((3.5 + r) * 100)}%).`, anim: 'puno' }),
+    ] },
+    { rama: 'Pacto', hab: [
+      A('hambre', 'Hambre', { tipo: 'buff', mp: 12, cd: 20, dura: 8, efecto: r => ({ robo: 12 + r * 3 }), desc: r => `Te curás ${12 + r * 3}% de lo que pegás por 8 s.`, anim: 'festeja' }),
+      A('pielceniza', 'Piel Calcinada', { tipo: 'pasiva', efecto: r => ({ hpPct: r * 4, defPct: r * 2 }), desc: r => `+${r * 4}% vida y +${r * 2}% defensa.` }),
+      A('forma', 'Forma Demoníaca', { tipo: 'buff', def: true, max: 3, mp: 30, cd: 60, dura: 10, efecto: r => ({ dmgPct: 30 + r * 5, menos: 20 + r * 5 }), desc: r => `+${30 + r * 5}% daño y ${20 + r * 5}% menos daño recibido por 10 s.`, anim: 'festeja' }),
+    ] },
+    { rama: 'Infierno', hab: [
+      A('alientofuego', 'Aliento de Fuego', { tipo: 'lluvia', mp: 10, cd: 5, radio: 3, alcance: 6, mult: r => 1.4 + r * 0.15, desc: r => `Escupe fuego (${Math.round((1.4 + r * 0.15) * 100)}%).`, anim: 'puno' }),
+      A('calor', 'Calor', { tipo: 'pasiva', efecto: r => ({ vel: r * 4 }), desc: r => `+${r * 4}% velocidad de ataque.` }),
+      A('azufre', 'Lluvia de Azufre', { tipo: 'lluvia', def: true, max: 3, mp: 40, cd: 45, radio: 6, alcance: 10, mult: r => 3 + r * 0.8, desc: r => `Cae fuego del cielo (${Math.round((3 + r * 0.8) * 100)}%).`, anim: 'puno' }),
+    ] },
+  ],
 };
 
 export function buscarHab(clase, id) {
@@ -162,7 +231,7 @@ export function calcular(d) {
     def: Math.round((d.agi / c.defensa[0] + d.vit / c.defensa[1] + eq.def) * pct('defPct')),
     cadencia: Math.max(0.35, (c.cadencia[0] - d.agi * c.cadencia[1]) / pct('vel')),
     alcance: c.alcance + (pa.alcance || 0),
-    crit: 8 + (pa.crit || 0), exc: 4 + (eq.exc || 0) / 2,
+    crit: 8 + (c.crit || 0) + (pa.crit || 0), exc: 4 + (eq.exc || 0) / 2, robo: (c.robo || 0) + (pa.robo || 0), siervos: pa.siervos || 0,
     menos: Math.min(60, (eq.menos || 0) + (pa.menos || 0)), refleja: eq.refleja || 0,
     vidaKill: (eq.vidaKill || 0) + (pa.vidaKill || 0), manaKill: (eq.manaKill || 0) + (pa.manaKill || 0),
     regenMp: 2 + (pa.regen || 0), distancia: !!c.proyectil, proyectil: c.proyectil,
