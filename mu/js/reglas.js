@@ -52,6 +52,7 @@ export function normalizar(d, nuevo) {
   if (d.oro == null) d.oro = 150;
   if (!d.lugares) d.lugares = ['Atalaya del Farol'];
   if (!d.atalayas) d.atalayas = [0];
+  if (!d.misiones) d.misiones = { activas: {}, hechas: [], encargos: {} };
   return d;
 }
 

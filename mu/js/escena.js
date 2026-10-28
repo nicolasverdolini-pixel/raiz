@@ -175,6 +175,13 @@ function crearAtalaya(scene, P, i) {
   const tapa = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.1, 8, 1, false, 0, Math.PI), madera); tapa.rotation.z = Math.PI / 2; tapa.position.y = 0.6; baul.add(tapa);
   const herraje = new THREE.Mesh(new THREE.BoxGeometry(1.14, 0.08, 0.74), hierro); herraje.position.y = 0.45; baul.add(herraje);
   g.add(baul);
+  // Tablón de encargos.
+  const tablon = new THREE.Group(); tablon.position.set(-2.6, 0, 3.4); tablon.rotation.y = 2.4;
+  for (const px of [-0.7, 0.7]) { const poste = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2, 0.14), madera); poste.position.set(px, 1, 0); poste.castShadow = true; tablon.add(poste); }
+  const tabla = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.1, 0.08), madera); tabla.position.y = 1.4; tabla.castShadow = true; tablon.add(tabla);
+  const papel = sinBorde(new THREE.MeshStandardMaterial({ color: '#cbbf9a', roughness: 1 }));
+  for (const [px, py] of [[-0.45, 1.55], [0.1, 1.3], [0.5, 1.6], [-0.2, 1.15]]) { const h = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.42), papel); h.position.set(px, py, 0.05); h.rotation.z = (px * 0.3); tablon.add(h); }
+  g.add(tablon);
   // Pilares rotos alrededor.
   const rnd = R.azar(9 + i);
   for (let k = 0; k < 7; k++) {

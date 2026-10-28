@@ -141,6 +141,7 @@ export const NPCS = ATALAYAS.flatMap((a, i) => {
       frase: i ? 'Acá el hierro es mejor. Y más caro. Lo vale.' : 'El hierro no miente. Las gemas sí, a veces.', vende: equipoDeTier(a.tier), forja: true },
   ];
   lista.push({ id: 'baul' + i, rol: 'baul', atalaya: i, nombre: 'Baúl de la cuenta', x: a.x + 1.8, z: a.z + 1.6, giro: 0.6, frase: 'Lo que guardes acá lo ven todos tus personajes.' });
+  lista.push({ id: 'tablon' + i, rol: 'tablon', atalaya: i, nombre: 'Tablón de Encargos', x: a.x - 2.6, z: a.z + 3.4, giro: 2.4, frase: 'Pedidos clavados con cuchillo. Siempre hay uno nuevo.' });
   lista.push({ id: 'farol' + i, rol: 'farol', atalaya: i, nombre: 'Farol', x: a.x, z: a.z, frase: 'Desde acá se viaja a las atalayas que ya encendiste.' });
   if (a.vidente) lista.push({ id: 'vidente', rol: 'vidente', atalaya: i, nombre: 'Oria la Vidente', modelo: 'npc_vidente.glb', x: a.x, z: a.z + 4.6, giro: Math.PI,
     frase: 'Veo la Marea antes que llegue. Veo el rojo de la noche. Preguntame.', eventos: true, vende: ['vela'] });

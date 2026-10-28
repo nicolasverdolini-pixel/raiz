@@ -307,3 +307,15 @@ input:focus { outline: 1px solid var(--sangre-2); }
   .pj { width: 108px; padding: 4px 6px; } .pj svg { width: 32px; height: 32px; } .pj.nuevo b { line-height: 32px; font-size: 1.5em; }
   #seleccion .fila .btn { padding: 7px 12px; }
 }
+/* Misiones */
+#h-mis:empty { display: none; }
+#h-mis { display: flex; flex-direction: column; gap: 2px; border-top: 1px solid rgba(216,207,189,.12); padding-top: 5px; font-size: .82em; color: var(--hueso-2); }
+#h-mis .lista { color: #7fe07a; }
+.mision { display: flex; flex-direction: column; gap: 4px; padding: 10px; border: 1px solid #2c2725; border-radius: 4px; background: linear-gradient(#131011, #0b0a0b); }
+.mision.lista { border-color: #4f8f4a; box-shadow: inset 0 0 12px rgba(80,180,80,.15); }
+.mision b { font: 600 1.08em var(--titulo); }
+.m-texto { color: var(--hueso); } .m-obj { color: #e9c37a; font-weight: 600; } .mision.lista .m-obj { color: #7fe07a; }
+.premio { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .88em; color: var(--hueso-2); }
+.premio span { display: inline-flex; align-items: center; gap: 4px; }
+.premio svg { width: 20px; height: 20px; }
+.r-exc-t { color: #8fe8b4; } .r-leg-t { color: #f2c46a; } .r-mit-t { color: #ff6a74; }

@@ -25,7 +25,7 @@ export class Hud {
     this.cb = cb; this.yo = null; this.lugar = ''; this.toastsVivos = 0;
     const h = document.getElementById('hud');
     h.innerHTML = `
-      <div class="caja arriba-izq"><div id="h-yo"><b id="h-nombre"></b><span id="h-nivel"></span><span id="h-buffs"></span></div><div id="h-grupo"></div></div>
+      <div class="caja arriba-izq"><div id="h-yo"><b id="h-nombre"></b><span id="h-nivel"></span><span id="h-buffs"></span></div><div id="h-grupo"></div><div id="h-mis"></div></div>
       <button id="b-mochila" class="hb mochila" aria-label="Personaje y mochila">${iconoBoton('mochila', '#5a3a20')}</button>
       <div id="h-obj" class="caja" hidden><b id="h-obj-nombre"></b><div class="barra"><i id="h-obj-vida"></i></div><small id="h-obj-desc"></small></div>
       <div id="h-jefe" hidden><b id="h-jefe-nombre"></b><div class="barra"><i id="h-jefe-vida"></i></div></div>
@@ -153,6 +153,11 @@ export class Hud {
   stick(ver, x0, y0, kx = 0, ky = 0) {
     const s = $('#stick'); s.hidden = !ver; if (!ver) return;
     s.style.left = x0 + 'px'; s.style.top = y0 + 'px'; s.firstElementChild.style.transform = `translate(${kx * 38}px, ${ky * 38}px)`;
+  }
+
+  seguimiento(lineas) {
+    const k = JSON.stringify(lineas); if (k === this.misK) return; this.misK = k;
+    $('#h-mis').innerHTML = lineas.map(l => `<div class="${l.lista ? 'lista' : ''}">${l.texto}</div>`).join('');
   }
 
   pedidoComercio(de, nombre) {

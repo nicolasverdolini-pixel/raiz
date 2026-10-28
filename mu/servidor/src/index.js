@@ -17,6 +17,7 @@ import { DurableObject } from 'cloudflare:workers';
 import * as R from '../../js/reglas.js';
 import * as C from '../../js/clases.js';
 import * as O from '../../js/objetos.js';
+import * as MI from '../../js/misiones.js';
 
 const CORS = { 'Access-Control-Allow-Origin': '*' };
 const MAX_JUGADORES = 40;
@@ -173,6 +174,8 @@ export class Mapa extends DurableObject {
       case 'viajar': return this.viajar(p, m.i | 0);
       case 'com': return this.comercio(p, m);
       case 'baul': return this.usarBaul(p, m);
+      case 'mision': return this.mision(p, m);
+      case 'encargo': return this.encargo(p, m);
       case 'salirPj': { this.salir(s); await new Promise(r => setTimeout(r, 300)); return this.mandarLista(s); }
       case 'punto': return this.repartir(p, m.s, m.n | 0);
       case 'inv': return this.invitar(p, m.id);
@@ -455,6 +458,73 @@ export class Mapa extends DurableObject {
     this.ev.push(['tp', p.id, r2(p.x), r2(p.z)], ['fx', 'cura', r2(p.x), r2(p.z), 2]);
   }
 
+  // ----- misiones -----
+  progreso(p, m) {
+    const ms = p.d.misiones; let cambio = false;
+    for (const [id, prog] of Object.entries(ms.activas)) {
+      const mi = MI.MISIONES[id], o = mi?.obj; if (!o || o.mon !== m.tipo || MI.completa(mi, prog)) continue;
+      if (o.tipo === 'matar') ms.activas[id] = prog + 1;
+      else if (o.tipo === 'jefe') ms.activas[id] = 1;
+      else if (o.tipo === 'juntar') { if (Math.random() >= o.prob) continue; ms.activas[id] = prog + 1; this.aviso(p, `${o.cosa}: ${prog + 1}/${o.n}`); }
+      else continue;
+      cambio = true;
+      if (MI.completa(mi, ms.activas[id])) this.aviso(p, `Misión lista: «${mi.nombre}». Volvé con ${MI.NPC_MISION.find(n => n.id === mi.npc).nombre}.`);
+    }
+    for (const e of Object.values(ms.encargos)) {
+      if (!e?.tomado || e.mon !== m.tipo || e.prog >= e.n) continue;
+      e.prog++; cambio = true;
+      if (e.prog >= e.n) this.aviso(p, `Encargo cumplido. Volvé al Tablón de ${R.PUEBLOS[e.atalaya].nombre}.`);
+    }
+    if (cambio) p.cambioMis = true;
+  }
+
+  premiar(p, premio, x, z) {
+    if (premio.exp) this.darExp(p, premio.exp, null);
+    if (premio.oro) { p.d.oro += premio.oro; p.priv.push(['oro', premio.oro]); }
+    const cosas = [...(premio.items || []).map(i => ({ ...i }))];
+    if (premio.equipo) cosas.push(O.equipoAlAzar(p.d.nivel, Math.random, premio.equipo.exc || 0, p.d.clase, premio.equipo.leg || 0, premio.equipo.mit || 0));
+    for (const it of cosas) {
+      if (this.agregar(p, { ...it })) { p.priv.push(['recoge', O.nombreObjeto(it), O.rareza(it)]); if (O.rareza(it) === 3) this.msgTodos(`¡${p.nombre} recibió un objeto MÍTICO: ${O.nombreObjeto(it)}!`); }
+      else this.soltar({ x, z }, [{ item: it }], 'p' + p.id);
+    }
+    p.cambioInv = true; this.guardar(p);
+  }
+
+  mision(p, m) {
+    const mi = MI.MISIONES[m.id]; if (!mi) return;
+    const npc = MI.NPC_MISION.find(n => n.id === mi.npc);
+    if (Math.hypot(p.x - npc.x, p.z - npc.z) > 6) return this.aviso(p, `Acercate a ${npc.nombre}.`);
+    const ms = p.d.misiones;
+    if (m.a === 'aceptar') {
+      if (!MI.disponible(p.d, mi)) return;
+      if (Object.keys(ms.activas).length >= 8) return this.aviso(p, 'Ya tenés 8 misiones. Terminá alguna primero.');
+      ms.activas[mi.id] = 0; this.aviso(p, `Misión aceptada: «${mi.nombre}».`);
+    } else if (m.a === 'entregar') {
+      const prog = ms.activas[mi.id]; if (prog == null || !MI.completa(mi, prog)) return;
+      delete ms.activas[mi.id]; ms.hechas.push(mi.id);
+      p.priv.push(['mision', mi.nombre, mi.fin]);
+      this.premiar(p, mi.premio, npc.x, npc.z);
+    } else if (m.a === 'abandonar') { delete ms.activas[mi.id]; }
+    p.cambioMis = true;
+  }
+
+  encargo(p, m) {
+    const at = m.at | 0, t = this.rolCerca(p, 'tablon');
+    if (!t || t.atalaya !== at) return this.aviso(p, 'Acercate al Tablón de Encargos.');
+    const ms = p.d.misiones;
+    let e = ms.encargos[at];
+    if (!e) e = ms.encargos[at] = MI.nuevoEncargo(at, p.d.nivel);
+    if (m.a === 'tomar') { e.tomado = true; this.aviso(p, 'Encargo tomado.'); }
+    else if (m.a === 'cambiar' && !e.tomado) ms.encargos[at] = MI.nuevoEncargo(at, p.d.nivel);
+    else if (m.a === 'entregar' && e.tomado && e.prog >= e.n) {
+      const premio = { exp: e.exp, oro: e.oro, items: e.gema ? [{ b: p.d.nivel >= 20 ? 'destino' : 'forja', c: 1 }] : [] };
+      ms.encargos[at] = MI.nuevoEncargo(at, p.d.nivel);
+      p.priv.push(['mision', 'Encargo cumplido', 'El tablón ya tiene otro pedido clavado.']);
+      this.premiar(p, premio, t.x, t.z);
+    }
+    p.cambioMis = true;
+  }
+
   // ----- baúl de la cuenta (en cada atalaya) -----
   usarBaul(p, m) {
     if (!this.rolCerca(p, 'baul')) return this.aviso(p, 'El baúl está junto al farol de cada atalaya.');
@@ -653,8 +723,11 @@ export class Mapa extends DurableObject {
   }
 
   darExp(p, cant, m) {
-    const dif = p.d.nivel - m.def.nivel;
-    if (dif > 10) cant *= Math.max(0.2, 1 - (dif - 10) * 0.08);
+    if (m) {
+      this.progreso(p, m);
+      const dif = p.d.nivel - m.def.nivel;
+      if (dif > 10) cant *= Math.max(0.2, 1 - (dif - 10) * 0.08);
+    }
     cant = Math.max(1, Math.round(cant));
     p.d.exp += cant; p.priv.push(['x', cant]);
     let subio = false;
@@ -879,6 +952,11 @@ export class Mapa extends DurableObject {
       if (p.lugarT > 1) {
         p.lugarT = 0;
         R.PUEBLOS.forEach((at, i) => { if (!p.d.atalayas.includes(i) && Math.hypot(at.x - p.x, at.z - p.z) < at.r + 3) { p.d.atalayas.push(i); this.aviso(p, `Encendiste el farol de ${at.nombre}. Ya podés viajar acá desde cualquier atalaya.`); p.cambioInv = true; this.guardar(p); } });
+        for (const [id, prog] of Object.entries(p.d.misiones.activas)) {
+          const o = MI.MISIONES[id]?.obj; if (o?.tipo !== 'visitar' || prog) continue;
+          const l = R.MAPA.lugares.find(x => x.nombre === o.lugar);
+          if (l && Math.hypot(l.x - p.x, l.z - p.z) < 14) { p.d.misiones.activas[id] = 1; p.cambioMis = true; this.aviso(p, `Misión lista: «${MI.MISIONES[id].nombre}».`); }
+        }
         for (const l of R.MAPA.lugares) if (!p.d.lugares.includes(l.nombre) && Math.hypot(l.x - p.x, l.z - p.z) < 14) { p.d.lugares.push(l.nombre); this.aviso(p, `Descubriste ${l.nombre}. Ya podés volver con una Vela de Paso.`); p.cambioInv = true; }
         if (p.com) { const o = this.jug.get(p.com.a === p.id ? p.com.b : p.com.a); if (!o || dist(o, p) > 14) this.cancelarComercio(p, 'Se alejaron demasiado: el comercio se cerró.'); }
       }
@@ -910,6 +988,7 @@ export class Mapa extends DurableObject {
     // Que no se encimen.
     for (let i = 0; i < mons.length; i++) {
       const a = mons[i]; if (a.muerto) continue;
+      for (const n of MI.NPC_MISION) { const dx = a.x - n.x, dz = a.z - n.z, d = Math.hypot(dx, dz); if (d < 3) { const k = 3 / (d || 1); a.x = n.x + dx * k; a.z = n.z + dz * k; } }
       for (const at of R.PUEBLOS) { const dx = a.x - at.x, dz = a.z - at.z, d = Math.hypot(dx, dz); if (d < at.r + 1) { const k = (at.r + 1) / (d || 1); a.x = at.x + dx * k; a.z = at.z + dz * k; } }
       for (let j = i + 1; j < mons.length; j++) {
         const b = mons[j]; if (b.muerto) continue;
@@ -968,6 +1047,7 @@ export class Mapa extends DurableObject {
       const sv = [];
       for (const x of this.siervos.values()) if (dist(x, p) < VISTA) sv.push([x.id, r2(x.x), r2(x.z), r2(x.dir), x.mueve ? 1 : 0, x.dueno]);
       const foto = { t: 's', j, m, d: dr, sv, ev: p.priv.length ? ev.concat(p.priv) : ev, yo };
+      if (p.cambioMis || p.cambioInv) { p.cambioMis = false; foto.mis = p.d.misiones; }
       if (p.cambioInv) { p.cambioInv = false; foto.inv = { oro: p.d.oro, inv: p.d.inv, equipo: p.d.equipo, arbol: p.d.arbol, lugares: p.d.lugares, atalayas: p.d.atalayas, der: p.der, baul: p.baul }; }
       this.enviar(p.s, foto);
       p.priv = [];

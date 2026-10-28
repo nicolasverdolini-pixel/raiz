@@ -10,6 +10,7 @@ import * as O from './objetos.js';
 import * as C from './clases.js';
 import { Paneles } from './paneles.js';
 import { Seleccion } from './seleccion.js';
+import * as MI from './misiones.js';
 
 const E = crearEscena(document.getElementById('mundo'));
 const FX = crearEfectos(E.scene);
@@ -42,7 +43,7 @@ const hud = new Hud({
   rechazar: de => red.mandar({ t: 'rechaza', de }),
   salirGrupo: () => red.mandar({ t: 'salir' }),
 });
-const npcCerca = id => { const n = O.NPCS.find(x => x.id === id); return n && Math.hypot(lx - n.x, lz - n.z) < O.DIST_NPC + 1; };
+const npcCerca = id => { const n = O.NPCS.find(x => x.id === id) || MI.NPC_MISION.find(x => x.id === id); return n && Math.hypot(lx - n.x, lz - n.z) < O.DIST_NPC + 1; };
 const rolCerca = rol => yo && O.NPCS.find(n => n.rol === rol && Math.hypot(lx - n.x, lz - n.z) < O.DIST_NPC + 1);
 const paneles = new Paneles({
   mio: () => mio, mandar: o => red.mandar(o), npcCerca, rolCerca, toast: t => hud.toast(t), cambiarPj: () => red.salirPj(),
@@ -102,7 +103,7 @@ function alMensaje(m) {
     mio = m.datos;
     yo = crearEnte(yoId, mio.clase, true); yo.nombre = mio.nombre;
     document.getElementById('entrada').hidden = true;
-    hud.mostrar(mio); hud.ponerHabilidades(mio);
+    hud.mostrar(mio); hud.ponerHabilidades(mio); actualizarSeguimiento();
     if (m.nuevo) hud.lore();
     return;
   }
@@ -158,6 +159,7 @@ function foto(s) {
     e.buf.push({ t: ahora, x, z, dir }); if (e.buf.length > 30) e.buf.shift();
   }
   for (const [id, e] of entes) if (id !== yoId && ahora - e.visto > 1500) quitarEnte(id);
+  if (s.mis) { mio.misiones = s.mis; actualizarSeguimiento(); if (['misionNpc', 'tablon'].includes(paneles.abierto?.f) || paneles.abierto?.args[0] === 'misiones') paneles.refrescar(); }
   if (s.inv) { Object.assign(mio, s.inv); mio.der = s.inv.der; hud.ponerHabilidades(mio); paneles.refrescar(); }
   actualizarDrops(s.d || []);
   for (const ev of s.ev) evento(ev);
@@ -217,6 +219,7 @@ function evento(ev) {
   else if (tipo === 'tp') { if (a === yoId) { lx = b; lz = c; enviado = { x: b, z: c }; } else { const e = entes.get(a); if (e) e.buf = [{ t: performance.now(), x: b, z: c, dir: e.vis.raiz.rotation.y }]; } }
   else if (tipo === 'rv') { const e = entes.get(a); if (e) revivir(e); if (a === yoId) { lx = b; lz = c; objetivo = null; destino = null; } }
   else if (tipo === 'aviso') hud.toast(a);
+  else if (tipo === 'mision') { hud.toast(`${a}. «${b}»`, 'grande'); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } }
   else if (tipo === 'oro') hud.toast(`+${a} de oro`, 'exp');
   else if (tipo === 'recoge') hud.toast(`Recogiste ${a}`, ['exp', 'excelente', 'legendario', 'mitico'][b] || 'exp');
   else if (tipo === 'forja') { hud.toast(b, a === 'ok' ? 'grande' : 'malo'); const n = O.NPCS.find(x => x.id === 'herrero'); if (a === 'ok') FX.nivel(n.x, 0, n.z); else FX.chispas(n.x, 1.2, n.z, a === 'roto' ? '#ff3b2a' : '#8c7f6a', 30); }
@@ -285,7 +288,7 @@ function elegir(sx, sy) {
     const d = Math.hypot(x - sx, y - sy) - (e.esJ ? 0 : 8) - (e.def?.jefe ? 30 : 0);
     if (d < md) { md = d; mejor = e; }
   }
-  for (const n of O.NPCS) {
+  for (const n of [...O.NPCS, ...MI.NPC_MISION]) {
     if (Math.hypot(n.x - lx, n.z - lz) > 30) continue;
     v3.set(n.x, R.altura(n.x, n.z) + (n.rol === 'farol' ? 2.5 : 1), n.z).project(E.camara);
     const x = (v3.x * 0.5 + 0.5) * innerWidth, y = (-v3.y * 0.5 + 0.5) * innerHeight;
@@ -422,8 +425,15 @@ function dibujarTextos(dt) {
   for (const n of npcs) {
     const p = n.vis.raiz.position; if (Math.hypot(p.x - lx, p.z - lz) > 25) continue;
     const s = proy(p.x, p.y + 2.25, p.z); if (!s) continue;
-    tc.font = '15px "Spectral SC", Spectral, Georgia, serif'; tc.fillStyle = '#e9c37a';
+    const deMision = MI.NPC_MISION.includes(n.def);
+    tc.font = '600 15px "Spectral SC", Spectral, Georgia, serif'; tc.fillStyle = deMision ? '#c9c0ae' : '#e9c37a';
     tc.strokeText(n.def.nombre, s[0], s[1]); tc.fillText(n.def.nombre, s[0], s[1]);
+    const est = deMision && mio ? MI.estadoNpc(mio, n.def.id) : null;
+    if (est === 'nueva' || est === 'lista') {
+      tc.font = '700 30px "Spectral SC", Spectral, Georgia, serif'; tc.lineWidth = 5; tc.fillStyle = est === 'lista' ? '#7fe07a' : '#f0c040';
+      const y = s[1] - 26 + Math.sin(performance.now() / 300) * 3;
+      tc.strokeText(est === 'lista' ? '?' : '!', s[0], y); tc.fillText(est === 'lista' ? '?' : '!', s[0], y); tc.lineWidth = 3;
+    }
   }
   for (let i = numeros.length - 1; i >= 0; i--) {
     const n = numeros[i]; n.t += dt;
@@ -454,19 +464,31 @@ function datosHud() {
     puntos.push(e.esJ ? { x: p.x, z: p.z, r: 3, c: estado?.grupo?.some(g => g[0] === e.id) ? '#8fd16e' : '#8fb2d8' } : { x: p.x, z: p.z, r: e.def.jefe ? 5 : e.campeon ? 3 : 1.8, c: e.def.jefe ? '#ff4a2a' : e.campeon ? '#f0a050' : '#a8382c' });
   }
   const puntosHab = mio ? C.puntosArbol(mio) - C.gastados(mio) : 0;
+  for (const n of MI.NPC_MISION) { const est = mio && MI.estadoNpc(mio, n.id); if (est === 'nueva' || est === 'lista') puntos.push({ x: n.x, z: n.z, r: 3.5, c: est === 'lista' ? '#7fe07a' : '#f0c040' }); }
   return { puntosHab, objetivo: o && !o.muerto ? { nombre: o.nombre, nivel: o.def.nivel, hp: o.hp, desc: o.def.desc } : null, jefe, lugar, ping: red.ping, mini: { yo: { x: lx, z: lz }, puntos } };
+}
+
+// ---------- seguimiento de misiones (arriba a la izquierda) ----------
+function actualizarSeguimiento() {
+  const ms = mio?.misiones; if (!ms) return;
+  const lineas = Object.entries(ms.activas).slice(0, 3).map(([id, prog]) => { const mi = MI.MISIONES[id]; return { texto: MI.textoObjetivo(mi, prog), lista: MI.completa(mi, prog) }; });
+  for (const e of Object.values(ms.encargos || {})) if (e?.tomado && lineas.length < 4) lineas.push({ texto: `Encargo · ${R.MONSTRUOS[e.mon].nombre}: ${Math.min(e.prog, e.n)}/${e.n}`, lista: e.prog >= e.n });
+  hud.seguimiento(lineas);
 }
 
 // ---------- NPCs de la Atalaya ----------
 function ponerNpcs() {
-  for (const def of O.NPCS.filter(n => n.modelo)) {
+  for (const def of [...O.NPCS.filter(n => n.modelo), ...MI.NPC_MISION]) {
     const vis = crear(def.modelo.replace('.glb', ''));
+    if (def.tinte) vis.mats.forEach(m => m.color?.lerp(new THREE.Color(def.tinte), 0.6));
     vis.raiz.position.set(def.x, R.altura(def.x, def.z), def.z); vis.raiz.rotation.y = def.giro;
     E.scene.add(vis.raiz); npcs.push({ def, vis, t: Math.random() * 5 });
   }
 }
 function abrirNpc(id) {
+  if (MI.NPC_MISION.some(n => n.id === id)) { const n = npcs.find(x => x.def.id === id); n?.vis.muneco.hacer('saluda'); return paneles.misionNpc(id); }
   const def = O.NPCS.find(x => x.id === id); if (!def) return;
+  if (def.rol === 'tablon') return paneles.tablon(def.atalaya);
   if (def.rol === 'farol') return paneles.viajes();
   if (def.rol === 'baul') { paneles.sel = null; return paneles.baul(); }
   const n = npcs.find(x => x.def.id === id); if (n) n.vis.muneco.hacer('saluda');

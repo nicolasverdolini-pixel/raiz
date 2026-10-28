@@ -5,6 +5,7 @@ import * as O from './objetos.js';
 import * as C from './clases.js';
 import { iconoObjeto, iconoHab } from './iconos.js';
 import { foto, alTerminar } from './miniaturas.js';
+import * as MI from './misiones.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -81,11 +82,12 @@ export class Paneles {
   personaje(tab = 'equipo') {
     const d = this.ctx.mio(); if (!d) return;
     const libres = C.puntosArbol(d) - C.gastados(d);
-    const tabs = [['equipo', 'Equipo'], ['habilidades', `Habilidades${libres ? ' ●' : ''}`], ['atributos', `Atributos${d.puntos ? ' ●' : ''}`]];
+    const tabs = [['equipo', 'Equipo'], ['habilidades', `Habilidades${libres ? ' ●' : ''}`], ['atributos', `Atributos${d.puntos ? ' ●' : ''}`], ['misiones', 'Misiones']];
     let cuerpo = '';
     if (tab === 'equipo') cuerpo = this.htmlEquipo(d);
     if (tab === 'habilidades') cuerpo = this.htmlArbol(d);
     if (tab === 'atributos') cuerpo = this.htmlAtributos(d);
+    if (tab === 'misiones') cuerpo = this.htmlDiario(d);
     this.marco(esc(d.nombre), `${C.CLASES[d.clase].nombre} · Nivel ${d.nivel}`, tabs, tab, cuerpo, 'personaje', [tab]);
     if (tab === 'equipo') this.conectarMochila(d);
     this.el.querySelectorAll('[data-h]').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'aprender', h: b.dataset.h }));
@@ -152,6 +154,56 @@ export class Paneles {
     return `<p class="nota">Puntos para repartir: <b>${d.puntos}</b> (5 por nivel).</p>${R.STATS.map(s => `<div class="stat"><span>${R.NOMBRE_STAT[s]}<small>${R.EXPLICA_STAT[s]}</small></span><b>${d[s]}</b>
       <button class="mas" data-s="${s}" data-n="1" ${d.puntos ? '' : 'disabled'}>+1</button><button class="mas" data-s="${s}" data-n="5" ${d.puntos >= 5 ? '' : 'disabled'}>+5</button></div>`).join('')}
       <div class="totales"><span>Daño <b>${v.dmin}–${v.dmax}</b></span><span>Defensa <b>${v.def}</b></span><span>Vida <b>${v.maxHp}</b></span><span>Energía <b>${v.maxMp}</b></span><span>Críticos <b>${v.crit}%</b></span></div>`;
+  }
+
+  // ---------- misiones ----------
+  htmlPremio(pr) {
+    const partes = [];
+    if (pr.exp) partes.push(`<span>${pr.exp.toLocaleString('es-AR')} de experiencia</span>`);
+    if (pr.oro) partes.push(`<span>${iconoObjeto('oro')} ${pr.oro.toLocaleString('es-AR')}</span>`);
+    for (const it of pr.items || []) partes.push(`<span class="pr-item">${iconoObjeto(it.b, it)} ${O.BASES[it.b].nombre}${it.c > 1 ? ' × ' + it.c : ''}</span>`);
+    if (pr.equipo) partes.push(`<span class="pr-item ${pr.equipo.mit ? 'r-mit-t' : pr.equipo.leg ? 'r-leg-t' : 'r-exc-t'}">Equipo para tu clase${pr.equipo.leg ? ` (puede ser legendario${pr.equipo.mit ? ' o mítico' : ''})` : ''}</span>`);
+    return `<div class="premio">${partes.join('')}</div>`;
+  }
+  htmlMision(mi, d, botones) {
+    const prog = d.misiones?.activas?.[mi.id];
+    return `<div class="mision ${prog != null && MI.completa(mi, prog) ? 'lista' : ''}"><b>${mi.nombre}</b><span class="m-texto">${mi.texto}</span>
+      <span class="m-obj">${MI.textoObjetivo(mi, prog || 0)}</span>${this.htmlPremio(mi.premio)}<div class="acciones">${botones}</div></div>`;
+  }
+  misionNpc(id) {
+    const npc = MI.NPC_MISION.find(n => n.id === id), d = this.ctx.mio(); if (!npc || !d) return;
+    const lista = MI.misionesDe(id).filter(mi => d.misiones?.activas?.[mi.id] != null || MI.disponible(d, mi));
+    const proxima = MI.misionesDe(id).find(mi => !d.misiones?.hechas?.includes(mi.id) && !lista.includes(mi));
+    const cuerpo = `<p class="frase">«${npc.saludo}»</p>${lista.map(mi => {
+      const prog = d.misiones?.activas?.[mi.id];
+      const bot = prog == null ? `<button class="btn chico" data-m="aceptar:${mi.id}">Aceptar</button>`
+        : MI.completa(mi, prog) ? `<button class="btn chico" data-m="entregar:${mi.id}">Entregar</button>` : `<button class="btn chico sec" data-m="abandonar:${mi.id}">Abandonar</button>`;
+      return this.htmlMision(mi, d, bot);
+    }).join('') || `<p class="nota">${proxima ? `Volvé cuando seas nivel ${proxima.nivel}${proxima.req && !d.misiones?.hechas?.includes(proxima.req) ? ' y hayas terminado lo anterior' : ''}.` : 'No tengo nada más para pedirte. Gracias, Guardián.'}</p>`}`;
+    this.marco(npc.nombre, 'Misiones', null, null, cuerpo, 'misionNpc', [id]);
+    this.el.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { const [a, mid] = b.dataset.m.split(':'); this.ctx.mandar({ t: 'mision', a, id: mid }); });
+  }
+  tablon(at) {
+    const d = this.ctx.mio(); if (!d) return;
+    const e = d.misiones?.encargos?.[at];
+    let cuerpo = `<p class="frase">«Pedidos clavados con cuchillo. Cuando cumplís uno, aparece otro.»</p>`;
+    if (!e) cuerpo += `<p class="nota">Tocá para ver qué piden hoy.</p><div class="acciones"><button class="btn" data-e="ver">Leer el tablón</button></div>`;
+    else {
+      const mon = R.MONSTRUOS[e.mon];
+      cuerpo += `<div class="mision ${e.prog >= e.n ? 'lista' : ''}"><b>Encargo: ${mon.nombre}</b><span class="m-texto">Matá ${e.n} ${mon.nombre}. Pagan los de la atalaya.</span>
+        <span class="m-obj">${e.tomado ? `${Math.min(e.prog, e.n)}/${e.n}` : 'Sin tomar'}</span>${this.htmlPremio({ exp: e.exp, oro: e.oro, items: e.gema ? [{ b: d.nivel >= 20 ? 'destino' : 'forja', c: 1 }] : [] })}
+        <div class="acciones">${!e.tomado ? '<button class="btn chico" data-e="tomar">Tomar</button><button class="btn chico sec" data-e="cambiar">Otro pedido</button>' : e.prog >= e.n ? '<button class="btn chico" data-e="entregar">Cobrar</button>' : ''}</div></div>`;
+    }
+    this.marco('Tablón de Encargos', R.PUEBLOS[at].nombre, null, null, cuerpo, 'tablon', [at]);
+    this.el.querySelectorAll('[data-e]').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'encargo', a: b.dataset.e === 'ver' ? 'cambiar' : b.dataset.e, at }));
+  }
+  htmlDiario(d) {
+    const act = Object.entries(d.misiones?.activas || {}), enc = Object.values(d.misiones?.encargos || {}).filter(e => e?.tomado);
+    if (!act.length && !enc.length) return '<p class="nota">No tenés misiones. Buscá a la gente que anda por el Páramo (tienen un signo ! arriba) o mirá el Tablón de Encargos de cada atalaya.</p>';
+    return act.map(([id, prog]) => { const mi = MI.MISIONES[id], npc = MI.NPC_MISION.find(n => n.id === mi.npc);
+      return this.htmlMision(mi, d, `<small class="nota">${MI.completa(mi, prog) ? 'Lista: volvé con' : 'La pidió'} ${npc.nombre}</small>`); }).join('')
+      + enc.map(e => `<div class="mision ${e.prog >= e.n ? 'lista' : ''}"><b>Encargo · ${R.PUEBLOS[e.atalaya].nombre}</b><span class="m-obj">${R.MONSTRUOS[e.mon].nombre}: ${Math.min(e.prog, e.n)}/${e.n}</span></div>`).join('')
+      + `<p class="nota">Misiones terminadas: ${d.misiones?.hechas?.length || 0} de ${Object.keys(MI.MISIONES).length}.</p>`;
   }
 
   // ---------- NPCs ----------
