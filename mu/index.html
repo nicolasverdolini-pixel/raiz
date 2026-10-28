@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Sendas del Éter</title>
+  <meta name="description" content="Juego de acción online: armá grupo, cazá monstruos y subí de nivel en el Páramo del Luto.">
+  <meta name="theme-color" content="#0b0c0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Sendas">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icono.png" type="image/png">
+  <link rel="apple-touch-icon" href="icono.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Spectral:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="estilos.css">
+  <script type="importmap">{ "imports": { "three": "./vendor/three/build/three.module.min.js", "three/addons/": "./vendor/three/examples/jsm/" } }</script>
+</head>
+<body>
+  <canvas id="mundo"></canvas>
+  <canvas id="textos"></canvas>
+  <div id="hud" hidden></div>
+  <div id="entrada">
+    <form id="form-entrar" autocomplete="on">
+      <h1>Sendas del Éter</h1>
+      <p class="sub">Páramo del Luto · Canal 1</p>
+      <label>Nombre<input id="nombre" name="username" autocomplete="username" maxlength="14" required></label>
+      <label>Clave<input id="clave" name="password" type="password" autocomplete="current-password" maxlength="40" required></label>
+      <button id="btn-entrar" type="submit">Entrar</button>
+      <p class="nota">Si el nombre es nuevo, se crea tu Guardián con esa clave.</p>
+      <p id="error-entrar" class="error" role="alert"></p>
+      <p id="cargando" class="nota">Cargando el mundo…</p>
+      <a class="creditos" href="CREDITOS.md" target="_blank" rel="noopener">Créditos</a>
+    </form>
+  </div>
+  <script type="module" src="js/main.js"></script>
+  <script>if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "Sendas del Éter",
+  "short_name": "Sendas",
+  "description": "Juego de acción online sin final: grupo, monstruos y niveles en el Páramo del Luto.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0b0c0f",
+  "theme_color": "#0b0c0f",
+  "icons": [{ "src": "icono.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }]
+}

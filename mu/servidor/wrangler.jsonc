@@ -1,0 +1,15 @@
+{
+  // Servidor de Sendas del Éter: una sala por mapa (Durable Object "Mapa") y un guardado por personaje ("Personaje").
+  // Probar en la compu: npx wrangler dev   ·   Publicar (solo con OK de Nicolás): npx wrangler deploy
+  "name": "sendas-del-eter",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "durable_objects": {
+    "bindings": [
+      { "name": "MAPAS", "class_name": "Mapa" },
+      { "name": "PERSONAJES", "class_name": "Personaje" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Mapa", "Personaje"] }],
+  "observability": { "enabled": true }
+}
