@@ -117,3 +117,12 @@ input:focus { outline: 1px solid var(--sangre-2); }
 .mas { padding: 6px 10px; background: #1d1714; border: 1px solid rgba(216,207,189,.25); cursor: pointer; }
 .mas:disabled { opacity: .35; }
 @media (prefers-reduced-motion: reduce) { .toast, #titulo-lugar.ver, .boton-puntos { animation-duration: .01s; } }
+/* Celu acostado: la entrada entra en pantalla y se puede deslizar. */
+#entrada { overflow-y: auto; touch-action: pan-y; }
+@media (max-height: 560px) {
+  #entrada { place-items: start center; padding-block: 10px; }
+  #form-entrar { gap: 7px; padding: 14px 18px; }
+  #form-entrar h1 { font-size: 1.7rem; }
+  input { padding: 7px 10px; }
+  #btn-entrar { padding: 8px 14px; }
+}
