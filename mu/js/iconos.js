@@ -74,13 +74,12 @@ function medallon(figura, color, { def = false, forma = 'circulo' } = {}) {
     ${fondo}<g transform="translate(32 32) scale(.62) translate(-32 -32)" fill="#e9dfca" filter="url(#${id}b)">${F[figura] || F.estrella}</g>${def ? `<path d="M32 1l3 5h-6z M32 63l3-5h-6z" fill="#c9a24a"/>` : ''}</svg>`;
 }
 
+// Habilidades y ataques: íconos pintados (Painterly Spell Icons, J. W. Bjerk, CC-BY 3.0) en un aro de hierro.
 export function iconoHab(clase, id) {
-  const ramas = C.ARBOL[clase] || [];
-  const ri = ramas.findIndex(r => r.hab.some(h => h.id === id));
   const h = C.buscarHab(clase, id);
-  return medallon(FIGURA[id] || 'estrella', RAMA[Math.max(0, ri)], { def: !!h?.def });
+  return `<span class="ic-pint ${h?.def ? 'def' : ''}"><img src="iconos/hab/${id}.webp" alt="" draggable="false"></span>`;
 }
-export const iconoAtaque = clase => medallon(ARMA[clase] || 'espada', '#7a1a14');
+export const iconoAtaque = clase => `<span class="ic-pint atk"><img src="iconos/hab/atk-${C.CLASES[clase] ? clase : 'guardian'}.webp" alt="" draggable="false"></span>`;
 export const iconoBoton = (fig, color = '#3a3330') => medallon(fig, color);
 
 const COLOR_OBJ = { pocion: '#8e1b1b', eter: '#2f4f86', vela: '#8a6b32', forja: '#8a7a40', destino: '#5a3a9e', abismo: '#8e1b3a', guardiana: '#2f6a8e', oro: '#8a6b20',

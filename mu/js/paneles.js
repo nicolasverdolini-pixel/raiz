@@ -353,7 +353,7 @@ export class Paneles {
     const s = this.ctx.senor?.(), h = this.herm, puede = abierto && h && (d.nivel >= B.nivelMin || d.resets);
     return `${s ? `<div class="h-cabeza"><span class="h-emblema" style="color:${s.color};border-color:${s.color}">${s.simbolo}&#xFE0E;</span><div><small>Mandan en el Bastión</small><b style="color:${s.color}">♛&#xFE0E; ${esc(s.nombre)}</b><small>Ganaron con ${s.puntos} puntos</small></div></div>` : '<p class="nota">El Bastión no tiene dueño todavía.</p>'}
       <div class="mision"><b>Asedio del Bastión Caído</b><span class="m-texto">${e.desc}</span>
-      <span class="m-obj">${abierto ? `En curso · termina en ${mm}` : `Empieza en ${mm} (cada 2 horas, dura ${e.dura} minutos)`}</span>
+      <span class="m-obj">${abierto ? `En curso · termina en ${mm}` : `Empieza en ${mm} (cada 4 horas, dura ${e.dura} minutos)`}</span>
       <span class="nota">· Solo entran hermandades (nivel ${B.nivelMin} o renacidos). Adentro, los de otra hermandad son enemigos: tocalos para atacar.<br>
       · Cada segundo que tu hermandad esté sola en el círculo del altar suma ${B.porSegundo} punto; cada enemigo que caiga, ${B.porMuerte}. Si caés, volvés al borde.<br>
       · Gana la que más puntos tenga (mínimo ${B.minimo}). Premio: ${B.premio.ganador.toLocaleString('es-AR')} de oro y una Gema del Abismo para cada miembro adentro (${B.premio.otros.toLocaleString('es-AR')} de oro para los demás), y +${Math.round(B.bonusExp * 100)}% de experiencia para toda la hermandad hasta el próximo asedio.</span>

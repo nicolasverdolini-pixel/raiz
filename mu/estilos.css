@@ -440,7 +440,8 @@ input:focus { outline: 1px solid var(--sangre-2); }
   border-radius: 50%; overflow: hidden; background: radial-gradient(circle at 50% 35%, #3a2a24, #0a0808 75%); box-shadow: 0 0 0 2px #120e0d, 0 0 0 4px #8a6a3a, 0 6px 16px rgba(0,0,0,.7); }
 #hud .hb.mochila img { width: 112%; height: 112%; object-fit: cover; margin-top: 8%; }
 #hud .hb.chatb { top: auto; left: calc(12px + env(safe-area-inset-left) + clamp(58px, 15vmin, 72px) + 10px); bottom: calc(14px + env(safe-area-inset-bottom)); width: 44px; height: 44px; border-radius: 50%; }
-#chat-vivo { top: auto !important; left: calc(12px + env(safe-area-inset-left)) !important; bottom: calc(96px + env(safe-area-inset-bottom)); }
+#chat-vivo { top: auto !important; left: calc(12px + env(safe-area-inset-left)) !important; bottom: calc(180px + env(safe-area-inset-bottom)); max-width: 40vw; font-size: .82em; opacity: .9; }
+@media (max-aspect-ratio: 1/1) { #chat-vivo { bottom: calc(290px + env(safe-area-inset-bottom)); max-width: 70vw; } }
 @media (max-aspect-ratio: 1/1) {
   #hud .hb.mochila { bottom: calc(118px + env(safe-area-inset-bottom)); width: 58px; height: 58px; }
   #hud .hb.chatb { bottom: calc(124px + env(safe-area-inset-bottom)); left: calc(80px + env(safe-area-inset-left)); }
@@ -463,3 +464,25 @@ input:focus { outline: 1px solid var(--sangre-2); }
 #mapa .zoom button { min-width: 36px; height: 32px; background: #141315; border: 1px solid rgba(216,207,189,.25); color: var(--hueso); font: 1.1em var(--titulo); cursor: pointer; }
 #mapa canvas { touch-action: none; cursor: grab; }
 #mapa .ley.mi { color: #ffd24a; }
+
+/* Íconos pintados de habilidades, en un aro de hierro (dorado si es definitiva, rojo si es el ataque) */
+.ic-pint { position: relative; display: block; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: #000; }
+.ic-pint img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.ic-pint::after { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 2px #1a1412, inset 0 0 0 4px #6a5a48, inset 0 0 14px rgba(0,0,0,.85); pointer-events: none; }
+.ic-pint.def::after { box-shadow: inset 0 0 0 2px #1a1412, inset 0 0 0 4px #c9a24a, inset 0 0 14px rgba(0,0,0,.7), 0 0 10px rgba(240,190,90,.4); }
+.ic-pint.atk::after { box-shadow: inset 0 0 0 2px #1a1412, inset 0 0 0 5px #7a2a20, inset 0 0 16px rgba(0,0,0,.8); }
+.nodo-ic .ic-pint, .pj .ic-pint, .clase .ic-pint { width: 46px; height: 46px; flex: none; }
+.pj .ic-pint { width: 38px; height: 38px; margin: 0 auto; }
+.nodo:not(.tiene) .nodo-ic .ic-pint img { filter: grayscale(.85) brightness(.55); }
+
+/* Avisos más tranquilos */
+#toasts { top: 18%; gap: 4px; pointer-events: none; }
+.toast { font-size: .92em; padding: 5px 12px; }
+#h-ganancia { position: absolute; left: 0; right: 0; bottom: 100%; margin-bottom: 2px; text-align: center; font: 600 .85em var(--texto); color: #e9c37a; text-shadow: 0 1px 3px #000; opacity: 0; white-space: pre; }
+#h-ganancia.ver { animation: ganancia 2.4s forwards; }
+@keyframes ganancia { 0% { opacity: 0; transform: translateY(4px); } 10%, 70% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+.expw { position: relative; }
+#h-botin { position: absolute; left: calc(12px + env(safe-area-inset-left)); bottom: calc(96px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 2px; font-size: .82em; pointer-events: none; text-shadow: 0 1px 3px #000; }
+#h-botin div { animation: aparecer 5s forwards; color: var(--hueso-2); }
+#h-botin .r1 { color: #7fe0a0; } #h-botin .r2 { color: #f2c46a; } #h-botin .r3 { color: #ff6a74; }
+@media (max-aspect-ratio: 1/1) { #h-botin { bottom: calc(190px + env(safe-area-inset-bottom)); } }

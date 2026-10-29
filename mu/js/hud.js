@@ -34,7 +34,7 @@ export class Hud {
       <div class="arriba-der"><canvas id="h-mini" width="140" height="140"></canvas><span id="h-lugar"></span><span id="h-evento"></span><span id="h-ping"></span></div>
       <div class="abajo">
         <div class="orbe vida"><i id="h-vida"></i><span id="h-vida-n"></span></div>
-        <div class="expw"><span id="h-exp-n"></span><div class="exp"><i id="h-exp"></i></div></div>
+        <div class="expw"><span id="h-ganancia"></span><span id="h-exp-n"></span><div class="exp"><i id="h-exp"></i></div></div>
         <div class="orbe mana"><i id="h-mana"></i><span id="h-mana-n"></span></div>
       </div>
       <button id="b-atk" class="hb grande" aria-label="Atacar al más cercano"><span class="ic"></span></button>
@@ -44,6 +44,7 @@ export class Hud {
       <button id="b-puntos" class="boton-puntos" hidden>Puntos <b id="h-puntos">0</b></button>
       <div id="stick" hidden><i></i></div>
       <div id="toasts" aria-live="polite"></div>
+      <div id="h-botin"></div>
       <div id="titulo-lugar"><b></b><small></small></div>
       <div id="h-muerte" hidden><b>Caíste</b><span id="h-muerte-n"></span></div>
       <div id="h-dolor"></div>
@@ -180,11 +181,31 @@ export class Hud {
     c.strokeStyle = 'rgba(216,207,189,.35)'; c.lineWidth = 1.5; c.beginPath(); c.arc(70, 70, 68, 0, 7); c.stroke();
   }
 
+  // Avisos del medio: sin repetidos y como mucho dos a la vez (los importantes empujan a los comunes).
   toast(texto, tipo = '') {
+    const ahora = Date.now(); this.vistos = this.vistos || new Map();
+    if (ahora - (this.vistos.get(texto) || 0) < 5000) return;
+    this.vistos.set(texto, ahora);
+    const caja = $('#toasts');
+    while (caja.children.length >= 2) caja.firstChild.remove();
     const t = document.createElement('div'); t.className = 'toast ' + tipo; t.textContent = texto;
-    $('#toasts').appendChild(t); setTimeout(() => t.remove(), tipo === 'grande' ? 4200 : 3200);
+    caja.appendChild(t); setTimeout(() => t.remove(), ['grande', 'anuncio', 'legendario', 'mitico'].includes(tipo) ? 4500 : 2600);
   }
-  exp(cant) { this.toast(`+${cant} experiencia`, 'exp'); }
+  // Experiencia y oro de cada monstruo: no tapan la pantalla, se suman en una línea chiquita arriba de la barra.
+  ganancia(exp, oro) {
+    this.gan = this.gan || { exp: 0, oro: 0 }; this.gan.exp += exp || 0; this.gan.oro += oro || 0;
+    const el = $('#h-ganancia'); el.textContent = [this.gan.exp ? `+${this.gan.exp.toLocaleString('es-AR')} exp` : '', this.gan.oro ? `+${this.gan.oro.toLocaleString('es-AR')} oro` : ''].filter(Boolean).join('   ');
+    el.classList.remove('ver'); void el.offsetWidth; el.classList.add('ver');
+    clearTimeout(this.ganT); this.ganT = setTimeout(() => { this.gan = { exp: 0, oro: 0 }; }, 2500);
+  }
+  exp(cant) { this.ganancia(cant, 0); }
+  // Lo que levantás del piso: una lista corta abajo a la izquierda. Lo raro sale además en el medio.
+  botin(texto, rareza) {
+    const b = $('#h-botin'), d = document.createElement('div');
+    d.className = 'r' + (rareza || 0); d.textContent = texto; b.appendChild(d);
+    while (b.children.length > 4) b.firstChild.remove();
+    setTimeout(() => d.remove(), 5000);
+  }
   dolor() { const d = $('#h-dolor'); d.classList.remove('ver'); void d.offsetWidth; d.classList.add('ver'); }
 
   stick(ver, x0, y0, kx = 0, ky = 0) {

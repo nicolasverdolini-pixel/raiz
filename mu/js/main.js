@@ -335,8 +335,8 @@ function evento(ev) {
   else if (tipo === 'rv') { const e = entes.get(a); if (e) revivir(e); if (a === yoId) { lx = b; lz = c; objetivo = null; destino = null; } }
   else if (tipo === 'aviso') hud.toast(a);
   else if (tipo === 'mision') { SND.sfx.nivel(); hud.toast(`${a}. «${b}»`, 'grande'); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } }
-  else if (tipo === 'oro') { hud.toast(`+${a} de oro`, 'exp'); SND.sfx.oro(); }
-  else if (tipo === 'recoge') SND.sfx.recoger(b), hud.toast(`Recogiste ${a}`, ['exp', 'excelente', 'legendario', 'mitico'][b] || 'exp');
+  else if (tipo === 'oro') { hud.ganancia(0, a); SND.sfx.oro(); }
+  else if (tipo === 'recoge') { SND.sfx.recoger(b); hud.botin(a, b); if (b >= 1) hud.toast(`Recogiste ${a}`, ['', 'excelente', 'legendario', 'mitico'][b]); }
   else if (tipo === 'alas') { SND.sfx.forja(a === 'ok'); hud.toast(b, a === 'ok' ? 'grande' : 'malo'); if (a === 'ok') SND.sfx.nivel(); }
   else if (tipo === 'junta') { FX.chispas(b, R.altura(b, c) + 0.4, c, '#f0c040', 8); }
   else if (tipo === 'forja') { SND.sfx.forja(a === 'ok'); hud.toast(b, a === 'ok' ? 'grande' : 'malo'); const n = rolCerca('herrero') || { x: lx, z: lz }; if (a === 'ok') FX.nivel(n.x, 0, n.z); else FX.chispas(n.x, 1.2, n.z, a === 'roto' ? '#ff3b2a' : '#8c7f6a', 30); }
@@ -350,7 +350,7 @@ function evento(ev) {
     else if (a === 'cura') { if (Math.hypot(b - lx, c - lz) < 20) SND.sfx.hechizo('cura'); FX.golpeSuelo(b, y, c, '#7fe07a'); FX.chispas(b, y + 1, c, '#9fef8a', 16); }
     else if (a === 'tajo') FX.tajo(b, y, c);
   }
-  else if (tipo === 'msg') { hud.toast(a, 'anuncio'); SND.sfx.anuncio(); chat.recibir({ txt: a, sistema: true }); }
+  else if (tipo === 'msg') { if (b) { hud.toast(a, 'anuncio'); SND.sfx.anuncio(); } chat.recibir({ txt: a, sistema: true }); }
   else if (tipo === 'bye') quitarEnte(a);
 }
 

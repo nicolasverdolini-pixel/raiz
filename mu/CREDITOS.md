@@ -13,6 +13,7 @@ Monstruos agregados después (también CC0):
 - Lobo y ciervo (Animals Pack), raptor y tiranosaurio (Dinosaurs Pack), serpiente (Easy Enemies Pack), orco, demonio y demonio azul (Ultimate Monsters): Quaternius.
 - Clases jugables (Cazadora, Arcanista, Bárbaro) y NPCs de la Atalaya: KayKit — Adventurers Character Pack 1.0 (Kay Lousberg).
 - Imágenes de armas y escudos (espadas, ballestas, báculo, hachas, daga, varita, escudos): KayKit — Adventurers Character Pack 1.0 (Kay Lousberg). La Sombra, el Nigromante y el Desterrado usan modelos de KayKit (Rogue Hooded, Skeleton Mage) y Quaternius (demonio).
-- Íconos de habilidades y objetos: dibujados para el juego.
+- Íconos de habilidades: **Painterly Spell Icons** (partes 1 a 4), de **J. W. Bjerk (eleazzaar)** — www.jwbjerk.com/art — https://opengameart.org/content/painterly-spell-icons-part-1 — licencia **CC-BY 3.0**. Se achicaron, se les bajó un poco el color y se les puso un aro.
+- Fotos de objetos: renders 3D de los modelos de arriba y pociones, gemas y velas hechas con geometría para el juego.
 - Tipografía: Spectral y Spectral SC (Production Type, licencia SIL Open Font).
 - Música y efectos de sonido: generados por el juego en el momento (síntesis), hechos para Sendas del Éter.

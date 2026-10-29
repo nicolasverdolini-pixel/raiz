@@ -261,7 +261,6 @@ export class Mapa extends DurableObject {
     s.p = p; this.jug.set(p.id, p);
     this.enviar(s, { t: 'bienvenida', id: p.id, datos: p.d, nuevo: !p.d.visto, x: p.x, z: p.z });
     if (!p.d.visto) p.d.visto = true;
-    this.msgTodos(`${p.nombre} llegó al ${R.MAPA.nombre}.`);
     if (!this.reloj) { this.reloj = setInterval(() => this.tick(), R.TICK * 1000); }
     if (p.d.hermandad) await this.cargarHerm(p);
   }
@@ -290,7 +289,8 @@ export class Mapa extends DurableObject {
   }
 
   aviso(p, texto) { p.priv.push(['aviso', texto]); }
-  msgTodos(texto) { this.ev.push(['msg', texto]); }
+  // importante = sale grande en el medio de la pantalla; si no, solo en el chat.
+  msgTodos(texto, importante = false) { this.ev.push(['msg', texto, importante ? 1 : 0]); }
 
   // ----- acciones del jugador -----
   moverJugador(p, m) {
@@ -725,7 +725,7 @@ export class Mapa extends DurableObject {
   }
   entrarBastion(p) {
     if (!this.rolCerca(p, 'vidente')) return this.aviso(p, 'Al Bastión te lleva Oria la Vidente.');
-    if (!this.asedio) return this.aviso(p, 'El Bastión está cerrado. El asedio es cada 2 horas.');
+    if (!this.asedio) return this.aviso(p, 'El Bastión está cerrado. El asedio es cada 4 horas.');
     if (!p.d.hermandad) return this.aviso(p, 'Al asedio solo entran las hermandades.');
     if (p.d.nivel < R.BASTION.nivelMin && !(p.d.resets > 0)) return this.aviso(p, `Hace falta nivel ${R.BASTION.nivelMin}.`);
     if (p.muerto || p.enBastion) return;
@@ -774,14 +774,14 @@ export class Mapa extends DurableObject {
       const h = this.herm.get(gana.toLowerCase());
       this.senor = { nombre: gana, simbolo: h?.simbolo || '♜', color: h?.color || '#d4a24a', desde: Date.now(), puntos: lista[0][1] };
       this.ctx.storage.put('senor', this.senor).catch(() => {});
-      this.msgTodos(`¡${gana} ganó el Asedio del Bastión con ${lista[0][1]} puntos! Mandan en el Bastión y ganan +${Math.round(R.BASTION.bonusExp * 100)}% de experiencia hasta el próximo asedio.`);
+      this.msgTodos(`¡${gana} ganó el Asedio del Bastión con ${lista[0][1]} puntos! Mandan en el Bastión y ganan +${Math.round(R.BASTION.bonusExp * 100)}% de experiencia hasta el próximo asedio.`, true);
     } else this.msgTodos(this.senor ? `Nadie se impuso en el asedio. ${this.senor.nombre} sigue mandando en el Bastión.` : 'Nadie se impuso en el asedio. El Bastión sigue sin dueño.');
   }
 
   // ----- Pozo de las Almas -----
   entrarPozo(p) {
     if (!this.rolCerca(p, 'vidente')) return this.aviso(p, 'La entrada al Pozo la abre Oria la Vidente.');
-    if (this.pozo?.fase !== 'entrada') return this.aviso(p, 'La entrada al Pozo está cerrada. Abre cada hora, en el minuto 45.');
+    if (this.pozo?.fase !== 'entrada') return this.aviso(p, 'La entrada al Pozo está cerrada. Fijate con Oria cuándo abre.');
     if (p.d.nivel < R.POZO.nivelMin && !(p.d.resets > 0)) return this.aviso(p, `Hace falta nivel ${R.POZO.nivelMin}.`);
     if (!this.gastar(p, 'sello', 1)) return this.aviso(p, 'Necesitás un Sello del Pozo.');
     const a = Math.random() * 6.3; p.x = R.POZO.x + Math.cos(a) * 4; p.z = R.POZO.z + Math.sin(a) * 4; p.enPozo = true; p.objetivo = null; p.ultPos = Date.now();
@@ -1017,7 +1017,7 @@ export class Mapa extends DurableObject {
       if (this.agregar(p, { ...d.item })) {
         this.drops.delete(d.id); p.priv.push(['recoge', O.nombreObjeto(d.item), O.rareza(d.item)]);
         const ra = O.rareza(d.item);
-        if (ra === 3) this.msgTodos(`¡${p.nombre} encontró un objeto MÍTICO: ${O.nombreObjeto(d.item)}!`);
+        if (ra === 3) this.msgTodos(`¡${p.nombre} encontró un objeto MÍTICO: ${O.nombreObjeto(d.item)}!`, true);
         else if (ra === 2) this.msgTodos(`${p.nombre} encontró ${O.nombreObjeto(d.item)}.`);
         else if (ra === 1) this.msgCerca(p, `${p.nombre} encontró ${O.nombreObjeto(d.item)}.`);
       } else if (!p.avisoLleno || this.t - p.avisoLleno > 5) { p.avisoLleno = this.t; this.aviso(p, 'La mochila está llena.'); }
@@ -1343,13 +1343,13 @@ export class Mapa extends DurableObject {
     if (activo?.id === 'asedio') this.asedio = { puntos: new Map(), altarT: 0, duenoAltar: null };
     if (activo?.id === 'pozo') this.pozo = { fase: 'entrada', inicio: Date.now() - (activo.dura * 60 - activo.resta) * 1000, dentro: new Set() };
     if (activo) {
-      this.msgTodos(`${activo.nombre}: ${activo.desc}`);
+      this.msgTodos(`${activo.nombre}: ${activo.desc}`, true);
       if (activo.id === 'noche') {
         const opciones = R.MAPA.lugares.filter(l => l.x < 400 && (l.x || l.z) && !l.atalaya);
         const l = opciones[Math.floor(Math.random() * opciones.length)];
         const h = this.crearMonstruo('heraldo', { x: l.x, z: l.z });
         this.ev.push(['a', h.id, 'nace']);
-        this.msgTodos(`El Heraldo del Éter apareció en ${l.nombre}.`);
+        this.msgTodos(`El Heraldo del Éter apareció en ${l.nombre}.`, true);
       }
     } else if (antes) this.msgTodos('El evento terminó.');
   }
