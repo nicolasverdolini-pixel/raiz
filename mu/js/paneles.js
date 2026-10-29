@@ -299,7 +299,7 @@ export class Paneles {
   }
 
   htmlForja(d) {
-    const lista = [...O.RANURAS.filter(r => d.equipo[r]).map(r => ['e:' + r, d.equipo[r]]), ...d.inv.map((it, i) => ['i:' + i, it]).filter(([, it]) => it && O.esEquipo(it.b))];
+    const lista = [...O.RANURAS.filter(r => d.equipo[r]).map(r => ['e:' + r, d.equipo[r]]), ...d.inv.map((it, i) => ['i:' + i, it]).filter(([, it]) => it && O.forjable(it.b))].filter(([, it]) => O.forjable(it.b));
     const s = this.forjaSel, it = s ? (s.r ? d.equipo[s.r] : d.inv[s.i]) : null;
     let det = '<p class="nota">Elegí qué querés mejorar: lo que tenés puesto o algo de la mochila.</p>';
     if (it && O.esEquipo(it.b)) {

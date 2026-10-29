@@ -234,6 +234,7 @@ export function calcular(d) {
     crit: 8 + (c.crit || 0) + (pa.crit || 0), exc: 4 + (eq.exc || 0) / 2, robo: (c.robo || 0) + (pa.robo || 0), siervos: pa.siervos || 0,
     menos: Math.min(60, (eq.menos || 0) + (pa.menos || 0)), refleja: eq.refleja || 0,
     vidaKill: (eq.vidaKill || 0) + (pa.vidaKill || 0), manaKill: (eq.manaKill || 0) + (pa.manaKill || 0),
+    velMov: eq.velMov || 0, oroPct: eq.oroPct || 0, junta: eq.junta || 0,
     regenMp: 2 + (pa.regen || 0), distancia: !!c.proyectil, proyectil: c.proyectil,
   };
 }

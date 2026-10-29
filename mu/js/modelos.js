@@ -59,6 +59,13 @@ export const VISUAL = {
   reinaahogada: { archivo: 'frog.glb', tam: 5.5, bajo: 1, tinte: '#a8b8b0', tinteK: 0.7, anims: { idle: 'Frog_Idle', run: 'Frog_Jump', atk: 'Frog_Attack', muere: 'Frog_Death', pisoton: 'Frog_Jump', invoca: 'Frog_Attack' } },
   capitan:   { archivo: 'centinela.glb', tam: 4.4, arma: 'hacha_hueso.glb', tinte: '#3a6a6a', anims: { idle: 'Idle_Combat', run: 'Running_C', atk: '1H_Melee_Attack_Chop', pisoton: '1H_Melee_Attack_Jump_Chop', invoca: 'Taunt', hit: 'Hit_B', muere: 'Death_C_Skeletons', nace: 'Spawn_Ground_Skeletons' } },
   leviatan:  { archivo: 'trex.glb', tam: 7.5, tinte: '#10202e', tinteK: 0.8, anims: { idle: 'TRex_Idle', run: 'TRex_Run', atk: 'TRex_Attack', pisoton: 'TRex_Jump', carga: 'TRex_Run', lanza: 'TRex_Attack', muere: 'TRex_Death' } },
+  // Mascotas y monturas (mismos modelos que algunos monstruos, más chicos o más grandes y con otro color).
+  pet_tabano:    { archivo: 'wasp.glb', tam: 0.55, vuela: 1.7, tinte: '#1c1a18', tinteK: 0.7, anims: AVISPA },
+  pet_anima_g:   { archivo: 'anima.glb', tam: 0.95, vuela: 0.9, tinte: '#9ab8e0', tinteK: 0.6, anims: MAGO },
+  pet_diablillo: { archivo: 'engendro.glb', tam: 0.9, tinte: '#b0301a', tinteK: 0.6, anims: DEMONIO },
+  mon_lobo_m:    { archivo: 'lobo.glb', tam: 3.0, bajo: 1, tinte: '#77706a', anims: { idle: 'Idle', run: 'Gallop' }, silla: 0.12 },
+  mon_ciervo_m:  { archivo: 'ciervo.glb', tam: 3.2, tinte: '#141216', tinteK: 0.75, anims: { idle: 'Idle', run: 'Gallop' }, silla: 0.2 },
+  mon_acechador_m: { archivo: 'raptor.glb', tam: 3.0, bajo: 1, tinte: '#4a1a12', tinteK: 0.7, anims: { idle: 'Velociraptor_Idle', run: 'Velociraptor_Run' }, silla: 0.14 },
   heraldo:   { archivo: 'heraldo.glb', tam: 4.3, tinte: '#8a1a14', anims: DEMONIO },
 };
 

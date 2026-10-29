@@ -1,7 +1,7 @@
 // Objetos, equipo, gemas, forja, tiendas y lo que tiran los monstruos. Compartido celu ↔ servidor.
 
-export const RANURAS = ['arma', 'escudo', 'casco', 'armadura', 'guantes', 'botas'];
-export const NOMBRE_RANURA = { arma: 'Arma', escudo: 'Escudo', casco: 'Casco', armadura: 'Armadura', guantes: 'Guantes', botas: 'Botas' };
+export const RANURAS = ['arma', 'escudo', 'casco', 'armadura', 'guantes', 'botas', 'mascota', 'montura'];
+export const NOMBRE_RANURA = { arma: 'Arma', escudo: 'Escudo', casco: 'Casco', armadura: 'Armadura', guantes: 'Guantes', botas: 'Botas', mascota: 'Mascota', montura: 'Montura' };
 export const MOCHILA = 40;          // casilleros de la mochila
 export const PILA = 50;             // cuántas pociones o gemas entran en un casillero
 
@@ -47,8 +47,18 @@ B.destino = { id: 'destino', nombre: 'Gema del Destino', gema: true, precio: 0, 
 B.abismo = { id: 'abismo', nombre: 'Gema del Abismo', gema: true, precio: 0, pila: true, desc: 'Mejora de +9 a +15. Si falla vuelve a +0, y desde +12 el equipo se rompe.' };
 B.sello = { id: 'sello', nombre: 'Sello del Pozo', precio: 500, pila: true, desc: 'Entrada al Pozo de las Almas. Se gasta al entrar.' };
 B.guardiana = { id: 'guardiana', nombre: 'Piedra Guardiana', precio: 0, pila: true, desc: 'Si la tenés en la mochila, evita que un equipo se rompa en la forja (se gasta).' };
+// Mascotas (te siguen) y monturas (vas arriba, más rápido). ef: lo que dan. No se forjan ni salen excelentes.
+const bestia = (id, nombre, r, req, precio, ef, desc) => B[id] = { id, nombre, r, req, precio, ef, desc, bestia: true };
+bestia('tabano', 'Tábano de Ceniza', 'mascota', 5, 4000, { junta: 1, oroPct: 10 }, 'Te sigue zumbando y junta solo el oro que cae cerca. +10% de oro.');
+bestia('anima_g', 'Ánima Guardiana', 'mascota', 12, 15000, { menos: 12 }, 'Un alma vieja que se pone en el medio. Recibís 12% menos de daño.');
+bestia('diablillo', 'Diablillo de Brasa', 'mascota', 28, 60000, { dmgPct: 12 }, 'Chiquito, malo y con hambre. Hacés 12% más de daño.');
+bestia('lobo_m', 'Lobo Gris', 'montura', 15, 12000, { velMov: 25 }, 'Lo criaron en la Atalaya. Corrés 25% más rápido.');
+bestia('ciervo_m', 'Ciervo Negro', 'montura', 35, 70000, { velMov: 35, defPct: 5 }, 'No le teme a nada. Corrés 35% más rápido y +5% de defensa.');
+bestia('acechador_m', 'Acechador Domado', 'montura', 50, 0, { velMov: 45, dmgPct: 5 }, 'Solo lo sueltan los jefes. Corrés 45% más rápido y +5% de daño.');
+B.acechador_m.valor = 200000;
 export const BASES = B;
 export const esEquipo = b => !!BASES[b]?.r;
+export const forjable = b => esEquipo(b) && !BASES[b].bestia;
 export const puedeUsar = (b, clase) => !BASES[b]?.clase || BASES[b].clase === clase;
 
 // ---------- requisitos para ponerse un equipo ----------
@@ -57,6 +67,7 @@ const STAT_ARMA = { guardian: 'fue', barbaro: 'fue', desterrado: 'fue', cazadora
 const TIER = req => (req >= 55 ? 4 : req >= 38 ? 3 : req >= 24 ? 2 : req >= 10 ? 1 : 0);
 export function requisitos(it) {
   const b = BASES[it.b]; if (!b?.r) return null;
+  if (b.bestia) return { nivel: b.req, stat: {} };
   const t = TIER(b.req), ra = rareza(it), n = it.n || 0;
   const nivel = b.req + [0, 0, 8, 15][ra] + Math.floor(n / 3) + (ra === 3 ? Math.max(0, 40 - b.req - 15) : 0);
   const base = b.r === 'arma' ? [0, 45, 90, 150, 220][t] : b.r === 'escudo' ? [0, 35, 70, 120, 180][t] : [0, 30, 60, 100, 150][t];
@@ -107,9 +118,10 @@ export function valores(it) {
 
 // Suma todo lo que da el equipo puesto.
 export function bonusEquipo(equipo) {
-  const t = { dmg: [0, 0], def: 0, dmgPct: 0, vel: 0, vidaKill: 0, manaKill: 0, exc: 0, hpPct: 0, menos: 0, refleja: 0, mpPct: 0, defPct: 0 };
+  const t = { dmg: [0, 0], def: 0, dmgPct: 0, vel: 0, vidaKill: 0, manaKill: 0, exc: 0, hpPct: 0, menos: 0, refleja: 0, mpPct: 0, defPct: 0, velMov: 0, oroPct: 0, junta: 0 };
   for (const r of RANURAS) {
     const it = equipo?.[r]; if (!it || !BASES[it.b]) continue;
+    if (BASES[it.b].ef) for (const [k, val] of Object.entries(BASES[it.b].ef)) t[k] += val;
     const v = valores(it);
     if (v.dmg) { t.dmg[0] += v.dmg[0]; t.dmg[1] += v.dmg[1]; }
     if (v.def) t.def += v.def;
@@ -130,11 +142,11 @@ export const FORJA = {
 const SETS_ID = ['cuero', 'vigia', 'osario', 'foso', 'velo'];
 const equipoDeTier = t => ['espada', 'ballesta', 'baculo', 'hacha', 'dagas', 'cetro', 'garras'].map(a => a + t).concat(['escudo' + t, ...['casco', 'armadura', 'guantes', 'botas'].map(r => `${r}_${SETS_ID[t - 1]}`)]);
 const ATALAYAS = [
-  { x: 0, z: 0, tier: 1, nombres: ['Úrsula la Boticaria', 'Tordo el Herrero'], vidente: true },
+  { x: 0, z: 0, tier: 1, nombres: ['Úrsula la Boticaria', 'Tordo el Herrero'], vidente: true, domadora: 'Mastín el Domador', bestias: ['tabano', 'anima_g', 'lobo_m'] },
   { x: -62, z: 46, tier: 2, nombres: ['Bruma la Ahogada', 'Garfio el Herrero'] },
   { x: 78, z: -46, tier: 3, nombres: ['Hueso Viejo', 'Maese Ceniciento'] },
   { x: -60, z: -74, tier: 3, nombres: ['La Hundida', 'Sargo el Herrero'] },
-  { x: 60, z: 70, tier: 4, nombres: ['Madre Brasa', 'Yunque Rojo'] },
+  { x: 60, z: 70, tier: 4, nombres: ['Madre Brasa', 'Yunque Rojo'], domadora: 'Cardo el Domador', bestias: ['tabano', 'anima_g', 'diablillo', 'lobo_m', 'ciervo_m'] },
   { x: 600, z: 0, tier: 5, nombres: ['Sal la Mercadera', 'Ancla el Herrero'] },
 ];
 export const NPCS = ATALAYAS.flatMap((a, i) => {
@@ -147,6 +159,8 @@ export const NPCS = ATALAYAS.flatMap((a, i) => {
   lista.push({ id: 'baul' + i, rol: 'baul', atalaya: i, nombre: 'Baúl de la cuenta', x: a.x + 1.8, z: a.z + 1.6, giro: 0.6, frase: 'Lo que guardes acá lo ven todos tus personajes.' });
   lista.push({ id: 'tablon' + i, rol: 'tablon', atalaya: i, nombre: 'Tablón de Encargos', x: a.x - 2.6, z: a.z + 3.4, giro: 2.4, frase: 'Pedidos clavados con cuchillo. Siempre hay uno nuevo.' });
   lista.push({ id: 'farol' + i, rol: 'farol', atalaya: i, nombre: 'Farol', x: a.x, z: a.z, frase: 'Desde acá se viaja a las atalayas que ya encendiste.' });
+  if (a.domadora) lista.push({ id: 'domadora' + i, rol: 'domadora', atalaya: i, nombre: a.domadora, modelo: 'npc_herrero.glb', tinte: '#34402a', x: a.x + 4.6, z: a.z + 3.4, giro: -2.3,
+    frase: i ? 'Estas bestias ya probaron sangre. Por eso sirven.' : 'Ninguna bestia es mansa en el Luto. Algunas, por lo menos, son leales.', vende: a.bestias });
   if (a.vidente) lista.push({ id: 'vidente', rol: 'vidente', atalaya: i, nombre: 'Oria la Vidente', modelo: 'npc_vidente.glb', x: a.x, z: a.z + 4.6, giro: Math.PI,
     frase: 'Veo la Marea antes que llegue. Veo el rojo de la noche. Preguntame.', eventos: true, vende: ['vela', 'sello'] });
   return lista;
@@ -174,12 +188,13 @@ export function tirada(def, rnd, extra = 1) {
     else if (r < 0.86) sale.push({ item: { b: 'vela', c: 1 } });
     else sale.push({ item: equipoAlAzar(nv, rnd, def.jefe ? 0.25 : 0.03 * extra, null, def.jefe ? 0.06 : 0.002 * extra * extra, def.jefe ? 0.008 : 0) });
   }
+  if (def.jefe && nv >= 40 && rnd() < 0.05) sale.push({ item: { b: 'acechador_m', n: 0 } });
   if (def.jefe) sale.push({ item: equipoAlAzar(nv + 4, rnd, 0.35, null, def.soloEvento ? 0.25 : 0.1, def.soloEvento ? 0.06 : 0.015) }, { item: { b: nv >= 18 ? 'abismo' : 'destino', c: 1 } });
   return sale;
 }
 
 export function equipoAlAzar(nv, rnd, probExc, clase, probLeg = 0, probMit = 0) {
-  const posibles = Object.values(BASES).filter(b => b.r && b.req <= nv + 3 && (!clase || !b.clase || b.clase === clase || rnd() < 0.25));
+  const posibles = Object.values(BASES).filter(b => b.r && !b.bestia && b.req <= nv + 3 && (!clase || !b.clase || b.clase === clase || rnd() < 0.25));
   const maxReq = Math.max(...posibles.map(b => b.req));
   const lista = posibles.filter(b => b.req >= maxReq - 12);
   const b = lista[Math.floor(rnd() * lista.length)];
@@ -195,6 +210,6 @@ export function equipoAlAzar(nv, rnd, probExc, clase, probLeg = 0, probMit = 0) 
 
 export function precioVenta(it) {
   const b = BASES[it.b]; if (!b) return 0;
-  const base = b.precio || (b.gema ? 800 : 300);
+  const base = b.precio || b.valor || (b.gema ? 800 : 300);
   return Math.max(1, Math.round(base / 5 * (1 + (it.n || 0) * 0.5) * [1, 3, 10, 30][rareza(it)]));
 }

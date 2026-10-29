@@ -289,7 +289,7 @@ export class Mapa extends DurableObject {
     let x = +m.x, z = +m.z;
     if (!isFinite(x) || !isFinite(z)) return;
     const ahora = Date.now(), dt = Math.min(1, (ahora - p.ultPos) / 1000);
-    const max = R.VEL_JUGADOR * dt * 1.5 + 0.7;
+    const max = R.VEL_JUGADOR * (1 + (p.der.velMov || 0) / 100) * dt * 1.5 + 0.7;
     if (Math.hypot(x - p.x, z - p.z) > max) { p.priv.push(['tp', p.id, r2(p.x), r2(p.z)]); p.ultPos = ahora; return; }
     if (p.enPozo) { const dx = x - R.POZO.x, dz = z - R.POZO.z, d = Math.hypot(dx, dz); if (d > R.POZO.r) { x = R.POZO.x + dx / d * R.POZO.r; z = R.POZO.z + dz / d * R.POZO.r; } }
     else if (R.enCosta(p.x, p.z)) { const dx = x - R.COSTA.x, d = Math.hypot(dx, z); if (d > R.COSTA.r) { x = R.COSTA.x + dx / d * R.COSTA.r; z = z / d * R.COSTA.r; } }
@@ -440,7 +440,7 @@ export class Mapa extends DurableObject {
   }
 
   vender(p, i) {
-    if (!this.rolCerca(p, 'herrero') && !this.rolCerca(p, 'mercader')) return this.aviso(p, 'Para vender, acercate a un mercader o a un herrero.');
+    if (!this.rolCerca(p, 'herrero') && !this.rolCerca(p, 'mercader') && !this.rolCerca(p, 'domadora')) return this.aviso(p, 'Para vender, acercate a un mercader o a un herrero.');
     const it = p.d.inv[i]; if (!it || this.bloqueado(p, i)) return;
     const oro = O.precioVenta(it) * (it.c || 1);
     p.d.inv[i] = null; p.d.oro += oro; p.cambioInv = true;
@@ -452,6 +452,7 @@ export class Mapa extends DurableObject {
     const enInv = i != null && i !== '';
     const it = enInv ? p.d.inv[i | 0] : p.d.equipo[String(r)];
     if (!it || !O.esEquipo(it.b) || (enInv && this.bloqueado(p, i | 0))) return;
+    if (!O.forjable(it.b)) return this.aviso(p, 'Las bestias no se forjan.');
     const n = it.n || 0, gema = O.FORJA.gemaPara(n);
     if (!gema) return this.aviso(p, 'Ya está en +15. No se puede más.');
     if (!this.cuantos(p, gema)) return this.aviso(p, `Necesitás una ${O.BASES[gema].nombre}.`);
@@ -862,10 +863,11 @@ export class Mapa extends DurableObject {
 
   recoger(p) {
     for (const d of this.drops.values()) {
-      if (Math.hypot(d.x - p.x, d.z - p.z) > 1.5) continue;
+      const dd = Math.hypot(d.x - p.x, d.z - p.z);
+      if (dd > (d.oro && p.der.junta ? 7 : 1.5)) continue;
       const mio = !d.dueno || d.t > 15 || d.dueno === 'p' + p.id || d.dueno === 'g' + p.grupo;
       if (!mio) continue;
-      if (d.oro) { p.d.oro += d.oro; p.cambioInv = true; p.priv.push(['oro', d.oro]); this.drops.delete(d.id); continue; }
+      if (d.oro) { if (dd > 1.5) this.ev.push(['junta', p.id, r2(d.x), r2(d.z)]); d.oro = Math.round(d.oro * (1 + (p.der.oroPct || 0) / 100)); p.d.oro += d.oro; p.cambioInv = true; p.priv.push(['oro', d.oro]); this.drops.delete(d.id); continue; }
       if (this.agregar(p, { ...d.item })) {
         this.drops.delete(d.id); p.priv.push(['recoge', O.nombreObjeto(d.item), O.rareza(d.item)]);
         const ra = O.rareza(d.item);
@@ -1294,7 +1296,7 @@ export class Mapa extends DurableObject {
 
   enviarFotos() {
     const ev = this.ev; this.ev = [];
-    const filaJ = q => [q.id, q.nombre, r2(q.x), r2(q.z), r2(q.dir), Math.round(q.hp / q.der.maxHp * 100), q.d.nivel, q.muerto ? 4 : q.mueve ? 1 : 0, q.grupo || 0, (q.buffs.some(b => b.ef.menos) ? 1 : 0) | (q.veneno ? 2 : 0) | (q.buffs.some(b => b.ef.dmgPct || b.ef.vel) ? 4 : 0), q.d.clase, brillo(q), this.etiquetaHerm(q)];
+    const filaJ = q => [q.id, q.nombre, r2(q.x), r2(q.z), r2(q.dir), Math.round(q.hp / q.der.maxHp * 100), q.d.nivel, q.muerto ? 4 : q.mueve ? 1 : 0, q.grupo || 0, (q.buffs.some(b => b.ef.menos) ? 1 : 0) | (q.veneno ? 2 : 0) | (q.buffs.some(b => b.ef.dmgPct || b.ef.vel) ? 4 : 0), q.d.clase, brillo(q), this.etiquetaHerm(q), q.d.equipo?.mascota?.b || 0, q.d.equipo?.montura?.b || 0];
     const filaM = m => [m.id, m.ti, r2(m.x), r2(m.z), r2(m.dir), Math.round(Math.max(0, m.hp) / m.maxHp * 100), m.muerto ? 4 : m.mueve ? 1 : 0, (m.campeon ? 1 : 0) | (m.furioso ? 2 : 0) | (m.temporal ? 4 : 0)];
     const evt = this.evento ? [this.evento.id, Math.round(this.evento.resta)] : this.proximo ? ['-' + this.proximo.id, Math.round(this.proximo.en)] : null;
     for (const p of this.jug.values()) {

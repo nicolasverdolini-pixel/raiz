@@ -95,7 +95,56 @@ function crearEnte(id, tipo, esJugador) {
   entes.set(id, e);
   return e;
 }
-function quitarEnte(id) { const e = entes.get(id); if (!e) return; E.scene.remove(e.vis.raiz); entes.delete(id); if (objetivo === id) objetivo = null; }
+function quitarEnte(id) { const e = entes.get(id); if (!e) return; E.scene.remove(e.vis.raiz); if (e.pet) E.scene.remove(e.pet.raiz); entes.delete(id); if (objetivo === id) objetivo = null; }
+
+// ---------- mascotas y monturas ----------
+// La mascota es un muñeco aparte que sigue al jugador; la montura va dentro del jugador y el jinete se sienta arriba.
+function ponerMascota(e, b) {
+  if (e.pet) { E.scene.remove(e.pet.raiz); e.pet = null; }
+  e.mascotaB = b || null;
+  if (!b || !VISUAL['pet_' + b]) return;
+  e.pet = crear('pet_' + b); e.pet.vuela = VISUAL['pet_' + b].vuela || 0;
+  const p = e.vis.raiz.position; e.pet.raiz.position.set(p.x - 1, p.y, p.z - 1);
+  E.scene.add(e.pet.raiz);
+}
+function ponerMontura(e, b) {
+  if (e.mon) { e.vis.raiz.remove(e.mon.raiz); e.vis.alto -= e.mon.silla; e.mon = null; }
+  e.monturaB = b || null; e.vis.cuerpo.position.y = 0;
+  if (!b || !VISUAL['mon_' + b]) return;
+  const v = VISUAL['mon_' + b];
+  e.mon = crear('mon_' + b); e.mon.silla = v.tam * v.silla;
+  e.vis.raiz.add(e.mon.raiz); e.vis.alto += e.mon.silla;
+  if (!e.piernas) {
+    const h = n => { let r = null; e.vis.cuerpo.traverse(o => { if (!r && o.isBone && o.name.toLowerCase() === n) r = o; }); return r; };
+    e.piernas = [h('upperlegl'), h('upperlegr'), h('lowerlegl'), h('lowerlegr')];   // el cargador les saca los puntos
+  }
+}
+// Después de animar: jinete sentado (piernas dobladas y abiertas) y la bestia corre o espera.
+function animarBestias(e, dt, corre) {
+  if (e.mon) {
+    const montado = !e.muerto;
+    e.mon.raiz.visible = montado;
+    e.vis.cuerpo.position.y = montado ? e.mon.silla : 0;
+    e.mon.muneco.ponerBase(corre ? 'run' : 'idle'); e.mon.muneco.update(dt);
+    if (montado && e.piernas) {
+      const [ul, ur, ll, lr] = e.piernas;
+      if (ul) ul.rotation.set(-1.35, 0, -0.55 - 0.25); if (ur) ur.rotation.set(-1.35, 0, 0.55 + 0.25);
+      if (ll) ll.rotation.set(1.45, 0, 0); if (lr) lr.rotation.set(1.45, 0, 0);
+    }
+  }
+  if (e.pet) {
+    const r = e.vis.raiz, pr = e.pet.raiz, a = r.rotation.y;
+    const tx = r.position.x - Math.sin(a) * 1.3 + Math.cos(a) * 0.9, tz = r.position.z - Math.cos(a) * 1.3 - Math.sin(a) * 0.9;
+    const dx = tx - pr.position.x, dz = tz - pr.position.z, d = Math.hypot(dx, dz);
+    if (d > 25) pr.position.set(tx, 0, tz);
+    else if (d > 0.15) { const k = Math.min(1, dt * (d > 3 ? 6 : 3)); pr.position.x += dx * k; pr.position.z += dz * k; pr.rotation.y = angulo(pr.rotation.y, Math.atan2(dx, dz), Math.min(1, dt * 8)); }
+    else pr.rotation.y = angulo(pr.rotation.y, a, Math.min(1, dt * 3));
+    pr.position.y = R.altura(pr.position.x, pr.position.z);
+    if (e.pet.vuela) e.pet.cuerpo.position.y = e.pet.vuela + Math.sin(performance.now() / 400 + e.id) * 0.15;
+    pr.visible = e.vis.raiz.visible;
+    e.pet.muneco.ponerBase(d > 0.6 ? 'run' : 'idle'); e.pet.muneco.update(dt);
+  }
+}
 
 function morir(e) {
   if (e.muerto) return;
@@ -149,13 +198,15 @@ function entrarSeleccion(m) {
 function foto(s) {
   if (!mio) return;
   const ahora = performance.now();
-  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl, clase, brillo, herm] of s.j) {
+  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl, clase, brillo, herm, mascota, montura] of s.j) {
     const muralla = fl & 1, veneno = fl & 2;
     let e = entes.get(id);
     if (e && e.tipo !== clase && VISUAL[clase]) { quitarEnte(id); e = null; }
     if (!e) { e = crearEnte(id, VISUAL[clase] ? clase : 'guardian', true); e.vis.raiz.position.set(x, R.altura(x, z), z); if (id === yoId) yo = e; }
     if (brillo !== e.brillo) { e.brillo = brillo; brillarArma(e); }
     Object.assign(e, { nombre, hp, nivel, st, grupo, muralla, veneno, herm: herm || null, visto: ahora });
+    if ((mascota || null) !== (e.mascotaB || null)) ponerMascota(e, mascota);
+    if ((montura || null) !== (e.monturaB || null)) ponerMontura(e, montura);
     if (id !== yoId) { e.buf.push({ t: ahora, x, z, dir }); if (e.buf.length > 30) e.buf.shift(); }
     if (st === 4 && !e.muerto) morir(e);
   }
@@ -264,7 +315,8 @@ function evento(ev) {
   else if (tipo === 'mision') { SND.sfx.nivel(); hud.toast(`${a}. «${b}»`, 'grande'); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } }
   else if (tipo === 'oro') { hud.toast(`+${a} de oro`, 'exp'); SND.sfx.oro(); }
   else if (tipo === 'recoge') SND.sfx.recoger(b), hud.toast(`Recogiste ${a}`, ['exp', 'excelente', 'legendario', 'mitico'][b] || 'exp');
-  else if (tipo === 'forja') { SND.sfx.forja(a === 'ok'); hud.toast(b, a === 'ok' ? 'grande' : 'malo'); const n = O.NPCS.find(x => x.id === 'herrero'); if (a === 'ok') FX.nivel(n.x, 0, n.z); else FX.chispas(n.x, 1.2, n.z, a === 'roto' ? '#ff3b2a' : '#8c7f6a', 30); }
+  else if (tipo === 'junta') { FX.chispas(b, R.altura(b, c) + 0.4, c, '#f0c040', 8); }
+  else if (tipo === 'forja') { SND.sfx.forja(a === 'ok'); hud.toast(b, a === 'ok' ? 'grande' : 'malo'); const n = rolCerca('herrero') || { x: lx, z: lz }; if (a === 'ok') FX.nivel(n.x, 0, n.z); else FX.chispas(n.x, 1.2, n.z, a === 'roto' ? '#ff3b2a' : '#8c7f6a', 30); }
   else if (tipo === 'fx') {
     const y = R.altura(b, c);
     if (a === 'hielo') { FX.golpeSuelo(b, y, c, '#9fd8ff'); FX.chispas(b, y + 0.5, c, '#bfe8ff', 30); }
@@ -365,6 +417,7 @@ function usarHabilidad(id) {
 }
 
 // ---------- mi movimiento ----------
+let yoCorre = false;
 function moverme(dt) {
   if (!yo || yo.muerto || (estado && estado.muerto > 0)) { yo?.vis.muneco.ponerBase('idle'); return; }
   let ix = 0, iz = 0;
@@ -385,7 +438,7 @@ function moverme(dt) {
     if (d < 0.25 || (npcPendiente && npcCerca(npcPendiente))) { destino = null; if (npcPendiente) { abrirNpc(npcPendiente); npcPendiente = null; } } else { mx = dx / d; mz = dz / d; }
   }
   const atacando = !!yo.vis.muneco.unaVez;
-  const vel = R.VEL_JUGADOR * (atacando && !(ix || iz) ? 0.3 : 1);
+  const vel = R.VEL_JUGADOR * (1 + (mio.der?.velMov || 0) / 100) * (atacando && !(ix || iz) ? 0.3 : 1);
   if (mx || mz) {
     lx += mx * vel * dt; lz += mz * vel * dt;
     if (R.enPozo(lx, lz)) { const dx = lx - R.POZO.x, dz = lz - R.POZO.z, d = Math.hypot(dx, dz); if (d > R.POZO.r) { lx = R.POZO.x + dx / d * R.POZO.r; lz = R.POZO.z + dz / d * R.POZO.r; } }
@@ -393,7 +446,7 @@ function moverme(dt) {
     else { lx = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, lx)); lz = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, lz)); }
     ldir = Math.atan2(mx, mz);
   }
-  yo.vis.muneco.ponerBase(mx || mz ? 'run' : 'idle');
+  yo.vis.muneco.ponerBase((mx || mz) && !yo.mon ? 'run' : 'idle'); yoCorre = !!(mx || mz);
   const ahora = performance.now();
   if (ahora - ultEnvio > 100 && (Math.hypot(lx - enviado.x, lz - enviado.z) > 0.02)) {
     red.mandar({ t: 'pos', x: +lx.toFixed(2), z: +lz.toFixed(2), dir: +ldir.toFixed(2) });
@@ -417,7 +470,7 @@ function actualizarEntes(dt) {
       r.position.set(x, R.altura(x, z), z);
       r.rotation.y = angulo(r.rotation.y, b.dir, Math.min(1, dt * 12));
       const corre = e.st === 1 || Math.hypot(x - antes.x, z - antes.z) > 0.5 * dt;
-      e.vis.muneco.ponerBase(corre ? 'run' : 'idle');
+      e.vis.muneco.ponerBase(corre && !e.mon ? 'run' : 'idle'); e.corre = corre;
     }
     if (e.aura) e.aura.visible = !!e.muralla && !e.muerto;
     if (e.flash > 0) e.flash -= dt;
@@ -429,6 +482,7 @@ function actualizarEntes(dt) {
       if (e.muertoT > 4) r.visible = false;
     }
     e.vis.muneco.update(dt);
+    if (e.esJ && (e.mon || e.pet)) animarBestias(e, dt, e === yo ? yoCorre : e.corre);
   }
 }
 
@@ -654,4 +708,4 @@ function cuadro() {
   dibujarTextos(dt);
 }
 cuadro();
-if (['localhost', '127.0.0.1'].includes(location.hostname)) window.__sendas = { E, entes, FX };
+if (['localhost', '127.0.0.1'].includes(location.hostname)) window.__sendas = { E, entes, FX, red, mio: () => mio, pos: () => [lx, lz] };
