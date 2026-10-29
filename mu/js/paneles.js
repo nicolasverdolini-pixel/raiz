@@ -193,10 +193,11 @@ export class Paneles {
     const ranuras = O.RANURAS.filter(r => r !== 'escudo' || C.CLASES[d.clase].escudo);
     const eq = ranuras.map(r => casilla(d.equipo[r], `data-e="${r}" class-sel="${this.sel === 'e:' + r}"`, d.equipo[r] ? '' : `<small class="vacio">${O.NOMBRE_RANURA[r]}</small>`)).join('');
     const inv = d.inv.map((it, i) => casilla(it, `data-i="${i}"`, this.ctx.ofrecido?.(i) ? '<small class="cant">✓</small>' : '')).join('');
+    // Tres columnas que entran en la pantalla: lo puesto, la ficha del objeto elegido (siempre a la vista) y la mochila.
     return `<div class="equipo-grid">
-      <div class="col-eq"><div class="eq">${eq}</div><div class="fila-oro">${this.oro(d)}<button class="btn chico sec" id="p-cambiar">Cambiar de personaje</button></div>
-        <div id="p-ficha">${this.htmlFicha(d)}</div></div>
-      <div class="col-inv"><h3>Mochila</h3><div class="inv">${inv}</div></div></div>`;
+      <div class="col-eq"><div class="eq">${eq}</div><div class="fila-oro">${this.oro(d)}</div><button class="btn chico sec" id="p-cambiar">Cambiar de personaje</button></div>
+      <div class="col-ficha" id="p-ficha">${this.htmlFicha(d)}</div>
+      <div class="col-inv"><div class="inv">${inv}</div></div></div>`;
   }
 
   htmlFicha(d) {

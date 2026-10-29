@@ -563,8 +563,8 @@ function dibujarTextos(dt) {
       }
       if (e.herm) {
         const [hn, hs, hc, senor] = e.herm, ht = `${senor ? '♛\uFE0E ' : ''}${hs}\uFE0E ${hn}`;
-        tc.font = 'italic 600 13px Spectral, Georgia, serif'; tc.fillStyle = hc;
-        tc.strokeText(ht, s[0], s[1] - 15); tc.fillText(ht, s[0], s[1] - 15);
+        tc.font = 'italic 600 10.5px Spectral, Georgia, serif'; tc.fillStyle = hc;
+        tc.lineWidth = 2.5; tc.strokeText(ht, s[0], s[1] - 13); tc.fillText(ht, s[0], s[1] - 13); tc.lineWidth = 3;
       }
       if (e !== yo) barra(s[0], s[1] + 11, 46, 4, e.hp, mismo ? '#6fae4f' : '#a33');
       if (e.id === objetivo) { tc.strokeStyle = '#ff5a4a'; tc.lineWidth = 2; tc.strokeRect(s[0] - 26, s[1] + 7, 52, 12); }
