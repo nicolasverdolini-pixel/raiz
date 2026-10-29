@@ -516,3 +516,7 @@ input:focus { outline: 1px solid var(--sangre-2); }
 .diaria > b { font: 1.25em var(--titulo); color: #e9c37a; } .diaria small { color: var(--hueso-2); } .diaria p { margin: 4px 0; }
 .diaria .dias { display: flex; gap: 6px; } .diaria .dias span { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid rgba(216,207,189,.25); font-family: var(--titulo); color: var(--hueso-2); }
 .diaria .dias .hecho { background: #2a2014; color: #c9a24a; } .diaria .dias .hoy { background: #6e2a22; color: #fff; border-color: #e9c37a; box-shadow: 0 0 10px rgba(233,195,122,.5); }
+/* Puesto de venta */
+.pu-precio { width: 96px; flex: none; padding: 5px 8px; font-size: .95em; }
+.puesto-item .ficha { margin-bottom: 6px; }
+.fila-t .ic img { width: 34px; height: 34px; object-fit: contain; }

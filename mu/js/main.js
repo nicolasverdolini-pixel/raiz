@@ -50,6 +50,7 @@ const hud = new Hud({
   salirGrupo: () => red.mandar({ t: 'salir' }),
   lideroHerm: () => paneles.herm?.lider === mio?.nombre,
   invitarHerm: id => red.mandar({ t: 'herm', a: 'inv', id }),
+  verPuesto: id => red.mandar({ t: 'puesto', a: 'ver', id }),
   aceptarHerm: h => red.mandar({ t: 'herm', a: 'acepta', h }),
   mapa: () => (mapa.abierto() ? mapa.cerrar() : mapa.abrir()),
   dejarBastion: () => { if (confirm('¿Dejar el Bastión? Volvés a la Atalaya del Farol.')) red.mandar({ t: 'bastion', a: 'salir' }); },
@@ -192,6 +193,8 @@ function alMensaje(m) {
   }
   if (m.t === 'inv') return hud.invitacion(m.de, m.nombre, m.nivel);
   if (m.t === 'diaria') return hud.diaria(m);
+  if (m.t === 'mipuesto') return paneles.mipuesto(m);
+  if (m.t === 'puesto') return paneles.puestoAjeno(m);
   if (m.t === 'invherm') return hud.invitacionHerm(m.de, m.h);
   if (m.t === 'herm') return paneles.hermandad(m.h, m.online);
   if (m.t === 'compide') return hud.pedidoComercio(m.de, m.nombre);
@@ -220,13 +223,13 @@ function entrarSeleccion(m) {
 function foto(s) {
   if (!mio) return;
   const ahora = performance.now();
-  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl, clase, brillo, herm, mascota, montura, alas, vista] of s.j) {
+  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl, clase, brillo, herm, mascota, montura, alas, vista, puesto] of s.j) {
     const muralla = fl & 1, veneno = fl & 2;
     let e = entes.get(id);
     if (e && e.tipo !== clase && VISUAL[clase]) { quitarEnte(id); e = null; }
     if (!e) { e = crearEnte(id, VISUAL[clase] ? clase : 'guardian', true); e.vis.raiz.position.set(x, R.altura(x, z), z); if (id === yoId) yo = e; }
     if (brillo !== e.brillo) { e.brillo = brillo; brillarArma(e); }
-    Object.assign(e, { nombre, hp, nivel, st, grupo, muralla, veneno, herm: herm || null, visto: ahora });
+    Object.assign(e, { nombre, hp, nivel, st, grupo, muralla, veneno, herm: herm || null, puesto: puesto || null, visto: ahora });
     if ((mascota || null) !== (e.mascotaB || null)) ponerMascota(e, mascota);
     if ((montura || null) !== (e.monturaB || null)) ponerMontura(e, montura);
     if ((alas || 0) !== (e.alasN || 0)) ponerAlas(e, alas || 0);
@@ -544,6 +547,11 @@ function dibujarTextos(dt) {
       const t = `${e.nombre} · ${e.nivel}`;
       tc.fillStyle = e === yo ? '#efe6d2' : enemigo(e) ? '#ff5a4a' : mismo ? '#a8d48f' : '#b9c1c9';
       tc.strokeText(t, s[0], s[1]); tc.fillText(t, s[0], s[1]);
+      if (e.puesto) {
+        tc.font = '600 13px "Spectral SC", Spectral, Georgia, serif'; const w = tc.measureText(e.puesto).width + 16, y0 = s[1] - (e.herm ? 46 : 32);
+        tc.fillStyle = 'rgba(42,26,14,.92)'; tc.fillRect(s[0] - w / 2, y0 - 10, w, 20); tc.strokeStyle = '#c9a24a'; tc.lineWidth = 1.5; tc.strokeRect(s[0] - w / 2, y0 - 10, w, 20);
+        tc.fillStyle = '#f0d9a0'; tc.fillText(e.puesto, s[0], y0 + 1); tc.font = '600 14px "Spectral SC", Spectral, Georgia, serif'; tc.lineWidth = 3; tc.strokeStyle = 'rgba(0,0,0,.8)';
+      }
       if (e.herm) {
         const [hn, hs, hc, senor] = e.herm, ht = `${senor ? '♛\uFE0E ' : ''}${hs}\uFE0E ${hn}`;
         tc.font = 'italic 600 13px Spectral, Georgia, serif'; tc.fillStyle = hc;

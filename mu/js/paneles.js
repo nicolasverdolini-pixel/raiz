@@ -97,20 +97,55 @@ export class Paneles {
   personaje(tab = 'equipo') {
     const d = this.ctx.mio(); if (!d) return;
     const libres = C.puntosArbol(d) - C.gastados(d);
-    const tabs = [['equipo', 'Equipo'], ['habilidades', `Habilidades${libres ? ' ●' : ''}`], ['atributos', `Atributos${d.puntos ? ' ●' : ''}`], ['misiones', 'Misiones'], ['hermandad', 'Hermandad']];
+    const tabs = [['equipo', 'Equipo'], ['habilidades', `Habilidades${libres ? ' ●' : ''}`], ['atributos', `Atributos${d.puntos ? ' ●' : ''}`], ['misiones', 'Misiones'], ['puesto', `Puesto${this.miPuesto?.abierto ? ' ●' : ''}`], ['hermandad', 'Hermandad']];
     let cuerpo = '';
     if (tab === 'equipo') cuerpo = this.htmlEquipo(d);
     if (tab === 'habilidades') cuerpo = this.htmlArbol(d);
     if (tab === 'atributos') cuerpo = this.htmlAtributos(d);
     if (tab === 'misiones') cuerpo = this.htmlDiario(d);
     if (tab === 'hermandad') cuerpo = this.htmlHermandad(d);
+    if (tab === 'puesto') cuerpo = this.htmlMiPuesto(d);
     this.marco(esc(d.nombre), `${C.CLASES[d.clase].nombre} · Nivel ${d.nivel}`, tabs, tab, cuerpo, 'personaje', [tab]);
     if (tab === 'equipo') this.conectarMochila(d);
     this.el.querySelectorAll('[data-h]').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'aprender', h: b.dataset.h }));
     this.el.querySelectorAll('.mas').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'punto', s: b.dataset.s, n: +b.dataset.n }));
     const cp = $('#p-cambiar', this.el); if (cp) cp.onclick = () => { this.cerrar(); this.ctx.cambiarPj(); };
     if (tab === 'hermandad') this.conectarHermandad();
+    if (tab === 'puesto') this.conectarMiPuesto(d);
     const rd = $('#p-redis', this.el); if (rd) rd.onclick = () => { if (confirm('¿Devolver todos los puntos de atributos para repartirlos de nuevo?')) this.ctx.mandar({ t: 'redistribuir' }); };
+  }
+
+  // ---------- puesto de venta ----------
+  mipuesto(m) { this.miPuesto = m; if (!m.abierto) this.precios = null; if (this.abierto?.f === 'personaje') this.refrescar(); }
+  htmlMiPuesto(d) {
+    const P = this.miPuesto, enAt = this.ctx.enAtalaya();
+    if (P?.abierto) return `<p class="nota">Tu puesto <b>«${esc(P.titulo)}»</b> está abierto. Los demás te tocan y eligen «Ver puesto». Si te movés, se cierra.</p>
+      <div class="lista">${P.items.map(x => { const it = d.inv[x.i]; return it ? `<div class="fila-t"><span class="ic">${imagen(it)}</span><span><b>${esc(O.nombreObjeto(it))}</b><small>${x.precio.toLocaleString('es-AR')} de oro</small></span></div>` : ''; }).join('')}</div>
+      <div class="acciones"><button class="btn sec" id="pu-cerrar">Cerrar el puesto</button></div>`;
+    this.precios = this.precios || {};
+    const lista = d.inv.map((it, i) => [it, i]).filter(([it]) => it);
+    return `<p class="nota">Elegí qué vender, ponele precio y abrí el puesto. Te quedás quieto en la atalaya y los demás te compran aunque no estés mirando. ${enAt ? '' : '<span class="peligro">Tenés que estar en una atalaya.</span>'}</p>
+      <label>Nombre del puesto<input id="pu-titulo" maxlength="30" value="${esc(this.tituloPuesto || '')}" placeholder="Puesto de ${esc(d.nombre)}"></label>
+      <div class="lista">${lista.map(([it, i]) => `<div class="fila-t ${this.precios[i] != null ? '' : 'gris'}"><span class="ic">${imagen(it)}</span><span><b>${esc(O.nombreObjeto(it))}${it.c > 1 ? ' × ' + it.c : ''}</b><small>Al herrero: ${(O.precioVenta(it) * (it.c || 1)).toLocaleString('es-AR')}</small></span>
+        <input class="pu-precio" data-i="${i}" type="number" min="1" inputmode="numeric" placeholder="Precio" value="${this.precios[i] ?? ''}"></div>`).join('')}</div>
+      <div class="acciones"><button class="btn" id="pu-abrir" ${enAt ? '' : 'disabled'}>Abrir el puesto</button></div>`;
+  }
+  conectarMiPuesto(d) {
+    const c = $('#pu-cerrar', this.el); if (c) c.onclick = () => this.ctx.mandar({ t: 'puesto', a: 'cerrar' });
+    const t = $('#pu-titulo', this.el); if (t) { t.oninput = () => { this.tituloPuesto = t.value; }; t.addEventListener('keydown', e => e.stopPropagation()); }
+    this.el.querySelectorAll('.pu-precio').forEach(inp => {
+      inp.addEventListener('keydown', e => e.stopPropagation());
+      inp.oninput = () => { const v = Math.floor(+inp.value); if (v >= 1) this.precios[inp.dataset.i] = v; else delete this.precios[inp.dataset.i]; inp.closest('.fila-t').classList.toggle('gris', !(v >= 1)); };
+    });
+    const a = $('#pu-abrir', this.el); if (a) a.onclick = () => this.ctx.mandar({ t: 'puesto', a: 'abrir', titulo: this.tituloPuesto || '', items: Object.entries(this.precios || {}).map(([i, precio]) => ({ i: +i, precio })) });
+  }
+  // Puesto de otro jugador.
+  puestoAjeno(m) {
+    const d = this.ctx.mio(); if (!d) return;
+    if (!m.abierto) { this.cerrar(); return this.ctx.toast(`${m.nombre} cerró el puesto.`); }
+    const cuerpo = `<p class="nota">Tenés ${this.oro(d)}. Tocá «Comprar» y es tuyo.</p><div class="lista">${m.items.map((x, k) => `<div class="puesto-item">${ficha(x.item, d, `<span class="precio">${x.precio.toLocaleString('es-AR')} de oro</span><button class="btn chico" data-comprar="${k}" ${d.oro >= x.precio ? '' : 'disabled'}>Comprar</button>`)}</div>`).join('') || '<p class="nota">No le queda nada.</p>'}</div>`;
+    this.marco(esc(m.titulo), `Puesto de ${esc(m.nombre)}`, null, null, cuerpo, 'puestoAjeno', [m]);
+    this.el.querySelectorAll('[data-comprar]').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'puesto', a: 'comprar', id: m.id, k: +b.dataset.comprar }));
   }
 
   // ---------- hermandad ----------

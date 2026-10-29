@@ -289,11 +289,12 @@ export class Hud {
 
   menuJugador(e, x, y) {
     const m = $('#menu-jug');
-    m.innerHTML = `<b>${esc(e.nombre)}</b><small>${C.CLASES[e.tipo]?.nombre || ''} · Nv ${e.nivel}</small><button class="btn" id="mj-inv">Invitar al grupo</button>${this.cb.lideroHerm?.() && !e.herm ? '<button class="btn" id="mj-herm">Invitar a la hermandad</button>' : ''}<button class="btn" id="mj-com">Comerciar</button><button class="btn sec" id="mj-no">Cerrar</button>`;
+    m.innerHTML = `<b>${esc(e.nombre)}</b><small>${C.CLASES[e.tipo]?.nombre || ''} · Nv ${e.nivel}</small>${e.puesto ? '<button class="btn" id="mj-puesto">Ver puesto</button>' : ''}<button class="btn" id="mj-inv">Invitar al grupo</button>${this.cb.lideroHerm?.() && !e.herm ? '<button class="btn" id="mj-herm">Invitar a la hermandad</button>' : ''}<button class="btn" id="mj-com">Comerciar</button><button class="btn sec" id="mj-no">Cerrar</button>`;
     m.style.left = Math.min(innerWidth - 190, Math.max(10, x - 90)) + 'px'; m.style.top = Math.min(innerHeight - 150, Math.max(10, y - 140)) + 'px';
     m.hidden = false;
     $('#mj-inv').onclick = () => { m.hidden = true; this.cb.invitar(e.id); };
     $('#mj-com').onclick = () => { m.hidden = true; this.cb.comerciar(e.id); };
+    const mp = $('#mj-puesto'); if (mp) mp.onclick = () => { m.hidden = true; this.cb.verPuesto(e.id); };
     const mh = $('#mj-herm'); if (mh) mh.onclick = () => { m.hidden = true; this.cb.invitarHerm(e.id); };
     $('#mj-no').onclick = () => { m.hidden = true; };
   }

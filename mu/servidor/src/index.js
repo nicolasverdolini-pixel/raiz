@@ -194,6 +194,7 @@ export class Mapa extends DurableObject {
       case 'vela': return this.vela(p, String(m.lugar || ''));
       case 'viajar': return this.viajar(p, m.i | 0);
       case 'com': return this.comercio(p, m);
+      case 'puesto': return this.puesto(p, m);
       case 'baul': return this.usarBaul(p, m);
       case 'mision': return this.mision(p, m);
       case 'chat': return this.chat(p, String(m.txt || ''));
@@ -283,6 +284,7 @@ export class Mapa extends DurableObject {
   salir(s) {
     const p = s.p; if (!p || !this.jug.has(p.id)) return;
     this.cancelarComercio(p, `${p.nombre} se fue.`);
+    p.puesto = null;
     if (p.enPozo) { p.enPozo = false; this.pozo?.dentro.delete(p.id); p.x = 0; p.z = 0; }
     if (p.enBastion) { p.enBastion = false; p.x = 0; p.z = 0; }
     this.dejarGrupo(p, true);
@@ -320,6 +322,7 @@ export class Mapa extends DurableObject {
     else if (R.islaDe(p.x, p.z)) { const I = R.islaDe(p.x, p.z), dx = x - I.x, dz = z - I.z, d = Math.hypot(dx, dz); if (d > I.r) { x = I.x + dx / d * I.r; z = I.z + dz / d * I.r; } }
     else { x = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, x)); z = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, z)); }
     p.mueve = Math.hypot(x - p.x, z - p.z) > 0.01;
+    if (p.puesto && Math.hypot(x - p.puesto.x, z - p.puesto.z) > 1.5) this.cerrarPuesto(p, 'Te moviste: cerraste el puesto.');
     p.x = x; p.z = z; p.ultPos = ahora;
     if (isFinite(+m.dir)) p.dir = +m.dir;
   }
@@ -412,7 +415,7 @@ export class Mapa extends DurableObject {
     for (let i = 0; i < p.d.inv.length && n > 0; i++) { const x = p.d.inv[i]; if (!x || x.b !== b) continue; const usa = Math.min(n, x.c || 1); x.c = (x.c || 1) - usa; n -= usa; if (x.c <= 0) p.d.inv[i] = null; }
     p.cambioInv = true; return n === 0;
   }
-  bloqueado(p, i) { return p.com && p.com.ofertas[p.id].items.includes(i); }
+  bloqueado(p, i) { return (p.com && p.com.ofertas[p.id].items.includes(i)) || !!p.puesto?.items.some(x => x.i === i); }
   recalcular(p) { const antes = p.der; p.der = R.derivados(p.d); p.hp = Math.min(p.der.maxHp, p.hp + Math.max(0, p.der.maxHp - antes.maxHp)); p.mp = Math.min(p.der.maxMp, p.mp); p.cambioInv = true; }
 
   beber(p, b) {
@@ -676,6 +679,52 @@ export class Mapa extends DurableObject {
     this.ev.push(['n', p.id, 1]);
     this.msgTodos(`${p.nombre} renació por ${p.d.resets}ª vez.`);
     this.guardar(p);
+  }
+
+  // ----- puesto de venta: el jugador se queda quieto en una atalaya y otros le compran -----
+  puesto(p, m) {
+    if (m.a === 'abrir') {
+      if (p.muerto || !enPueblo(p)) return this.aviso(p, 'El puesto se arma en una atalaya.');
+      if (p.com) return this.aviso(p, 'Terminá el comercio primero.');
+      const titulo = String(m.titulo || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 30) || `Puesto de ${p.nombre}`;
+      const items = [], vistos = new Set();
+      for (const x of (Array.isArray(m.items) ? m.items : []).slice(0, 12)) {
+        const i = x.i | 0, precio = Math.floor(+x.precio);
+        if (vistos.has(i) || !p.d.inv[i] || !(precio >= 1 && precio <= 1e9)) continue;
+        vistos.add(i); items.push({ i, precio, it: JSON.stringify(p.d.inv[i]) });
+      }
+      if (!items.length) return this.aviso(p, 'Elegí al menos una cosa y ponele precio.');
+      p.puesto = { titulo, items, x: p.x, z: p.z };
+      this.aviso(p, `Abriste «${titulo}». Si te movés, se cierra.`);
+      return this.enviar(p.s, { t: 'mipuesto', abierto: true, titulo, items: items.map(x => ({ i: x.i, precio: x.precio })) });
+    }
+    if (m.a === 'cerrar') return this.cerrarPuesto(p, 'Cerraste el puesto.');
+    const v = this.jug.get(m.id);
+    if (!v?.puesto) return this.aviso(p, 'Ese puesto ya cerró.');
+    if (dist(p, v) > 12) return this.aviso(p, `Acercate al puesto de ${v.nombre}.`);
+    if (m.a === 'comprar') {
+      const k = m.k | 0, x = v.puesto.items[k];
+      if (!x || JSON.stringify(v.d.inv[x.i]) !== x.it) { this.aviso(p, 'Eso ya no está.'); return this.mandarPuesto(p, v); }
+      if (v === p) return;
+      if (p.d.oro < x.precio) return this.aviso(p, 'No te alcanza el oro.');
+      const it = v.d.inv[x.i];
+      if (!this.agregar(p, { ...it })) return this.aviso(p, 'Tu mochila está llena.');
+      p.d.oro -= x.precio; v.d.oro += x.precio; v.d.inv[x.i] = null; v.puesto.items.splice(k, 1);
+      p.cambioInv = v.cambioInv = true; this.guardar(p); this.guardar(v);
+      this.aviso(p, `Compraste ${O.nombreObjeto(it)} por ${x.precio.toLocaleString('es-AR')} de oro.`);
+      this.aviso(v, `${p.nombre} te compró ${O.nombreObjeto(it)}: +${x.precio.toLocaleString('es-AR')} de oro.`);
+      this.enviar(v.s, { t: 'mipuesto', abierto: true, titulo: v.puesto.titulo, items: v.puesto.items.map(y => ({ i: y.i, precio: y.precio })) });
+      if (!v.puesto.items.length) this.cerrarPuesto(v, 'Vendiste todo. El puesto se cerró.');
+    }
+    return this.mandarPuesto(p, v);
+  }
+  mandarPuesto(p, v) {
+    this.enviar(p.s, { t: 'puesto', id: v.id, nombre: v.nombre, abierto: !!v.puesto, titulo: v.puesto?.titulo, items: (v.puesto?.items || []).map(x => ({ item: JSON.parse(x.it), precio: x.precio })) });
+  }
+  cerrarPuesto(p, texto) {
+    if (!p.puesto) return;
+    p.puesto = null; this.aviso(p, texto);
+    this.enviar(p.s, { t: 'mipuesto', abierto: false });
   }
 
   // ----- alas: Oria las arma con oro, gemas, un equipo que se sacrifica y las alas anteriores -----
@@ -1535,7 +1584,7 @@ export class Mapa extends DurableObject {
 
   enviarFotos() {
     const ev = this.ev; this.ev = [];
-    const filaJ = q => [q.id, q.nombre, r2(q.x), r2(q.z), r2(q.dir), Math.round(q.hp / q.der.maxHp * 100), q.d.nivel, q.muerto ? 4 : q.mueve ? 1 : 0, q.grupo || 0, (q.buffs.some(b => b.ef.menos) ? 1 : 0) | (q.veneno ? 2 : 0) | (q.buffs.some(b => b.ef.dmgPct || b.ef.vel) ? 4 : 0), q.d.clase, brillo(q), this.etiquetaHerm(q), q.d.equipo?.mascota?.b || 0, q.d.equipo?.montura?.b || 0, O.BASES[q.d.equipo?.alas?.b]?.ala || 0, O.vistaEquipo(q.d.equipo)];
+    const filaJ = q => [q.id, q.nombre, r2(q.x), r2(q.z), r2(q.dir), Math.round(q.hp / q.der.maxHp * 100), q.d.nivel, q.muerto ? 4 : q.mueve ? 1 : 0, q.grupo || 0, (q.buffs.some(b => b.ef.menos) ? 1 : 0) | (q.veneno ? 2 : 0) | (q.buffs.some(b => b.ef.dmgPct || b.ef.vel) ? 4 : 0), q.d.clase, brillo(q), this.etiquetaHerm(q), q.d.equipo?.mascota?.b || 0, q.d.equipo?.montura?.b || 0, O.BASES[q.d.equipo?.alas?.b]?.ala || 0, O.vistaEquipo(q.d.equipo), q.puesto?.titulo || 0];
     const filaM = m => [m.id, m.ti, r2(m.x), r2(m.z), r2(m.dir), Math.round(Math.max(0, m.hp) / m.maxHp * 100), m.muerto ? 4 : m.mueve ? 1 : 0, (m.campeon ? 1 : 0) | (m.furioso ? 2 : 0) | (m.temporal ? 4 : 0)];
     const evt = this.evento ? [this.evento.id, Math.round(this.evento.resta)] : this.proximo ? ['-' + this.proximo.id, Math.round(this.proximo.en)] : null;
     for (const p of this.jug.values()) {
