@@ -486,3 +486,17 @@ input:focus { outline: 1px solid var(--sangre-2); }
 #h-botin div { animation: aparecer 5s forwards; color: var(--hueso-2); }
 #h-botin .r1 { color: #7fe0a0; } #h-botin .r2 { color: #f2c46a; } #h-botin .r3 { color: #ff6a74; }
 @media (max-aspect-ratio: 1/1) { #h-botin { bottom: calc(190px + env(safe-area-inset-bottom)); } }
+
+/* Elementos y engarces */
+#h-obj-elem { font-size: .8em; color: var(--hueso-2); } #h-obj-elem:empty { display: none; }
+.nodo em.elem { font: italic 600 .78em var(--texto); margin-left: 4px; }
+.engarces { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; font-size: .85em; }
+.eng { color: var(--hueso-2); } .eng.lleno { color: var(--c); }
+.totales.elem { font-size: .82em; gap: 4px 12px; }
+
+/* Tutorial */
+#tuto { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); width: min(380px, 88vw); padding: 14px 16px; z-index: 8; display: flex; flex-direction: column; gap: 6px; background: rgba(10,9,10,.95); border: 1px solid #8a6a3a; pointer-events: auto; }
+#tuto small { color: var(--hueso-2); font-size: .8em; } #tuto b { font: 1.2em var(--titulo); color: #e9c37a; } #tuto p { margin: 0; line-height: 1.45; }
+#tuto-aro { position: absolute; z-index: 7; border: 3px solid #e9c37a; border-radius: 50%; box-shadow: 0 0 0 4000px rgba(0,0,0,.35), 0 0 18px #e9c37a; pointer-events: none; animation: tuto-latir 1.2s infinite; }
+@keyframes tuto-latir { 50% { transform: scale(1.12); } }
+@media (max-height: 480px) { #tuto { top: 8%; } }

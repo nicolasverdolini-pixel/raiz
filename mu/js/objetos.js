@@ -82,6 +82,24 @@ export function sacrificioAlas(inv, receta) {
   });
   return mejor;
 }
+// Gemas para engarzar (como en Diablo): en el arma suman daño de su elemento; en la armadura, resistencia.
+// El Ojo de Halcón da crítico. Se ponen en los engarces del equipo con el herrero.
+const engarce = (id, nombre, elem, desc) => B[id] = { id, nombre, engarce: true, elem, pila: true, precio: 0, valor: 4000, desc };
+engarce('rubi', 'Rubí de Brasa', 'fuego', 'En el arma: +10% del daño como fuego. En la armadura: +12% de resistencia al fuego.');
+engarce('zafiro', 'Zafiro de Escarcha', 'hielo', 'En el arma: +10% del daño como hielo. En la armadura: +12% de resistencia al hielo.');
+engarce('topacio', 'Topacio de Tormenta', 'rayo', 'En el arma: +10% del daño como rayo. En la armadura: +12% de resistencia al rayo.');
+engarce('esmeralda', 'Esmeralda Podrida', 'veneno', 'En el arma: +10% del daño como veneno. En la armadura: +12% de resistencia al veneno.');
+engarce('onix', 'Ónix de Sombra', 'sombra', 'En el arma: +10% del daño como sombra. En la armadura: +12% de resistencia a la sombra.');
+engarce('ojo', 'Ojo de Halcón', null, 'En el arma: +4% de crítico y +20% de daño crítico. En la armadura: +2% de crítico.');
+export const GEMAS = ['rubi', 'zafiro', 'topacio', 'esmeralda', 'onix', 'ojo'];
+// Engarces: cuántos puede tener según la rareza, y lo que cuesta abrir uno más.
+export const ENGARCES = { max: [1, 2, 2, 3], abrir: n => 3000 * (n + 1) ** 2, sacar: 1500 };
+export const maxEngarces = it => (BASES[it.b]?.especial ? 0 : ENGARCES.max[rareza(it)]);
+export function efectoGema(g, enArma) {
+  const b = BASES[g]; if (!b) return {};
+  if (g === 'ojo') return enArma ? { crit: 4, critDano: 20 } : { crit: 2 };
+  return enArma ? { elem: { [b.elem]: 10 } } : { res: { [b.elem]: 12 } };
+}
 export const BASES = B;
 export const esEquipo = b => !!BASES[b]?.r;
 export const forjable = b => esEquipo(b) && !BASES[b].especial;
@@ -112,8 +130,10 @@ export function motivoNoPuede(d, it) {
 
 // ---------- opciones excelentes (brillan) ----------
 export const EXCELENTES = {
-  arma: [['dmgPct', 'Daño +10%', 10], ['vel', 'Velocidad de ataque +8%', 8], ['vidaKill', 'Recuperás vida al matar', 8], ['manaKill', 'Recuperás energía al matar', 8], ['exc', 'Más golpes excelentes', 10]],
-  defensa: [['hpPct', 'Vida +5%', 5], ['menos', 'Daño recibido −4%', 4], ['refleja', 'Devuelve 5% del daño', 5], ['mpPct', 'Energía +5%', 5], ['defPct', 'Defensa +10%', 10]],
+  arma: [['dmgPct', 'Daño +10%', 10], ['vel', 'Velocidad de ataque +8%', 8], ['vidaKill', 'Recuperás vida al matar', 8], ['manaKill', 'Recuperás energía al matar', 8], ['exc', 'Más golpes excelentes', 10],
+    ['crit', 'Crítico +5%', 5], ['critDano', 'Daño crítico +30%', 30], ['atr', 'Tu atributo principal +20', 20]],
+  defensa: [['hpPct', 'Vida +5%', 5], ['menos', 'Daño recibido −4%', 4], ['refleja', 'Devuelve 5% del daño', 5], ['mpPct', 'Energía +5%', 5], ['defPct', 'Defensa +10%', 10],
+    ['resTodo', 'Resistencia a los elementos +10%', 10], ['vit', 'Vitalidad +15', 15], ['crit', 'Crítico +2%', 2]],
 };
 const opcionesDe = it => EXCELENTES[BASES[it.b].r === 'arma' ? 'arma' : 'defensa'];
 export function textoExcelente(it) { return (it.x || []).map(i => opcionesDe(it)[i][1]); }
@@ -144,10 +164,13 @@ export function valores(it) {
 
 // Suma todo lo que da el equipo puesto.
 export function bonusEquipo(equipo) {
-  const t = { dmg: [0, 0], def: 0, dmgPct: 0, vel: 0, vidaKill: 0, manaKill: 0, exc: 0, hpPct: 0, menos: 0, refleja: 0, mpPct: 0, defPct: 0, velMov: 0, oroPct: 0, junta: 0 };
+  const t = { dmg: [0, 0], def: 0, dmgPct: 0, vel: 0, vidaKill: 0, manaKill: 0, exc: 0, hpPct: 0, menos: 0, refleja: 0, mpPct: 0, defPct: 0, velMov: 0, oroPct: 0, junta: 0,
+    crit: 0, critDano: 0, atr: 0, vit: 0, resTodo: 0, elem: {}, res: {} };
+  const sumar = ef => { for (const [k, v] of Object.entries(ef)) { if (k === 'elem' || k === 'res') for (const [e, n] of Object.entries(v)) t[k][e] = (t[k][e] || 0) + n; else t[k] += v; } };
   for (const r of RANURAS) {
     const it = equipo?.[r]; if (!it || !BASES[it.b]) continue;
     if (BASES[it.b].ef) for (const [k, val] of Object.entries(BASES[it.b].ef)) t[k] += val;
+    for (const g of it.g || []) if (g) sumar(efectoGema(g, r === 'arma'));
     const v = valores(it);
     if (v.dmg) { t.dmg[0] += v.dmg[0]; t.dmg[1] += v.dmg[1]; }
     if (v.def) t.def += v.def;
@@ -217,10 +240,11 @@ export function tirada(def, rnd, extra = 1) {
     else if (r < 0.78 && nv >= 8) sale.push({ item: { b: 'destino', c: 1 } });
     else if (r < 0.805 && nv >= 18) sale.push({ item: { b: 'abismo', c: 1 } });
     else if (r < 0.82 && nv >= 12) sale.push({ item: { b: 'guardiana', c: 1 } });
-    else if (r < 0.86) sale.push({ item: { b: 'vela', c: 1 } });
+    else if (r < 0.86) sale.push({ item: rnd() < 0.5 && nv >= 15 ? { b: GEMAS[Math.floor(rnd() * GEMAS.length)], c: 1 } : { b: 'vela', c: 1 } });
     else sale.push({ item: equipoAlAzar(nv, rnd, def.jefe ? 0.25 : 0.03 * extra, null, def.jefe ? 0.06 : 0.002 * extra * extra, def.jefe ? 0.008 : 0) });
   }
   if (def.jefe && nv >= 40 && rnd() < 0.05) sale.push({ item: { b: 'acechador_m', n: 0 } });
+  if (def.jefe && nv >= 15) sale.push({ item: { b: GEMAS[Math.floor(rnd() * GEMAS.length)], c: 1 + Math.floor(rnd() * 2) } });
   if (def.jefe) sale.push({ item: equipoAlAzar(nv + 4, rnd, 0.35, null, def.soloEvento ? 0.25 : 0.1, def.soloEvento ? 0.06 : 0.015) }, { item: { b: nv >= 18 ? 'abismo' : 'destino', c: 1 } });
   return sale;
 }
@@ -237,6 +261,9 @@ export function equipoAlAzar(nv, rnd, probExc, clase, probLeg = 0, probMit = 0) 
     const n = mn + (rnd() < 0.3 ? mx - mn : 0), mezcla = ops.map((_, i) => i).sort(() => rnd() - 0.5);
     it.x = mezcla.slice(0, n); if (ra > 1) it.ra = ra;
   }
+  // Engarces vacíos: los comunes a veces traen uno; los raros, más.
+  const s = ra === 3 ? 3 : ra === 2 ? 2 : ra === 1 ? 1 + (rnd() < 0.3 ? 1 : 0) : rnd() < 0.25 ? 1 : 0;
+  if (s) it.s = s;
   return it;
 }
 

@@ -94,6 +94,7 @@ function monedas() {
   return g;
 }
 const PROC = { pocion: () => frasco('#c0201a'), eter: () => frasco('#2a6ae0'), vela, sello, oro: monedas,
+  rubi: () => cristal('#e0182a', 'ico'), zafiro: () => cristal('#2a6ae8', 'ico'), topacio: () => cristal('#f0c020', 'oct'), esmeralda: () => cristal('#3ac050', 'dod'), onix: () => cristal('#7a30c0', 'dod'), ojo: () => cristal('#f0f0ff', 'oct'),
   forja: () => cristal('#e0a030'), destino: () => cristal('#8a4ae0', 'ico'), abismo: () => cristal('#d01830', 'oct'), guardiana: () => cristal('#4a9ad0', 'dod') };
 
 function clave(it) { return it.b + ':' + O.rareza(it); }

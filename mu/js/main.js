@@ -186,7 +186,7 @@ function alMensaje(m) {
     yo = crearEnte(yoId, mio.clase, true); yo.nombre = mio.nombre;
     document.getElementById('entrada').hidden = true;
     hud.mostrar(mio); hud.ponerHabilidades(mio); actualizarSeguimiento();
-    if (m.nuevo) hud.lore();
+    if (m.nuevo) hud.lore(() => hud.tutorial(mio.clase));
     return;
   }
   if (m.t === 'inv') return hud.invitacion(m.de, m.nombre, m.nivel);
@@ -271,8 +271,10 @@ function evento(ev) {
     const t = entes.get(b), atacante = entes.get(a);
     if (!t) return;
     const p = pos(t), alto = t.vis.alto * 0.6;
-    const color = d === 5 ? '#8fd14a' : d === 4 ? '#d23b3b' : d === 1 ? '#ffb347' : d === 2 ? '#7fe0c2' : d === 3 ? '#c7a5ff' : '#e9e1cf';
-    numeros.push({ x: p.x + (Math.random() - 0.5) * 0.6, y: p.y + t.vis.alto + 0.2, z: p.z, txt: String(c), color, grande: d === 1 || d === 2, t: 0, mio: a === yoId || b === yoId });
+    const [, , , , , el, debil] = ev, E = el && R.ELEMENTOS[el];
+    const color = d === 5 ? '#8fd14a' : d === 4 ? '#d23b3b' : E ? E.color : d === 1 ? '#ffb347' : d === 2 ? '#7fe0c2' : d === 3 ? '#c7a5ff' : '#e9e1cf';
+    numeros.push({ x: p.x + (Math.random() - 0.5) * 0.6, y: p.y + t.vis.alto + 0.2, z: p.z, txt: String(c) + (debil === 1 ? ' ¡débil!' : debil === -1 ? ' resiste' : ''), color, grande: d === 1 || d === 2 || debil === 1, t: 0, mio: a === yoId || b === yoId });
+    if (E && debil === 1) FX.chispas(p.x, p.y + alto, p.z, E.color, 14);
     if (d === 5) FX.chispas(p.x, p.y + alto, p.z, '#6fdc5a', 6);
     else if (t.esJ) FX.sangre(p.x, p.y + alto, p.z, false);
     else if (t.tipo === 'huesudo' || t.tipo === 'centinela') FX.chispas(p.x, p.y + alto, p.z, '#e8dcc0', d ? 16 : 8);
@@ -629,7 +631,7 @@ function datosHud() {
   }
   const puntosHab = mio ? C.puntosArbol(mio) - C.gastados(mio) : 0;
   for (const n of MI.NPC_MISION) { const est = mio && MI.estadoNpc(mio, n.id); if (est === 'nueva' || est === 'lista') puntos.push({ x: n.x, z: n.z, r: 3.5, c: est === 'lista' ? '#7fe07a' : '#f0c040' }); }
-  return { puntosHab, objetivo: o && !o.muerto ? { nombre: o.nombre, nivel: o.def.nivel, hp: o.hp, desc: o.def.desc } : null, jefe, lugar, ping: red.ping, mini: { yo: { x: lx, z: lz }, puntos } };
+  return { puntosHab, objetivo: o && !o.muerto ? (o.esJ ? { nombre: o.nombre, nivel: o.nivel, hp: o.hp, desc: 'Enemigo del Bastión' } : { nombre: o.nombre, nivel: o.def.nivel, hp: o.hp, desc: o.def.desc, debil: o.def.debil, resiste: o.def.resiste }) : null, jefe, lugar, ping: red.ping, mini: { yo: { x: lx, z: lz }, puntos } };
 }
 
 // ---------- seguimiento de misiones (arriba a la izquierda) ----------

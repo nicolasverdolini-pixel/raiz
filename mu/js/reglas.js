@@ -222,6 +222,32 @@ Object.assign(MONSTRUOS, {
 });
 TIPOS.push('calcinado', 'perrobrasa', 'tejedoraceniza', 'diablo', 'devorador', 'coloso', 'sacerdoteazufre', 'senorbrasas', 'grandevorador',
   'guardiareal', 'espectrocorte', 'sabueso', 'verdugo', 'gargola', 'caballerohueco', 'arzobispo', 'reinahueca', 'ultimorey');
+// ---------- Elementos ----------
+// Cada habilidad y cada ataque de monstruo puede ser de un elemento. Contra uno débil pega 50% más; contra uno que resiste, la mitad.
+export const ELEMENTOS = {
+  fuego: { nombre: 'Fuego', color: '#ff6a2a' }, hielo: { nombre: 'Hielo', color: '#8fd0ff' }, rayo: { nombre: 'Rayo', color: '#f0e060' },
+  veneno: { nombre: 'Veneno', color: '#7fd04a' }, sombra: { nombre: 'Sombra', color: '#b07ad8' },
+};
+export const DEBIL = 1.5, RESISTE = 0.5;
+// atk: elemento de su ataque · debil / resiste: contra qué.
+const AF = (atk, debil, resiste) => ({ atk, debil, resiste });
+const AFIN = {
+  rata: AF(null, 'fuego', null), sapo: AF('veneno', 'fuego', 'veneno'), arana: AF('veneno', 'fuego', 'veneno'), sierpe: AF('veneno', 'hielo', 'veneno'),
+  avispon: AF('veneno', 'fuego', 'veneno'), lobo: AF(null, 'rayo', null), huesudo: AF(null, 'fuego', 'sombra'), ciervo: AF(null, 'rayo', null),
+  anima: AF('sombra', 'fuego', 'sombra'), degollador: AF(null, 'fuego', 'sombra'), bruto: AF(null, 'hielo', 'veneno'), acechador: AF(null, 'rayo', null),
+  engendro: AF('fuego', 'hielo', 'fuego'), ratareina: AF('veneno', 'fuego', 'veneno'), madretejedora: AF('veneno', 'fuego', 'veneno'), reinacolmena: AF('veneno', 'fuego', 'veneno'),
+  centinela: AF(null, 'fuego', 'sombra'), archimago: AF('sombra', 'fuego', 'sombra'), bestia: AF('fuego', 'hielo', 'fuego'), heraldo: AF('fuego', 'hielo', 'fuego'),
+  ahogado: AF('hielo', 'rayo', 'hielo'), marinero: AF('hielo', 'rayo', 'hielo'), abisal: AF('veneno', 'fuego', 'veneno'), farero: AF('hielo', 'fuego', 'hielo'),
+  pirata: AF(null, 'rayo', 'hielo'), brutosal: AF('hielo', 'fuego', 'hielo'), leviatanmenor: AF('rayo', 'rayo', 'hielo'), reinaahogada: AF('veneno', 'rayo', 'hielo'),
+  capitan: AF('hielo', 'rayo', 'hielo'), leviatan: AF('rayo', 'rayo', 'hielo'),
+  calcinado: AF('fuego', 'hielo', 'fuego'), perrobrasa: AF('fuego', 'hielo', 'fuego'), tejedoraceniza: AF('fuego', 'hielo', 'fuego'), diablo: AF('fuego', 'hielo', 'fuego'),
+  devorador: AF('fuego', 'hielo', 'fuego'), coloso: AF('fuego', 'rayo', 'fuego'), sacerdoteazufre: AF('fuego', 'hielo', 'fuego'), senorbrasas: AF('fuego', 'hielo', 'fuego'), grandevorador: AF('fuego', 'hielo', 'fuego'),
+  guardiareal: AF(null, 'rayo', 'sombra'), espectrocorte: AF('sombra', 'fuego', 'hielo'), sabueso: AF('hielo', 'fuego', 'hielo'), verdugo: AF('sombra', 'rayo', 'sombra'),
+  gargola: AF(null, 'rayo', 'veneno'), caballerohueco: AF('sombra', 'rayo', 'sombra'), arzobispo: AF('sombra', 'fuego', 'sombra'), reinahueca: AF('hielo', 'fuego', 'hielo'), ultimorey: AF('sombra', 'rayo', 'sombra'),
+};
+for (const [k, a] of Object.entries(AFIN)) if (MONSTRUOS[k]) Object.assign(MONSTRUOS[k], { elem: a.atk, debil: a.debil, resiste: a.resiste });
+export const multElemento = (def, elem) => (!elem ? 1 : def.debil === elem ? DEBIL : def.resiste === elem ? RESISTE : 1);
+
 export const CAMPEON = { prob: 0.06, probNoche: 0.25, hp: 3, dano: 1.4, exp: 3.5, escala: 1.3 };
 
 // ---------- Eventos con horario (hora del servidor) ----------

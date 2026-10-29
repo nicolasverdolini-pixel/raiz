@@ -28,7 +28,7 @@ export class Hud {
     h.innerHTML = `
       <div class="caja arriba-izq"><div id="h-yo"><b id="h-nombre"></b><span id="h-nivel"></span><span id="h-buffs"></span></div><div id="h-grupo"></div><div id="h-mis"></div></div>
       <button id="b-mochila" class="hb mochila" aria-label="Personaje y mochila">${iconoBoton('mochila', '#5a3a20')}</button>
-      <div id="h-obj" class="caja" hidden><b id="h-obj-nombre"></b><div class="barra"><i id="h-obj-vida"></i></div><small id="h-obj-desc"></small></div>
+      <div id="h-obj" class="caja" hidden><b id="h-obj-nombre"></b><div class="barra"><i id="h-obj-vida"></i></div><small id="h-obj-desc"></small><small id="h-obj-elem"></small></div>
       <div id="h-asedio" hidden></div>
       <div id="h-jefe" hidden><b id="h-jefe-nombre"></b><div class="barra"><i id="h-jefe-vida"></i></div></div>
       <div class="arriba-der"><canvas id="h-mini" width="140" height="140"></canvas><span id="h-lugar"></span><span id="h-evento"></span><span id="h-ping"></span></div>
@@ -128,7 +128,9 @@ export class Hud {
     // Objetivo y jefe
     const o = extra.objetivo;
     $('#h-obj').hidden = !o;
-    if (o) { $('#h-obj-nombre').textContent = `${o.nombre} · Nv ${o.nivel}`; $('#h-obj-vida').style.width = o.hp + '%'; $('#h-obj-desc').textContent = o.desc || ''; }
+    if (o) { $('#h-obj-nombre').textContent = `${o.nombre} · Nv ${o.nivel}`; $('#h-obj-vida').style.width = o.hp + '%'; $('#h-obj-desc').textContent = o.desc || '';
+      const E = R.ELEMENTOS, ek = (o.debil || '') + (o.resiste || '');
+      if (ek !== this.ekAntes) { this.ekAntes = ek; $('#h-obj-elem').innerHTML = [o.debil ? `Débil a <b style="color:${E[o.debil].color}">${E[o.debil].nombre}</b>` : '', o.resiste ? `resiste <b style="color:${E[o.resiste].color}">${E[o.resiste].nombre}</b>` : ''].filter(Boolean).join(' · '); } }
     const j = extra.jefe;
     $('#h-jefe').hidden = !j;
     if (j) { $('#h-jefe-nombre').textContent = j.nombre; $('#h-jefe-vida').style.width = j.hp + '%'; }
@@ -162,11 +164,40 @@ export class Hud {
     t.classList.remove('ver'); void t.offsetWidth; t.classList.add('ver');
   }
 
-  lore() {
+  lore(despues) {
     const m = $('#modal'); this.panelAbierto = false;
     m.innerHTML = `<h2>El Sol Hondo se apagó</h2>${R.LORE.map(l => `<p>${l}</p>`).join('')}<button class="btn" id="m-despertar">Despertar</button>`;
     m.classList.add('lore'); m.hidden = false;
-    $('#m-despertar').onclick = () => { m.hidden = true; m.classList.remove('lore'); };
+    $('#m-despertar').onclick = () => { m.hidden = true; m.classList.remove('lore'); despues?.(); };
+  }
+
+  // Tutorial corto para personajes nuevos: un cartel por paso, señalando el botón del que habla.
+  tutorial(clase) {
+    const atr = { fue: 'Fuerza', agi: 'Agilidad', ene: 'Energía' }[C.CLASES[clase]?.atributo] || 'Fuerza';
+    const pasos = [
+      ['Moverte', 'Tocá cualquier parte de la pantalla y arrastrá el dedo: aparece un joystick invisible. También podés tocar el piso para caminar hasta ahí.', null],
+      ['Atacar', 'Tocá un monstruo para pelear con él, o este botón para atacar al más cercano. Tu personaje sigue pegando solo.', '#b-atk'],
+      ['Habilidades', 'Alrededor del ataque van tus habilidades. Tocá un «+» para aprender una nueva. Gastan energía (la bola azul) y tardan en recargarse.', '#b-h1'],
+      ['Pociones', 'La roja cura vida, la azul devuelve energía. Comprá más con Úrsula la Boticaria, en la Atalaya.', '#b-pot'],
+      ['Tu personaje', 'Tocá tu retrato para ver el equipo, la mochila, las habilidades y las misiones. Cuando subas de nivel, poné los puntos en ' + atr + ': de ahí sale tu daño.', '#b-mochila'],
+      ['Mapa', 'Tocá el mapa chico para verlo grande. Con dos dedos lo acercás. Ahí ves las misiones, los campamentos y el nivel de cada zona.', '#h-mini'],
+      ['Tu primera misión', 'La Viuda Marga está cerca del farol, abajo a la derecha. Hablale (tocala) y empezá por ahí. Si caés, despertás en la Atalaya. Suerte.', null],
+    ];
+    let i = 0;
+    const caja = document.createElement('div'); caja.id = 'tuto'; caja.className = 'caja'; this.el.appendChild(caja);
+    const aro = document.createElement('div'); aro.id = 'tuto-aro'; this.el.appendChild(aro);
+    caja.addEventListener('pointerdown', e => e.stopPropagation());
+    const fin = () => { caja.remove(); aro.remove(); };
+    const mostrar = () => {
+      const [t, txt, sel] = pasos[i];
+      caja.innerHTML = `<small>${i + 1} de ${pasos.length}</small><b>${t}</b><p>${txt}</p><div class="fila"><button class="btn" id="tuto-sig">${i < pasos.length - 1 ? 'Siguiente' : 'A jugar'}</button>${i < pasos.length - 1 ? '<button class="btn sec" id="tuto-no">Saltar</button>' : ''}</div>`;
+      const el = sel && $(sel);
+      if (el) { const r = el.getBoundingClientRect(); Object.assign(aro.style, { left: r.left - 6 + 'px', top: r.top - 6 + 'px', width: r.width + 12 + 'px', height: r.height + 12 + 'px' }); aro.hidden = false; }
+      else aro.hidden = true;
+      $('#tuto-sig').onclick = () => { i++; if (i >= pasos.length) fin(); else mostrar(); };
+      const no = $('#tuto-no'); if (no) no.onclick = fin;
+    };
+    mostrar();
   }
 
   dibujarMini({ yo, puntos }) {

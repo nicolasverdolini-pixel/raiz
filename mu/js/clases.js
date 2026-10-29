@@ -175,6 +175,14 @@ export const ARBOL = {
   ],
 };
 
+// Elemento de cada habilidad que pega (las demás son físicas).
+const ELEM_HAB = {
+  juicio: 'rayo', ocaso: 'sombra', tormenta: 'rayo', bola: 'fuego', meteoro: 'fuego', nova: 'hielo', tumba: 'hielo',
+  nube: 'veneno', plaga: 'veneno', rayohueso: 'sombra', lluviahuesos: 'sombra', sifon: 'sombra',
+  punoigneo: 'fuego', erupcion: 'fuego', alientofuego: 'fuego', azufre: 'fuego',
+};
+for (const ramas of Object.values(ARBOL)) for (const r of ramas) for (const h of r.hab) if (ELEM_HAB[h.id]) h.elem = ELEM_HAB[h.id];
+
 export function buscarHab(clase, id) {
   for (const rama of ARBOL[clase] || []) for (const h of rama.hab) if (h.id === id) return h;
   return null;
@@ -220,18 +228,19 @@ export function calcular(d) {
   const c = CLASES[d.clase] || CLASES.guardian, n = d.nivel;
   const eq = bonusEquipo(d.equipo), pa = pasivas(d);
   const pct = k => 1 + ((eq[k] || 0) + (pa[k] || 0)) / 100;
-  const at = d[c.atributo];
-  const maxHp = Math.round((c.vida[0] + d.vit * c.vida[1] + (n - 1) * c.vida[2]) * pct('hpPct'));
+  const at = d[c.atributo] + (eq.atr || 0), vitT = d.vit + (eq.vit || 0);
+  const maxHp = Math.round((c.vida[0] + vitT * c.vida[1] + (n - 1) * c.vida[2]) * pct('hpPct'));
   const maxMp = Math.round((c.energia[0] + d.ene * c.energia[1] + (n - 1) * c.energia[2]) * pct('mpPct'));
   const dm = pct('dmgPct');
   return {
     maxHp, maxMp,
     dmin: Math.round((at / c.dano[0] + 3 + n * 0.5 + eq.dmg[0]) * dm),
     dmax: Math.round((at / c.dano[1] + 6 + n * 0.5 + eq.dmg[1]) * dm),
-    def: Math.round((d.agi / c.defensa[0] + d.vit / c.defensa[1] + eq.def) * pct('defPct')),
+    def: Math.round((d.agi / c.defensa[0] + vitT / c.defensa[1] + eq.def) * pct('defPct')),
     cadencia: Math.max(0.35, (c.cadencia[0] - d.agi * c.cadencia[1]) / pct('vel')),
     alcance: c.alcance + (pa.alcance || 0),
-    crit: 8 + (c.crit || 0) + (pa.crit || 0), exc: 4 + (eq.exc || 0) / 2, robo: (c.robo || 0) + (pa.robo || 0), siervos: pa.siervos || 0,
+    crit: Math.min(75, 8 + (c.crit || 0) + (pa.crit || 0) + (eq.crit || 0)), critDano: 50 + (eq.critDano || 0), elem: eq.elem || {},
+    res: Object.fromEntries(['fuego', 'hielo', 'rayo', 'veneno', 'sombra'].map(e => [e, Math.min(75, (eq.res?.[e] || 0) + (eq.resTodo || 0))])), exc: 4 + (eq.exc || 0) / 2, robo: (c.robo || 0) + (pa.robo || 0), siervos: pa.siervos || 0,
     menos: Math.min(60, (eq.menos || 0) + (pa.menos || 0)), refleja: eq.refleja || 0,
     vidaKill: (eq.vidaKill || 0) + (pa.vidaKill || 0), manaKill: (eq.manaKill || 0) + (pa.manaKill || 0),
     velMov: eq.velMov || 0, oroPct: eq.oroPct || 0, junta: eq.junta || 0,

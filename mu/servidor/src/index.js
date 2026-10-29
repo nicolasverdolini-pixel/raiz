@@ -189,6 +189,7 @@ export class Mapa extends DurableObject {
       case 'comprar': return this.comprar(p, String(m.npc || ''), String(m.b || ''), m.c | 0);
       case 'vender': return this.vender(p, m.i | 0);
       case 'forjar': return this.forjar(p, m.i, m.r);
+      case 'engarce': return this.engarce(p, m);
       case 'aprender': return this.aprender(p, String(m.h || ''));
       case 'vela': return this.vela(p, String(m.lugar || ''));
       case 'viajar': return this.viajar(p, m.i | 0);
@@ -323,6 +324,7 @@ export class Mapa extends DurableObject {
   habilidad(p, id, objId) {
     const h = C.buscarHab(p.d.clase, id), rk = p.d.arbol?.[id];
     if (!h || !rk || h.tipo === 'pasiva' || p.muerto) return;
+    this.elemHab = h.elem || null;
     if (p.cds[id] > 0) return;
     if (p.mp < h.mp) return this.aviso(p, 'No te alcanza la energía.');
     const rival = this.jug.get(objId ?? p.objetivoJ);
@@ -388,7 +390,7 @@ export class Mapa extends DurableObject {
       for (const x of p.d.inv) if (x && x.b === it.b && (x.c || 1) < O.PILA) { const cabe = O.PILA - (x.c || 1), pone = Math.min(cabe, it.c || 1); x.c = (x.c || 1) + pone; it.c = (it.c || 1) - pone; if (it.c <= 0) { p.cambioInv = true; return true; } }
     }
     const i = p.d.inv.indexOf(null); if (i < 0) return false;
-    p.d.inv[i] = b.pila ? { b: it.b, c: it.c || 1 } : { b: it.b, n: it.n || 0, ...(it.x ? { x: it.x } : {}), ...(it.ra ? { ra: it.ra } : {}) };
+    p.d.inv[i] = b.pila ? { b: it.b, c: it.c || 1 } : { b: it.b, n: it.n || 0, ...(it.x ? { x: it.x } : {}), ...(it.ra ? { ra: it.ra } : {}), ...(it.s ? { s: it.s } : {}), ...(it.g ? { g: [...it.g] } : {}) };
     p.cambioInv = true; return true;
   }
   cuantos(p, b) { return p.d.inv.reduce((a, x) => a + (x && x.b === b ? (x.c || 1) : 0), 0); }
@@ -460,6 +462,32 @@ export class Mapa extends DurableObject {
     const oro = O.precioVenta(it) * (it.c || 1);
     p.d.inv[i] = null; p.d.oro += oro; p.cambioInv = true;
     this.aviso(p, `Vendiste ${O.nombreObjeto(it)} por ${oro} de oro.`);
+  }
+
+  // Engarces: abrir uno nuevo, poner una gema o sacarla (se recupera pagando). Todo con el herrero.
+  engarce(p, m) {
+    if (!this.rolCerca(p, 'herrero')) return this.aviso(p, 'Los engarces los trabaja el herrero.');
+    const enInv = m.i != null && m.i !== '';
+    const it = enInv ? p.d.inv[m.i | 0] : p.d.equipo[String(m.r || '')];
+    if (!it || !O.esEquipo(it.b) || (enInv && this.bloqueado(p, m.i | 0))) return;
+    const max = O.maxEngarces(it); it.g = it.g || [];
+    if (m.a === 'abrir') {
+      const n = it.s || 0; if (n >= max) return this.aviso(p, max ? `Este equipo no admite más engarces (máximo ${max}).` : 'Este equipo no admite engarces.');
+      const oro = O.ENGARCES.abrir(n); if (p.d.oro < oro) return this.aviso(p, `Abrir un engarce cuesta ${oro.toLocaleString('es-AR')} de oro.`);
+      p.d.oro -= oro; it.s = n + 1; this.aviso(p, `Abriste un engarce. Ahora tiene ${it.s}.`);
+    } else if (m.a === 'poner') {
+      const g = String(m.gema || ''); if (!O.BASES[g]?.engarce) return;
+      const libre = (it.s || 0) > it.g.filter(Boolean).length; if (!libre) return this.aviso(p, 'No le queda ningún engarce libre.');
+      if (!this.gastar(p, g, 1)) return this.aviso(p, `No tenés ${O.BASES[g].nombre}.`);
+      it.g.push(g); this.aviso(p, `Engarzaste ${O.BASES[g].nombre}.`);
+    } else if (m.a === 'sacar') {
+      const k = m.k | 0, g = it.g[k]; if (!g) return;
+      if (p.d.oro < O.ENGARCES.sacar) return this.aviso(p, `Sacar una gema cuesta ${O.ENGARCES.sacar.toLocaleString('es-AR')} de oro.`);
+      if (!this.agregar(p, { b: g, c: 1 })) return this.aviso(p, 'La mochila está llena.');
+      p.d.oro -= O.ENGARCES.sacar; it.g.splice(k, 1); this.aviso(p, `Sacaste ${O.BASES[g].nombre}.`);
+    } else return;
+    if (!it.g.length) delete it.g;
+    this.recalcular(p); this.guardar(p);
   }
 
   forjar(p, i, r) {
@@ -691,7 +719,7 @@ export class Mapa extends DurableObject {
     let f = mult * (1 + this.buff(p, 'dmgPct') / 100);
     const r = Math.random() * 100;
     if (r < p.der.exc) f *= 2; else if (r < p.der.exc + p.der.crit) f *= 1.5;
-    this.herirJugador(q, entre(p.der.dmin, p.der.dmax) * f * R.BASTION.pvp, null, 4, p);
+    this.herirJugador(q, entre(p.der.dmin, p.der.dmax) * f * R.BASTION.pvp, null, 4, p, this.elemHab);
   }
   habilidadPvP(p, h, rk, q) {
     const lim = h.tipo === 'golpe' ? (h.salto ? h.salto + 2 : p.der.alcance + 1.6) : h.tipo === 'lluvia' ? h.alcance + 1 : p.der.alcance + 3;
@@ -1090,14 +1118,18 @@ export class Mapa extends DurableObject {
     if (m.muerto) return;
     let tipo = hab ? R.GOLPE.HABILIDAD : R.GOLPE.NORMAL, f = mult * (1 + this.buff(p, 'dmgPct') / 100);
     const r = Math.random() * 100;
-    if (r < p.der.exc) { tipo = R.GOLPE.EXCELENTE; f *= 2; } else if (r < p.der.exc + p.der.crit) { tipo = hab ? tipo : R.GOLPE.CRITICO; f *= 1.5; }
-    const dano = Math.max(1, Math.round(entre(p.der.dmin, p.der.dmax) * f - m.def.def * 0.5));
+    if (r < p.der.exc) { tipo = R.GOLPE.EXCELENTE; f *= 2; } else if (r < p.der.exc + p.der.crit) { tipo = hab ? tipo : R.GOLPE.CRITICO; f *= 1 + (p.der.critDano || 50) / 100; }
+    // Elemento: el de la habilidad (si tiene) y lo que suman las gemas del arma; cada parte según lo débil o resistente que sea el monstruo.
+    const el = this.elemHab || null, base = entre(p.der.dmin, p.der.dmax) * f, mE = R.multElemento(m.def, el);
+    let extra = 0, debil = mE > 1, resiste = mE < 1;
+    for (const [e, pct] of Object.entries(p.der.elem || {})) extra += base * pct / 100 * R.multElemento(m.def, e);
+    const dano = Math.max(1, Math.round(base * mE + extra - m.def.def * 0.5));
     m.hp -= dano;
     const bando = p.grupo ? 'g' + p.grupo : 'p' + p.id;
     m.danos.set(bando, (m.danos.get(bando) || 0) + dano);
     if (!m.obj || !m.def.jefe) m.obj = p.id;
     if (!m.def.jefe) m.frenado = 0.25;
-    this.ev.push(['g', p.id, m.id, dano, tipo]);
+    this.ev.push(['g', p.id, m.id, dano, tipo, el || Object.keys(p.der.elem || {})[0] || null, debil ? 1 : resiste ? -1 : 0]);
     const robo = (p.der.robo || 0) + this.buff(p, 'robo') + (this.roboHab || 0);
     if (robo) p.hp = Math.min(p.der.maxHp, p.hp + dano * robo / 100);
     if (m.hp <= 0) {
@@ -1158,8 +1190,9 @@ export class Mapa extends DurableObject {
     return entre(rango[0], rango[1]) * (m.campeon ? R.CAMPEON.dano : 1) * (this.evento?.id === 'noche' ? 1.3 : 1) * (m.furioso ? 1.15 : 1);
   }
 
-  herirJugador(p, dano, m, tipo = 4, atacante = null) {
+  herirJugador(p, dano, m, tipo = 4, atacante = null, elem = m?.def.elem) {
     if (p.muerto) return;
+    if (elem && p.der.res?.[elem]) dano *= 1 - p.der.res[elem] / 100;
     dano = tipo === 5 ? Math.round(dano) : Math.max(1, Math.round(dano - p.der.def * 0.5));
     const menos = Math.min(75, p.der.menos + this.buff(p, 'menos'));
     if (menos) dano = Math.max(1, Math.round(dano * (1 - menos / 100)));
@@ -1420,7 +1453,7 @@ export class Mapa extends DurableObject {
           p.cdAtk = this.cadencia(p); p.dir = Math.atan2(q.x - p.x, q.z - p.z);
           this.ev.push(['a', p.id, 'atk', q.id]);
           if (p.der.distancia) this.ev.push(['p', p.id, q.id, p.der.proyectil, 0]);
-          this.golpearJugador(p, q, 1, false);
+          this.elemHab = null; this.golpearJugador(p, q, 1, false);
         }
       }
       if (p.objetivo) {
@@ -1430,7 +1463,7 @@ export class Mapa extends DurableObject {
           p.cdAtk = this.cadencia(p); p.dir = Math.atan2(m.x - p.x, m.z - p.z);
           this.ev.push(['a', p.id, 'atk', m.id]);
           if (p.der.distancia) this.ev.push(['p', p.id, m.id, p.der.proyectil, 0]);
-          this.golpear(p, m, 1, false);
+          this.elemHab = null; this.golpear(p, m, 1, false);
         }
       }
       p.guardadoT += dt; if (p.guardadoT > GUARDAR_CADA) this.guardar(p);

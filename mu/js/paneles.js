@@ -27,6 +27,13 @@ function casilla(it, attrs = '', extra = '') {
   return `<button class="slot ${claseObjeto(it)}" ${attrs}>${imagen(it)}${cant}${extra}</button>`;
 }
 
+// Qué hace una gema según dónde está engarzada.
+export function textoGema(g, enArma) {
+  const ef = O.efectoGema(g, enArma), E = R.ELEMENTOS;
+  if (g === 'ojo') return enArma ? '+4% crítico, +20% daño crítico' : '+2% crítico';
+  const e = O.BASES[g].elem, al = { fuego: 'al fuego', hielo: 'al hielo', rayo: 'al rayo', veneno: 'al veneno', sombra: 'a la sombra' }[e];
+  return ef.elem ? `+10% del daño como ${E[e].nombre.toLowerCase()}` : `+12% de resistencia ${al}`;
+}
 // Ficha con todo lo que importa del objeto. d = personaje (para requisitos y comparación).
 function ficha(it, d, acciones = '') {
   const b = O.BASES[it.b], v = O.valores(it), ra = O.rareza(it), lineas = [];
@@ -47,9 +54,10 @@ function ficha(it, d, acciones = '') {
   }
   return `<div class="ficha ${claseObjeto(it)}">
     <div class="ficha-top"><div class="ficha-img ${claseObjeto(it)}">${imagen(it)}</div>
-      <div><b>${esc(O.nombreObjeto(it))}${it.c > 1 ? ' × ' + it.c : ''}</b><span class="rareza">${b.ala ? `Alas · nivel ${b.ala}` : b.bestia ? O.NOMBRE_RANURA[b.r] : b.r ? O.RAREZAS[ra].nombre + ' · ' + O.NOMBRE_RANURA[b.r] : b.gema ? 'Gema' : 'Consumible'}</span></div></div>
+      <div><b>${esc(O.nombreObjeto(it))}${it.c > 1 ? ' × ' + it.c : ''}</b><span class="rareza">${b.engarce ? 'Gema para engarzar' : b.ala ? `Alas · nivel ${b.ala}` : b.bestia ? O.NOMBRE_RANURA[b.r] : b.r ? O.RAREZAS[ra].nombre + ' · ' + O.NOMBRE_RANURA[b.r] : b.gema ? 'Gema' : 'Consumible'}</span></div></div>
     ${lineas.join('')}
     ${O.textoExcelente(it).map(t => `<span class="exc-op">◆ ${t}</span>`).join('')}
+    ${it.s ? `<div class="engarces">${Array.from({ length: it.s }, (_, k) => { const g = it.g?.[k]; return g ? `<span class="eng lleno" style="--c:${R.ELEMENTOS[O.BASES[g].elem]?.color || '#e8e8f0'}">◆ ${O.BASES[g].nombre}: ${textoGema(g, b.r === 'arma')}</span>` : '<span class="eng">◇ Engarce libre</span>'; }).join('')}</div>` : ''}
     ${req.length ? `<div class="req">Pide: ${req.join(' · ')}</div>` : ''}
     ${b.desc ? `<p class="nota">${b.desc}</p>` : ''}
     ${acciones ? `<div class="acciones">${acciones}</div>` : ''}</div>`;
@@ -191,7 +199,7 @@ export class Paneles {
       <div class="arbol">${C.ARBOL[d.clase].map(rama => `<div class="rama"><h3>${rama.rama}</h3>${rama.hab.map(h => {
         const r = d.arbol[h.id] || 0, motivo = C.puedeAprender(d, h.id);
         return `<div class="nodo ${r ? 'tiene' : ''} ${h.def ? 'def' : ''}"><span class="nodo-ic">${iconoHab(d.clase, h.id)}</span>
-          <div><b>${h.nombre}</b><small>${h.tipo === 'pasiva' ? 'Pasiva' : h.def ? 'Definitiva' : 'Activa'} · ${r}/${h.max}${h.mp ? ` · ${h.mp} energía` : ''}</small>
+          <div><b>${h.nombre}${h.elem ? ` <em class="elem" style="color:${R.ELEMENTOS[h.elem].color}">${R.ELEMENTOS[h.elem].nombre}</em>` : ''}</b><small>${h.tipo === 'pasiva' ? 'Pasiva' : h.def ? 'Definitiva' : 'Activa'} · ${r}/${h.max}${h.mp ? ` · ${h.mp} energía` : ''}</small>
           <span>${h.desc(Math.max(1, r))}</span>
           <button class="btn chico" data-h="${h.id}" ${motivo ? 'disabled' : ''} title="${motivo || ''}">${r ? 'Mejorar' : 'Aprender'}</button></div></div>`;
       }).join('')}</div>`).join('')}</div>`;
@@ -202,7 +210,8 @@ export class Paneles {
     return `<p class="nota">Puntos para repartir: <b>${d.puntos}</b> (5 por nivel).</p>${R.STATS.map(s => `<div class="stat"><span>${R.NOMBRE_STAT[s]}<small>${R.explicaStat(s, C.CLASES[d.clase].atributo)}</small></span><b>${d[s]}</b>
       <button class="mas" data-s="${s}" data-n="1" ${d.puntos ? '' : 'disabled'}>+1</button><button class="mas" data-s="${s}" data-n="5" ${d.puntos >= 5 ? '' : 'disabled'}>+5</button></div>`).join('')}
       <div class="fila-oro"><span class="nota">¿Te equivocaste? Podés devolver todos los puntos y repartirlos de nuevo.</span><button class="btn chico sec" id="p-redis">Redistribuir (${R.costoRedistribuir(d) ? R.costoRedistribuir(d).toLocaleString('es-AR') + ' de oro' : 'gratis la primera vez'})</button></div>
-      <div class="totales"><span>Daño <b>${v.dmin}–${v.dmax}</b></span><span>Defensa <b>${v.def}</b></span><span>Vida <b>${v.maxHp}</b></span><span>Energía <b>${v.maxMp}</b></span><span>Críticos <b>${v.crit}%</b></span></div>`;
+      <div class="totales"><span>Daño <b>${v.dmin}–${v.dmax}</b></span><span>Defensa <b>${v.def}</b></span><span>Vida <b>${v.maxHp}</b></span><span>Energía <b>${v.maxMp}</b></span><span>Crítico <b>${v.crit}%</b></span><span>Daño crítico <b>+${v.critDano || 50}%</b></span></div>
+      <div class="totales elem">${Object.entries(R.ELEMENTOS).map(([k, e]) => `<span style="color:${e.color}">${e.nombre}: <b>${v.elem?.[k] ? `+${v.elem[k]}% daño · ` : ''}${v.res?.[k] || 0}% resist.</b></span>`).join('')}</div>`;
   }
 
   // ---------- misiones ----------
@@ -259,13 +268,14 @@ export class Paneles {
   npc(id, tab, elegido) {
     const n = O.NPCS.find(x => x.id === id), d = this.ctx.mio(); if (!n || !d) return;
     if (elegido) { this.forjaSel = elegido; this.sel = null; }
-    const tabs = n.rol === 'herrero' ? [['tienda', 'Comprar'], ['forja', 'Forja'], ['vender', 'Vender']]
+    const tabs = n.rol === 'herrero' ? [['tienda', 'Comprar'], ['forja', 'Forja'], ['engarces', 'Engarces'], ['vender', 'Vender']]
       : n.rol === 'vidente' ? [['eventos', 'Eventos'], ['pozo', 'Pozo'], ['tienda', 'Comprar'], ['asedio', 'Asedio'], ['alas', 'Alas'], ['renacer', 'Renacer'], ['ranking', 'Ranking'], ['viajes', 'Velas']] : [['tienda', 'Comprar'], ['vender', 'Vender']];
     tab = tab || tabs[0][0];
     let cuerpo = `<p class="frase">«${n.frase}»</p>`;
     if (tab === 'tienda') cuerpo += this.htmlTienda(n, d);
     if (tab === 'vender') cuerpo += this.htmlVender(d);
     if (tab === 'forja') cuerpo += this.htmlForja(d);
+    if (tab === 'engarces') cuerpo += this.htmlEngarces(d);
     if (tab === 'eventos') cuerpo += this.htmlEventos();
     if (tab === 'viajes') cuerpo += this.htmlVelas(d);
     if (tab === 'pozo') cuerpo += this.htmlPozo(d);
@@ -283,6 +293,10 @@ export class Paneles {
     this.el.querySelectorAll('[data-lugar]').forEach(b => b.onclick = () => { m({ t: 'vela', lugar: b.dataset.lugar }); this.cerrar(); });
     this.el.querySelectorAll('[data-fsel]').forEach(b => b.onclick = () => { const [t, k] = b.dataset.fsel.split(':'); this.forjaSel = t === 'e' ? { r: k } : { i: +k }; this.npc(id, 'forja'); });
     const bf = $('#p-forjar', this.el); if (bf) bf.onclick = () => m({ t: 'forjar', ...this.forjaSel });
+    this.el.querySelectorAll('[data-esel]').forEach(b => b.onclick = () => { const [t, k] = b.dataset.esel.split(':'); this.engSel = t === 'e' ? { r: k } : { i: +k }; this.npc(id, 'engarces'); });
+    const ab = $('#p-abrir', this.el); if (ab) ab.onclick = () => m({ t: 'engarce', a: 'abrir', ...this.engSel });
+    this.el.querySelectorAll('[data-poner]').forEach(b => b.onclick = () => m({ t: 'engarce', a: 'poner', gema: b.dataset.poner, ...this.engSel }));
+    this.el.querySelectorAll('[data-sacar]').forEach(b => b.onclick = () => m({ t: 'engarce', a: 'sacar', k: +b.dataset.sacar, ...this.engSel }));
     const bb = $('#p-bastion', this.el); if (bb) bb.onclick = () => { m({ t: 'bastion' }); this.cerrar(); };
     const bp = $('#p-pozo', this.el); if (bp) bp.onclick = () => { m({ t: 'pozo' }); this.cerrar(); };
     const br = $('#p-renacer', this.el); if (br) br.onclick = () => { if (br.dataset.ok) { m({ t: 'renacer' }); this.cerrar(); } else { br.dataset.ok = 1; br.textContent = 'Tocá otra vez para confirmar'; } };
@@ -320,6 +334,24 @@ export class Paneles {
     }
     const k = s ? (s.r ? 'e:' + s.r : 'i:' + s.i) : null;
     return `<div class="tienda-grid"><div><div class="grilla">${lista.map(([kk, x]) => casilla(x, `data-fsel="${kk}"`).replace('class="slot ', `class="slot ${kk === k ? 'sel ' : ''}`)).join('')}</div></div><div>${det}</div></div>`;
+  }
+
+  htmlEngarces(d) {
+    const lista = [...O.RANURAS.filter(r => d.equipo[r]).map(r => ['e:' + r, d.equipo[r]]), ...d.inv.map((it, i) => ['i:' + i, it]).filter(([, it]) => it && O.forjable(it.b))].filter(([, it]) => O.forjable(it.b));
+    const s = this.engSel, it = s ? (s.r ? d.equipo[s.r] : d.inv[s.i]) : null;
+    let det = '<p class="nota">Elegí un equipo. En los engarces van las gemas: en el arma suman daño de su elemento; en la armadura, resistencia. El Ojo de Halcón da crítico.</p>';
+    if (it && O.esEquipo(it.b)) {
+      const max = O.maxEngarces(it), n = it.s || 0, gs = it.g || [], arma = O.BASES[it.b].r === 'arma';
+      const gemas = d.inv.map((x, i) => [x, i]).filter(([x]) => x && O.BASES[x.b]?.engarce);
+      det = ficha(it, d) + `<div class="forja-det">
+        <span>Engarces: <b>${n}</b> de ${max} posibles ${n < max ? `· <button class="btn chico" id="p-abrir" ${d.oro >= O.ENGARCES.abrir(n) ? '' : 'disabled'}>Abrir uno (${O.ENGARCES.abrir(n).toLocaleString('es-AR')} de oro)</button>` : ''}</span>
+        ${gs.map((g, k) => `<div class="fila-t"><span class="ic">${imagen({ b: g })}</span><span><b>${O.BASES[g].nombre}</b><small>${textoGema(g, arma)}</small></span><button class="btn chico sec" data-sacar="${k}">Sacar (${O.ENGARCES.sacar.toLocaleString('es-AR')})</button></div>`).join('')}
+        ${n > gs.length ? `<span class="nota">Engarces libres: ${n - gs.length}. Tocá una gema para ponerla:</span>
+          <div class="grilla">${gemas.length ? gemas.map(([x]) => casilla(x, `data-poner="${x.b}" title="${O.BASES[x.b].nombre}"`)).join('') : '<span class="nota">No tenés gemas. Caen de los monstruos desde el nivel 15 y de los jefes.</span>'}</div>` : n ? '' : '<span class="nota">No tiene engarces. Abrí uno para poner gemas.</span>'}
+      </div>`;
+    }
+    const k = s ? (s.r ? 'e:' + s.r : 'i:' + s.i) : null;
+    return `<div class="tienda-grid"><div><div class="grilla">${lista.map(([kk, x]) => casilla(x, `data-esel="${kk}"`).replace('class="slot ', `class="slot ${kk === k ? 'sel ' : ''}`)).join('')}</div></div><div>${det}</div></div>`;
   }
 
   htmlEventos() {
