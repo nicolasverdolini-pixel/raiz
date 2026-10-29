@@ -259,12 +259,15 @@ function foto(s) {
     e.buf.push({ t: ahora, x, z, dir }); if (e.buf.length > 30) e.buf.shift();
   }
   for (const [id, e] of entes) if (id !== yoId && ahora - e.visto > 1500) quitarEnte(id);
+  // Atributos primero, para que la ventana que se redibuja abajo ya tenga los valores nuevos.
+  const claveAtr = [s.yo.nivel, s.yo.puntos, ...R.STATS.map(k => s.yo[k])].join();
+  estado = s.yo; mio.nivel = s.yo.nivel; mio.puntos = s.yo.puntos; for (const k of R.STATS) if (s.yo[k] != null) mio[k] = s.yo[k];
+  if (claveAtr !== ultimaClaveAtr) { ultimaClaveAtr = claveAtr; if (paneles.abierto?.f === 'personaje' && !s.inv) paneles.refrescar(); }
   if (s.mis) { mio.misiones = s.mis; actualizarSeguimiento(); if (['misionNpc', 'tablon'].includes(paneles.abierto?.f) || paneles.abierto?.args[0] === 'misiones') paneles.refrescar(); }
   if (s.inv) { Object.assign(mio, s.inv); mio.der = s.inv.der; hud.ponerHabilidades(mio); paneles.refrescar(); }
   actualizarDrops(s.d || []);
   if (s.sa) santuariosListos = s.sa;
   for (const ev of s.ev) evento(ev);
-  estado = s.yo; mio.nivel = s.yo.nivel; mio.puntos = s.yo.puntos; for (const k of R.STATS) mio[k] = s.yo[k];
   const evt = s.yo.evt; E.ambiente(evt && evt[0][0] !== '-' ? evt[0] : 'normal');
   if (objetivo && s.yo.obj == null && !entes.get(objetivo)) objetivo = null;
 }
@@ -406,7 +409,13 @@ const soltar = e => {
 addEventListener('pointerup', soltar); addEventListener('pointercancel', soltar);
 
 const ray = new THREE.Raycaster();
+// Qué dice el globito de cada cosa y a qué altura sale.
+const GLOBO = { mercader: '🧪 Pociones', herrero: '⚒ Armas y forja', vidente: '🔮 Eventos y más', domadora: '🐺 Bestias', baul: '📦 Baúl', tablon: '📜 Encargos', farol: '🔥 Viajar', senda: '🌀 Cruzar' };
+const ALTO_GLOBO = { baul: 1.6, tablon: 2.5, farol: 4.6, senda: 3.4 };
+let globos = [];
 function elegir(sx, sy) {
+  const g = globos.find(b => sx >= b.x - 6 && sx <= b.x + b.w + 6 && sy >= b.y - 6 && sy <= b.y + b.h + 6);
+  if (g) { if (npcCerca(g.id)) abrirNpc(g.id); else { destino = { x: g.def.x, z: g.def.z }; npcPendiente = g.id; soltarObjetivo(); } return; }
   let mejor = null, md = 60;
   for (const e of entes.values()) {
     if (e === yo || e.muerto || e.aliado) continue;
@@ -456,7 +465,7 @@ function usarHabilidad(id) {
   } else red.mandar({ t: 'hab', h: id });
 }
 
-let santuariosListos = null;
+let santuariosListos = null, ultimaClaveAtr = '';
 // ---------- mi movimiento ----------
 let yoCorre = false;
 function moverme(dt) {
@@ -608,6 +617,24 @@ function dibujarTextos(dt) {
       const y = s[1] - 26 + Math.sin(performance.now() / 300) * 3;
       tc.strokeText(est === 'lista' ? '?' : '!', s[0], y); tc.fillText(est === 'lista' ? '?' : '!', s[0], y); tc.lineWidth = 3;
     }
+  }
+  // Globitos: cuando estás cerca, cada NPC, tablón, farol, baúl y portal muestra qué hace. Se pueden tocar.
+  globos = [];
+  if (yo) for (const def of [...O.NPCS, ...MI.NPC_MISION]) {
+    const d = Math.hypot(def.x - lx, def.z - lz); if (d > 13) continue;
+    let txt = GLOBO[def.rol], color = '#e9c37a';
+    if (!def.rol) { const est = mio ? MI.estadoNpc(mio, def.id) : null; txt = est === 'nueva' ? '! Tiene una misión' : est === 'lista' ? '✓ Entregar misión' : est === 'curso' ? '… Misión en curso' : '💬 Hablar'; color = est === 'lista' ? '#7fe07a' : est === 'nueva' ? '#f0c040' : '#d8cfbd'; }
+    if (!txt) continue;
+    const alto = ALTO_GLOBO[def.rol] ?? 2.75, s = proy(def.x, R.altura(def.x, def.z) + alto, def.z); if (!s) continue;
+    const y = s[1] - (def.modelo || !def.rol ? 30 : 0) + Math.sin(performance.now() / 400 + def.x) * 2;
+    tc.font = '600 13px Spectral, Georgia, serif'; const w = tc.measureText(txt).width + 18, h = 22;
+    tc.globalAlpha = Math.min(1, (13 - d) / 3);
+    tc.fillStyle = 'rgba(14,11,10,.88)'; tc.strokeStyle = color; tc.lineWidth = 1.5;
+    tc.beginPath(); tc.roundRect ? tc.roundRect(s[0] - w / 2, y - h, w, h, 8) : tc.rect(s[0] - w / 2, y - h, w, h); tc.fill(); tc.stroke();
+    tc.beginPath(); tc.moveTo(s[0] - 5, y); tc.lineTo(s[0], y + 6); tc.lineTo(s[0] + 5, y); tc.fill();
+    tc.fillStyle = color; tc.fillText(txt, s[0], y - h / 2 + 1);
+    tc.globalAlpha = 1; tc.lineWidth = 3; tc.strokeStyle = 'rgba(0,0,0,.8)';
+    globos.push({ x: s[0] - w / 2, y: y - h, w, h: h + 6, id: def.id, def });
   }
   for (let i = numeros.length - 1; i >= 0; i--) {
     const n = numeros[i]; n.t += dt;

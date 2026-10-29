@@ -1595,7 +1595,7 @@ export class Mapa extends DurableObject {
       const g = p.grupo && this.grupos.get(p.grupo);
       const yo = {
         hp: Math.round(p.hp), mp: Math.round(p.mp), maxHp: p.der.maxHp, maxMp: p.der.maxMp, nivel: p.d.nivel, exp: p.d.exp, sig: R.expParaSubir(p.d.nivel),
-        puntos: p.d.puntos, fue: p.d.fue, agi: p.d.agi, vit: p.d.vit, ene: p.d.ene, dmin: p.der.dmin, dmax: p.der.dmax, def: p.der.def,
+        puntos: p.d.puntos, ...Object.fromEntries(R.STATS.map(k => [k, p.d[k]])), dmin: p.der.dmin, dmax: p.der.dmax, def: p.der.def,
         cds: Object.fromEntries(Object.entries(p.cds).map(([k, v]) => [k, r2(v)])), muerto: r2(p.muerto), obj: p.objetivo, veneno: p.veneno ? r2(p.veneno.t) : 0, evt,
         asedio: p.enBastion && this.asedio ? this.marcadorAsedio() : null, senor: this.senor,
         atalaya: R.enAtalaya(p.x, p.z), resets: p.d.resets || 0, pozo: p.enPozo ? (this.pozo?.oleada || 0) : -1, pociones: this.cuantos(p, 'pocion'), eteres: this.cuantos(p, 'eter'), buffs: p.buffs.map(b => [b.id, r2(b.t)]), alcance: p.der.alcance, clase: p.d.clase,
