@@ -205,6 +205,7 @@ export class Mapa extends DurableObject {
       case 'encargo': return this.encargo(p, m);
       case 'salirPj': { this.salir(s); await new Promise(r => setTimeout(r, 300)); return this.mandarLista(s); }
       case 'punto': return this.repartir(p, m.s, m.n | 0);
+      case 'redistribuir': return this.redistribuir(p);
       case 'inv': return this.invitar(p, m.id);
       case 'acepta': return this.aceptar(p, m.de);
       case 'rechaza': { const q = this.jug.get(m.de); if (q) this.aviso(q, `${p.nombre} no aceptó el grupo.`); return; }
@@ -1021,6 +1022,19 @@ export class Mapa extends DurableObject {
         else if (ra === 1) this.msgCerca(p, `${p.nombre} encontró ${O.nombreObjeto(d.item)}.`);
       } else if (!p.avisoLleno || this.t - p.avisoLleno > 5) { p.avisoLleno = this.t; this.aviso(p, 'La mochila está llena.'); }
     }
+  }
+
+  // Devuelve todos los puntos puestos en atributos para repartirlos de nuevo.
+  redistribuir(p) {
+    if (p.muerto) return;
+    const costo = R.costoRedistribuir(p.d);
+    if (p.d.oro < costo) return this.aviso(p, `Redistribuir cuesta ${costo.toLocaleString('es-AR')} de oro.`);
+    const base = C.CLASES[p.d.clase].base;
+    let libres = p.d.puntos;
+    for (const s of R.STATS) { libres += Math.max(0, p.d[s] - base[s]); p.d[s] = Math.min(p.d[s], base[s]); }
+    p.d.puntos = libres; p.d.oro -= costo; p.d.redistrib = (p.d.redistrib || 0) + 1;
+    this.recalcular(p); p.hp = Math.min(p.hp, p.der.maxHp); this.guardar(p);
+    this.aviso(p, `Tenés ${libres} puntos para repartir de nuevo.${costo ? ` Pagaste ${costo.toLocaleString('es-AR')} de oro.` : ''}`);
   }
 
   repartir(p, stat, n) {

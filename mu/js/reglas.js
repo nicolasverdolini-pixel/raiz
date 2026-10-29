@@ -44,6 +44,8 @@ import { MOCHILA } from './objetos.js';
 export const STATS = ['fue', 'agi', 'vit', 'ene'];
 export const NOMBRE_STAT = { fue: 'Fuerza', agi: 'Agilidad', vit: 'Vitalidad', ene: 'Energía' };
 // Qué hace cada atributo para TU clase: solo uno sube el daño (el de tu arma).
+// Redistribuir atributos: la primera vez es gratis, después cuesta según el nivel.
+export const costoRedistribuir = d => (d.redistrib ? Math.max(1000, d.nivel * 400) : 0);
 export function explicaStat(s, atributo) {
   const base = { fue: 'La piden los escudos y las armas de fuerza.', agi: 'Pegás más rápido y defendés más.', vit: 'Más vida y algo de defensa. La piden las armaduras.', ene: 'Más energía para las habilidades.' }[s];
   return s === atributo ? `<b class="principal">Tu daño sale de acá.</b> ${base}` : s === 'fue' ? 'A tu clase no le sirve: no sube tu daño ni la pide tu equipo.' : base;
