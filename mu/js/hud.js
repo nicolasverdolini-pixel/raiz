@@ -177,13 +177,23 @@ export class Hud {
     $('#m-no').onclick = () => { m.hidden = true; this.cb.rechazar(de); };
   }
 
+  invitacionHerm(de, h) {
+    const m = $('#modal'); this.panelAbierto = false; this.clavePanel = null;
+    m.innerHTML = `<p><b>${esc(de)}</b> te invita a la hermandad</p><p class="h-inv" style="color:${h.color}">${h.simbolo}&#xFE0E; ${esc(h.nombre)}</p><p class="nota">Vas a llevar su emblema, tener su chat (/h) y ganar más experiencia cazando cerca de tus hermanos.</p>
+      <div class="fila"><button class="btn" id="m-si">Jurar</button><button class="btn sec" id="m-no">No, gracias</button></div>`;
+    m.hidden = false;
+    $('#m-si').onclick = () => { m.hidden = true; this.cb.aceptarHerm(h.nombre); };
+    $('#m-no').onclick = () => { m.hidden = true; };
+  }
+
   menuJugador(e, x, y) {
     const m = $('#menu-jug');
-    m.innerHTML = `<b>${esc(e.nombre)}</b><small>${C.CLASES[e.tipo]?.nombre || ''} · Nv ${e.nivel}</small><button class="btn" id="mj-inv">Invitar al grupo</button><button class="btn" id="mj-com">Comerciar</button><button class="btn sec" id="mj-no">Cerrar</button>`;
+    m.innerHTML = `<b>${esc(e.nombre)}</b><small>${C.CLASES[e.tipo]?.nombre || ''} · Nv ${e.nivel}</small><button class="btn" id="mj-inv">Invitar al grupo</button>${this.cb.lideroHerm?.() && !e.herm ? '<button class="btn" id="mj-herm">Invitar a la hermandad</button>' : ''}<button class="btn" id="mj-com">Comerciar</button><button class="btn sec" id="mj-no">Cerrar</button>`;
     m.style.left = Math.min(innerWidth - 190, Math.max(10, x - 90)) + 'px'; m.style.top = Math.min(innerHeight - 150, Math.max(10, y - 140)) + 'px';
     m.hidden = false;
     $('#mj-inv').onclick = () => { m.hidden = true; this.cb.invitar(e.id); };
     $('#mj-com').onclick = () => { m.hidden = true; this.cb.comerciar(e.id); };
+    const mh = $('#mj-herm'); if (mh) mh.onclick = () => { m.hidden = true; this.cb.invitarHerm(e.id); };
     $('#mj-no').onclick = () => { m.hidden = true; };
   }
 

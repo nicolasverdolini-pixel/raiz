@@ -343,3 +343,19 @@ input:focus { outline: 1px solid var(--sangre-2); }
 .panel header .sonido { display: flex; gap: 4px; margin-left: auto; margin-right: 6px; }
 .panel header .sonido button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid #4a4440; background: #120f10; color: var(--hueso); cursor: pointer; font-size: 16px; }
 .panel header .sonido button.off { opacity: .35; text-decoration: line-through; }
+
+/* Hermandades */
+.h-elegir { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.h-sim { width: 38px; height: 38px; font-size: 1.4rem; background: #0b0a0b; border: 1px solid rgba(216,207,189,.18); cursor: pointer; font-family: var(--texto); }
+.h-col { width: 30px; height: 30px; border: 2px solid #0b0a0b; outline: 1px solid rgba(216,207,189,.2); cursor: pointer; }
+.h-sim.on, .h-col.on { outline: 2px solid var(--hueso); }
+.h-cabeza { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.h-cabeza b { font-family: var(--titulo); font-size: 1.25rem; display: block; }
+.h-cabeza small { color: var(--hueso-2); }
+.h-emblema { width: 52px; height: 52px; display: grid; place-items: center; font-size: 1.9rem; border: 2px solid; background: #0b0a0b; }
+.h-lista { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
+.h-lista .btn.chico { flex: none; }
+.h-inv { font-family: var(--titulo); font-size: 1.3rem; text-align: center; margin: 6px 0; }
+.chat-log .herm b, #chat-vivo .herm b { color: #b07ad8; }
+.chat-log .herm, #chat-vivo .herm { color: #d9c8ec; }
+.h-punto { width: 14px; color: #8fd16e; text-align: center; } .fila-t.gris .h-punto { color: var(--hueso-2); }

@@ -86,17 +86,60 @@ export class Paneles {
   personaje(tab = 'equipo') {
     const d = this.ctx.mio(); if (!d) return;
     const libres = C.puntosArbol(d) - C.gastados(d);
-    const tabs = [['equipo', 'Equipo'], ['habilidades', `Habilidades${libres ? ' ●' : ''}`], ['atributos', `Atributos${d.puntos ? ' ●' : ''}`], ['misiones', 'Misiones']];
+    const tabs = [['equipo', 'Equipo'], ['habilidades', `Habilidades${libres ? ' ●' : ''}`], ['atributos', `Atributos${d.puntos ? ' ●' : ''}`], ['misiones', 'Misiones'], ['hermandad', 'Hermandad']];
     let cuerpo = '';
     if (tab === 'equipo') cuerpo = this.htmlEquipo(d);
     if (tab === 'habilidades') cuerpo = this.htmlArbol(d);
     if (tab === 'atributos') cuerpo = this.htmlAtributos(d);
     if (tab === 'misiones') cuerpo = this.htmlDiario(d);
+    if (tab === 'hermandad') cuerpo = this.htmlHermandad(d);
     this.marco(esc(d.nombre), `${C.CLASES[d.clase].nombre} · Nivel ${d.nivel}`, tabs, tab, cuerpo, 'personaje', [tab]);
     if (tab === 'equipo') this.conectarMochila(d);
     this.el.querySelectorAll('[data-h]').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'aprender', h: b.dataset.h }));
     this.el.querySelectorAll('.mas').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'punto', s: b.dataset.s, n: +b.dataset.n }));
     const cp = $('#p-cambiar', this.el); if (cp) cp.onclick = () => { this.cerrar(); this.ctx.cambiarPj(); };
+    if (tab === 'hermandad') this.conectarHermandad();
+  }
+
+  // ---------- hermandad ----------
+  hermandad(h, online) {
+    this.herm = h; this.hermOnline = online || [];
+    if (this.abierto?.f === 'personaje' && this.abierto.args[0] === 'hermandad') this.refrescar();
+  }
+  htmlHermandad(d) {
+    const H = R.HERMANDAD, h = this.herm;
+    if (!h) {
+      const enAt = this.ctx.enAtalaya(), puede = (d.nivel >= H.nivel || d.resets) && d.oro >= H.oro;
+      const sim = this.hSim || H.simbolos[0], col = this.hCol || H.colores[0];
+      return `<p class="frase">«Nadie sobrevive solo al Luto. Los que juran juntos, cazan juntos y caen juntos.»</p>
+        <p class="nota">Una hermandad lleva su emblema arriba del nombre de cada miembro, tiene su propio chat (escribí <b>/h</b> y el mensaje) y da <b>+${Math.round(H.bonus * 100)}% de experiencia por cada hermano que cace cerca</b> (hasta +${Math.round(H.bonusMax * 100)}%). Hasta ${H.max} miembros. Para entrar a una, pedile a quien la lidera que te invite.</p>
+        <div class="mision"><b>Fundar una hermandad</b>
+          <span class="m-texto">Se funda en cualquier atalaya. Pide nivel ${H.nivel} (o haber renacido) y ${H.oro.toLocaleString('es-AR')} de oro.</span>
+          <label>Nombre<input id="h-nombre" maxlength="18" autocomplete="off" value="${esc(this.hNombre || '')}"></label>
+          <span class="nota">Emblema</span>
+          <div class="h-elegir">${H.simbolos.map(x => `<button type="button" class="h-sim ${x === sim ? 'on' : ''}" data-sim="${x}" style="color:${col}">${x}&#xFE0E;</button>`).join('')}</div>
+          <div class="h-elegir">${H.colores.map(c => `<button type="button" class="h-col ${c === col ? 'on' : ''}" data-col="${c}" style="background:${c}"></button>`).join('')}</div>
+          ${!enAt ? '<span class="peligro">Tenés que estar en una atalaya.</span>' : !puede ? `<span class="peligro">${d.oro < H.oro ? 'No te alcanza el oro.' : `Hace falta nivel ${H.nivel}.`}</span>` : ''}
+          <div class="acciones"><button class="btn" id="h-fundar" ${enAt && puede ? '' : 'disabled'}>Fundar (${H.oro.toLocaleString('es-AR')} de oro)</button></div>
+        </div>`;
+    }
+    const lider = h.lider === d.nombre, on = new Set(this.hermOnline);
+    const lista = [...h.miembros].sort((a, b) => (b === h.lider) - (a === h.lider) || on.has(b) - on.has(a) || a.localeCompare(b));
+    return `<div class="h-cabeza"><span class="h-emblema" style="color:${h.color};border-color:${h.color}">${h.simbolo}&#xFE0E;</span><div><b style="color:${h.color}">${esc(h.nombre)}</b><small>${h.miembros.length} de ${R.HERMANDAD.max} miembros · ${on.size} conectados</small></div></div>
+      <p class="nota">Chat de la hermandad: escribí <b>/h</b> y el mensaje. Cada hermano que cace cerca tuyo te da +${Math.round(R.HERMANDAD.bonus * 100)}% de experiencia.${lider ? ' Para invitar a alguien, tocalo en el mapa.' : ''}</p>
+      <div class="h-lista">${lista.map(n => `<div class="fila-t ${on.has(n) ? '' : 'gris'}"><span class="ic h-punto">${on.has(n) ? '●' : '○'}</span><span><b>${esc(n)}</b><small>${n === h.lider ? 'Lidera' : 'Hermano'}${on.has(n) ? ' · conectado' : ''}</small></span>
+        ${lider && n !== d.nombre ? `<button class="btn chico sec" data-hlider="${esc(n)}">Pasar mando</button><button class="btn chico sec" data-hechar="${esc(n)}">Echar</button>` : ''}</div>`).join('')}</div>
+      <div class="acciones"><button class="btn sec" id="h-salir">${h.miembros.length === 1 ? 'Disolver la hermandad' : 'Dejar la hermandad'}</button></div>`;
+  }
+  conectarHermandad() {
+    const n = $('#h-nombre', this.el); if (n) n.oninput = () => { this.hNombre = n.value; };
+    if (n) n.addEventListener('keydown', e => e.stopPropagation());
+    this.el.querySelectorAll('[data-sim]').forEach(b => b.onclick = () => { this.hSim = b.dataset.sim; this.personaje('hermandad'); });
+    this.el.querySelectorAll('[data-col]').forEach(b => b.onclick = () => { this.hCol = b.dataset.col; this.personaje('hermandad'); });
+    const f = $('#h-fundar', this.el); if (f) f.onclick = () => this.ctx.mandar({ t: 'herm', a: 'crear', nombre: n.value, simbolo: this.hSim || R.HERMANDAD.simbolos[0], color: this.hCol || R.HERMANDAD.colores[0] });
+    this.el.querySelectorAll('[data-hechar]').forEach(b => b.onclick = () => { if (confirm(`¿Echar a ${b.dataset.hechar} de la hermandad?`)) this.ctx.mandar({ t: 'herm', a: 'echar', n: b.dataset.hechar }); });
+    this.el.querySelectorAll('[data-hlider]').forEach(b => b.onclick = () => { if (confirm(`¿Pasarle el mando a ${b.dataset.hlider}? Vos quedás como hermano.`)) this.ctx.mandar({ t: 'herm', a: 'lider', n: b.dataset.hlider }); });
+    const s = $('#h-salir', this.el); if (s) s.onclick = () => { if (confirm(this.herm.miembros.length === 1 ? '¿Disolver la hermandad? El nombre queda libre.' : '¿Dejar la hermandad?')) this.ctx.mandar({ t: 'herm', a: 'salir' }); };
   }
 
   htmlEquipo(d) {

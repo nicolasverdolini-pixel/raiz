@@ -104,6 +104,12 @@ export class Personaje extends DurableObject {
   }
   async rankingVer() { return (await this.ctx.storage.get('lista')) || []; }
 
+  // Hermandad (este objeto es "h:<nombre>"): nombre, emblema, líder y miembros.
+  async hCrear(h) { if (await this.ctx.storage.get('herm')) return false; await this.ctx.storage.put('herm', h); return true; }
+  async hLeer() { return (await this.ctx.storage.get('herm')) || null; }
+  async hGuardar(h) { await this.ctx.storage.put('herm', h); }
+  async hBorrar() { await this.ctx.storage.delete('herm'); }
+
   // Registro de nombres (este objeto es "pj:<nombre>").
   async reservar(cuenta) {
     const dueno = await this.ctx.storage.get('dueno');
@@ -131,6 +137,7 @@ export class Mapa extends DurableObject {
     this.jug = new Map();      // id → jugador
     this.mons = new Map();     // id → monstruo
     this.grupos = new Map();   // id → { id, lider, miembros: [ids] }
+    this.herm = new Map();     // nombre en minúscula → hermandad (las que tienen alguien conectado)
     this.ev = [];
     this.sigId = 1; this.sigMon = 1000; this.sigGrupo = 1;
     this.t = 0; this.reloj = null;
@@ -196,6 +203,7 @@ export class Mapa extends DurableObject {
       case 'acepta': return this.aceptar(p, m.de);
       case 'rechaza': { const q = this.jug.get(m.de); if (q) this.aviso(q, `${p.nombre} no aceptó el grupo.`); return; }
       case 'salir': return this.dejarGrupo(p);
+      case 'herm': return m.a === 'acepta' ? this.aceptarHerm(p, String(m.h || '')) : this.hermandad(p, m);
       case 'ping': return this.enviar(s, { t: 'pong', c: m.c });
     }
   }
@@ -234,7 +242,8 @@ export class Mapa extends DurableObject {
     if (r.error) return this.enviar(s, { t: 'error', msg: r.error });
     // Una cuenta juega con un personaje a la vez: si ya estaba adentro (otro celu o se le cortó), se cierra lo viejo.
     for (const q of this.jug.values()) if (q.cuenta === s.cuenta) { this.salir(q.s); try { q.s.ws.close(4000, 'Entraste desde otro lado'); } catch (e) {} }
-    const at = R.PUEBLOS[R.atalayaCercana(0, 0, r.datos.atalayas)], a = Math.random() * Math.PI * 2;
+    const ult = r.datos.pos || { x: 0, z: 0 };
+    const at = R.PUEBLOS[R.atalayaCercana(ult.x, ult.z, r.datos.atalayas)], a = Math.random() * Math.PI * 2;
     const p = {
       id: this.sigId++, s, cuenta: s.cuenta, nombre: r.datos.nombre, d: r.datos, baul: r.baul,
       x: at.x + Math.cos(a) * 3, z: at.z + Math.sin(a) * 3, dir: 0, mueve: false,
@@ -247,6 +256,7 @@ export class Mapa extends DurableObject {
     if (!p.d.visto) p.d.visto = true;
     this.msgTodos(`${p.nombre} llegó al ${R.MAPA.nombre}.`);
     if (!this.reloj) { this.reloj = setInterval(() => this.tick(), R.TICK * 1000); }
+    if (p.d.hermandad) await this.cargarHerm(p);
   }
 
   salir(s) {
@@ -256,6 +266,7 @@ export class Mapa extends DurableObject {
     this.dejarGrupo(p, true);
     this.guardar(p);
     this.jug.delete(p.id);
+    if (p.d.hermandad) this.avisarHerm(p.d.hermandad);
     for (const m of this.mons.values()) if (m.obj === p.id) m.obj = null;
     this.ev.push(['bye', p.id]);
     s.p = null;
@@ -264,6 +275,7 @@ export class Mapa extends DurableObject {
 
   guardar(p) {
     p.guardadoT = 0;
+    if (!p.enPozo && !p.muerto) p.d.pos = { x: r2(p.x), z: r2(p.z) };
     this.cuenta(p.cuenta).guardar(p.nombre, p.d, p.baul).catch(() => {});
     this.cuenta('#ranking').rankingPoner({ nombre: p.nombre, clase: p.d.clase, nivel: p.d.nivel, resets: p.d.resets || 0, exp: p.d.exp }).catch(() => {});
   }
@@ -488,7 +500,107 @@ export class Mapa extends DurableObject {
       for (const id of g.miembros) { const q = this.jug.get(id); if (q) this.enviar(q.s, { t: 'chat', de: p.id, nombre: p.nombre, txt: txt.slice(3), grupo: 1 }); }
       return;
     }
+    if (txt.startsWith('/h ')) {
+      if (!p.d.hermandad) return this.aviso(p, 'No estás en una hermandad.');
+      for (const q of this.jug.values()) if (q.d.hermandad === p.d.hermandad) this.enviar(q.s, { t: 'chat', de: p.id, nombre: p.nombre, txt: txt.slice(3), herm: 1 });
+      return;
+    }
     for (const q of this.jug.values()) this.enviar(q.s, { t: 'chat', de: p.id, nombre: p.nombre, txt });
+  }
+
+  // ----- hermandades -----
+  // Se guardan aparte (objeto "h:<nombre>"); acá queda una copia mientras haya alguien conectado.
+  async cargarHerm(p) {
+    const k = p.d.hermandad.toLowerCase();
+    let h = this.herm.get(k);
+    if (!h) { h = await this.cuenta('h:' + k).hLeer(); if (h) this.herm.set(k, h); }
+    if (!h || !h.miembros.some(n => n.toLowerCase() === p.nombre.toLowerCase())) {
+      p.d.hermandad = null; this.guardar(p);
+      if (h) this.aviso(p, 'Ya no sos parte de tu hermandad.');
+      return this.enviar(p.s, { t: 'herm', h: null });
+    }
+    p.d.hermandad = h.nombre;
+    this.avisarHerm(h.nombre);
+  }
+  avisarHerm(nombre) {
+    const h = this.herm.get(nombre.toLowerCase()); if (!h) return;
+    const online = [...this.jug.values()].filter(q => q.d.hermandad === h.nombre).map(q => q.nombre);
+    if (!online.length) { this.herm.delete(nombre.toLowerCase()); return; }
+    for (const q of this.jug.values()) if (q.d.hermandad === h.nombre) this.enviar(q.s, { t: 'herm', h, online });
+  }
+  async hermandad(p, m) {
+    const a = String(m.a || '');
+    const h = p.d.hermandad && this.herm.get(p.d.hermandad.toLowerCase());
+    const guardarH = () => this.cuenta('h:' + h.nombre.toLowerCase()).hGuardar(h).catch(() => {});
+    if (a === 'crear') {
+      if (p.d.hermandad) return this.aviso(p, 'Ya estás en una hermandad.');
+      if (!enPueblo(p)) return this.aviso(p, 'Las hermandades se fundan en una atalaya.');
+      if (p.d.nivel < R.HERMANDAD.nivel && !p.d.resets) return this.aviso(p, `Para fundar una hermandad necesitás nivel ${R.HERMANDAD.nivel}.`);
+      if (p.d.oro < R.HERMANDAD.oro) return this.aviso(p, `Fundar una hermandad cuesta ${R.HERMANDAD.oro.toLocaleString('es-AR')} de oro.`);
+      const nombre = String(m.nombre || '').replace(/\s+/g, ' ').trim();
+      if (!R.HERMANDAD.nombreOk.test(nombre)) return this.aviso(p, 'El nombre va de 3 a 18 letras (puede tener espacios).');
+      const simbolo = R.HERMANDAD.simbolos.includes(m.simbolo) ? m.simbolo : R.HERMANDAD.simbolos[0];
+      const color = R.HERMANDAD.colores.includes(m.color) ? m.color : R.HERMANDAD.colores[0];
+      if (p.fundando) return; p.fundando = true;
+      const nueva = { nombre, simbolo, color, lider: p.nombre, miembros: [p.nombre], creada: Date.now() };
+      const ok = await this.cuenta('h:' + nombre.toLowerCase()).hCrear(nueva).catch(() => false);
+      p.fundando = false;
+      if (!ok) return this.aviso(p, 'Ya existe una hermandad con ese nombre.');
+      if (p.d.oro < R.HERMANDAD.oro || p.d.hermandad) return;
+      p.d.oro -= R.HERMANDAD.oro; p.d.hermandad = nombre; p.cambioInv = true;
+      this.herm.set(nombre.toLowerCase(), nueva); this.guardar(p);
+      this.msgTodos(`${p.nombre} fundó la hermandad ${nombre}.`);
+      return this.avisarHerm(nombre);
+    }
+    if (!h) return this.aviso(p, 'No estás en una hermandad.');
+    if (a === 'inv') {
+      const q = this.jug.get(m.id);
+      if (!q || q === p) return;
+      if (h.lider !== p.nombre) return this.aviso(p, 'Solo quien lidera la hermandad puede invitar.');
+      if (q.d.hermandad) return this.aviso(p, `${q.nombre} ya está en una hermandad.`);
+      if (h.miembros.length >= R.HERMANDAD.max) return this.aviso(p, `La hermandad está completa (${R.HERMANDAD.max}).`);
+      if (dist(p, q) > 12) return this.aviso(p, `Acercate a ${q.nombre} para invitarlo.`);
+      q.invHerm = h.nombre;
+      this.enviar(q.s, { t: 'invherm', de: p.nombre, h: { nombre: h.nombre, simbolo: h.simbolo, color: h.color } });
+      return this.aviso(p, `Invitaste a ${q.nombre} a ${h.nombre}.`);
+    }
+    if (a === 'salir') {
+      h.miembros = h.miembros.filter(n => n !== p.nombre);
+      p.d.hermandad = null; this.guardar(p); this.enviar(p.s, { t: 'herm', h: null });
+      this.aviso(p, `Dejaste ${h.nombre}.`);
+      if (!h.miembros.length) {
+        this.herm.delete(h.nombre.toLowerCase());
+        this.cuenta('h:' + h.nombre.toLowerCase()).hBorrar().catch(() => {});
+        return this.msgTodos(`La hermandad ${h.nombre} se disolvió.`);
+      }
+      if (h.lider === p.nombre) h.lider = h.miembros[0];
+      guardarH();
+      for (const q of this.jug.values()) if (q.d.hermandad === h.nombre) this.aviso(q, `${p.nombre} dejó la hermandad.${h.lider !== p.nombre ? ` Ahora la lidera ${h.lider}.` : ''}`);
+      return this.avisarHerm(h.nombre);
+    }
+    if (a === 'echar' || a === 'lider') {
+      if (h.lider !== p.nombre) return this.aviso(p, 'Solo quien lidera puede hacer eso.');
+      const n = h.miembros.find(x => x === String(m.n || ''));
+      if (!n || n === p.nombre) return;
+      if (a === 'lider') { h.lider = n; guardarH(); for (const q of this.jug.values()) if (q.d.hermandad === h.nombre) this.aviso(q, `${n} lidera ahora ${h.nombre}.`); return this.avisarHerm(h.nombre); }
+      h.miembros = h.miembros.filter(x => x !== n); guardarH();
+      for (const q of this.jug.values()) {
+        if (q.nombre === n) { q.d.hermandad = null; this.guardar(q); this.enviar(q.s, { t: 'herm', h: null }); this.aviso(q, `Te echaron de ${h.nombre}.`); }
+        else if (q.d.hermandad === h.nombre) this.aviso(q, `${n} ya no es parte de la hermandad.`);
+      }
+      return this.avisarHerm(h.nombre);
+    }
+  }
+  async aceptarHerm(p, nombre) {
+    if (p.invHerm !== nombre || p.d.hermandad) return;
+    p.invHerm = null;
+    const k = nombre.toLowerCase(), h = this.herm.get(k);
+    if (!h) return this.aviso(p, 'Esa hermandad ya no existe.');
+    if (h.miembros.length >= R.HERMANDAD.max) return this.aviso(p, 'La hermandad está completa.');
+    h.miembros.push(p.nombre); p.d.hermandad = h.nombre; this.guardar(p);
+    this.cuenta('h:' + k).hGuardar(h).catch(() => {});
+    for (const q of this.jug.values()) if (q.d.hermandad === h.nombre) this.aviso(q, `${p.nombre} se sumó a ${h.nombre}.`);
+    this.avisarHerm(h.nombre);
   }
 
   // ----- renacer -----
@@ -860,6 +972,10 @@ export class Mapa extends DurableObject {
       this.progreso(p, m);
       const dif = p.d.nivel - m.def.nivel;
       if (dif > 10) cant *= Math.max(0.2, 1 - (dif - 10) * 0.08);
+      if (p.d.hermandad) {
+        let n = 0; for (const q of this.jug.values()) if (q !== p && q.d.hermandad === p.d.hermandad && !q.muerto && dist(q, p) < R.DIST_GRUPO) n++;
+        cant *= 1 + Math.min(R.HERMANDAD.bonusMax, n * R.HERMANDAD.bonus);
+      }
     }
     cant = Math.max(1, Math.round(cant));
     p.d.exp += cant; p.priv.push(['x', cant]);
@@ -1171,9 +1287,14 @@ export class Mapa extends DurableObject {
     } else if (dist(s, p) > 3) ir(p.x, p.z, 5.5);
   }
 
+  etiquetaHerm(q) {
+    const h = q.d.hermandad && this.herm.get(q.d.hermandad.toLowerCase());
+    return h ? [h.nombre, h.simbolo, h.color] : 0;
+  }
+
   enviarFotos() {
     const ev = this.ev; this.ev = [];
-    const filaJ = q => [q.id, q.nombre, r2(q.x), r2(q.z), r2(q.dir), Math.round(q.hp / q.der.maxHp * 100), q.d.nivel, q.muerto ? 4 : q.mueve ? 1 : 0, q.grupo || 0, (q.buffs.some(b => b.ef.menos) ? 1 : 0) | (q.veneno ? 2 : 0) | (q.buffs.some(b => b.ef.dmgPct || b.ef.vel) ? 4 : 0), q.d.clase, brillo(q)];
+    const filaJ = q => [q.id, q.nombre, r2(q.x), r2(q.z), r2(q.dir), Math.round(q.hp / q.der.maxHp * 100), q.d.nivel, q.muerto ? 4 : q.mueve ? 1 : 0, q.grupo || 0, (q.buffs.some(b => b.ef.menos) ? 1 : 0) | (q.veneno ? 2 : 0) | (q.buffs.some(b => b.ef.dmgPct || b.ef.vel) ? 4 : 0), q.d.clase, brillo(q), this.etiquetaHerm(q)];
     const filaM = m => [m.id, m.ti, r2(m.x), r2(m.z), r2(m.dir), Math.round(Math.max(0, m.hp) / m.maxHp * 100), m.muerto ? 4 : m.mueve ? 1 : 0, (m.campeon ? 1 : 0) | (m.furioso ? 2 : 0) | (m.temporal ? 4 : 0)];
     const evt = this.evento ? [this.evento.id, Math.round(this.evento.resta)] : this.proximo ? ['-' + this.proximo.id, Math.round(this.proximo.en)] : null;
     for (const p of this.jug.values()) {

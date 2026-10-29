@@ -44,11 +44,14 @@ const hud = new Hud({
   aceptar: de => red.mandar({ t: 'acepta', de }),
   rechazar: de => red.mandar({ t: 'rechaza', de }),
   salirGrupo: () => red.mandar({ t: 'salir' }),
+  lideroHerm: () => paneles.herm?.lider === mio?.nombre,
+  invitarHerm: id => red.mandar({ t: 'herm', a: 'inv', id }),
+  aceptarHerm: h => red.mandar({ t: 'herm', a: 'acepta', h }),
 });
 const npcCerca = id => { const n = O.NPCS.find(x => x.id === id) || MI.NPC_MISION.find(x => x.id === id); return n && Math.hypot(lx - n.x, lz - n.z) < O.DIST_NPC + 1; };
 const rolCerca = rol => yo && O.NPCS.find(n => n.rol === rol && Math.hypot(lx - n.x, lz - n.z) < O.DIST_NPC + 1);
 const paneles = new Paneles({
-  mio: () => mio, mandar: o => red.mandar(o), npcCerca, rolCerca, toast: t => hud.toast(t), cambiarPj: () => red.salirPj(),
+  mio: () => mio, mandar: o => red.mandar(o), npcCerca, rolCerca, enAtalaya: () => R.enAtalaya(lx, lz) >= 0, toast: t => hud.toast(t), cambiarPj: () => red.salirPj(),
   comerciando: () => !!paneles.com, ofrecido: i => !!paneles.com?.mio.items.some(o => o.i === i),
 });
 const chat = new Chat(o => red.mandar(o));
@@ -118,6 +121,8 @@ function alMensaje(m) {
     return;
   }
   if (m.t === 'inv') return hud.invitacion(m.de, m.nombre, m.nivel);
+  if (m.t === 'invherm') return hud.invitacionHerm(m.de, m.h);
+  if (m.t === 'herm') return paneles.hermandad(m.h, m.online);
   if (m.t === 'compide') return hud.pedidoComercio(m.de, m.nombre);
   if (m.t === 'com') return paneles.comercio(m);
   if (m.t === 'ranking') return paneles.ranking(m.lista);
@@ -135,7 +140,7 @@ function entrarSeleccion(m) {
   for (const id of [...entes.keys()]) quitarEnte(id);
   for (const d of drops.values()) E.scene.remove(d.obj); drops.clear();
   yo = null; yoId = null; mio = null; estado = null; objetivo = null; destino = null;
-  paneles.cerrar(); document.getElementById('hud').hidden = true;
+  paneles.cerrar(); paneles.herm = null; document.getElementById('hud').hidden = true;
   document.getElementById('entrada').hidden = true;
   for (const n of npcs) n.vis.raiz.visible = false;
   seleccion.mostrar(m.personajes, m.creado);
@@ -144,13 +149,13 @@ function entrarSeleccion(m) {
 function foto(s) {
   if (!mio) return;
   const ahora = performance.now();
-  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl, clase, brillo] of s.j) {
+  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl, clase, brillo, herm] of s.j) {
     const muralla = fl & 1, veneno = fl & 2;
     let e = entes.get(id);
     if (e && e.tipo !== clase && VISUAL[clase]) { quitarEnte(id); e = null; }
     if (!e) { e = crearEnte(id, VISUAL[clase] ? clase : 'guardian', true); e.vis.raiz.position.set(x, R.altura(x, z), z); if (id === yoId) yo = e; }
     if (brillo !== e.brillo) { e.brillo = brillo; brillarArma(e); }
-    Object.assign(e, { nombre, hp, nivel, st, grupo, muralla, veneno, visto: ahora });
+    Object.assign(e, { nombre, hp, nivel, st, grupo, muralla, veneno, herm: herm || null, visto: ahora });
     if (id !== yoId) { e.buf.push({ t: ahora, x, z, dir }); if (e.buf.length > 30) e.buf.shift(); }
     if (st === 4 && !e.muerto) morir(e);
   }
@@ -445,6 +450,11 @@ function dibujarTextos(dt) {
       const t = `${e.nombre} · ${e.nivel}`;
       tc.fillStyle = e === yo ? '#efe6d2' : mismo ? '#a8d48f' : '#b9c1c9';
       tc.strokeText(t, s[0], s[1]); tc.fillText(t, s[0], s[1]);
+      if (e.herm) {
+        const [hn, hs, hc] = e.herm, ht = `${hs}\uFE0E ${hn}`;
+        tc.font = 'italic 600 13px Spectral, Georgia, serif'; tc.fillStyle = hc;
+        tc.strokeText(ht, s[0], s[1] - 15); tc.fillText(ht, s[0], s[1] - 15);
+      }
       if (e !== yo) barra(s[0], s[1] + 11, 46, 4, e.hp, mismo ? '#6fae4f' : '#a33');
     } else if (e.id === objetivo || e.hp < 100 || e.def.jefe || e.campeon) {
       barra(s[0], s[1], e.def.jefe ? 90 : 50, e.def.jefe ? 6 : 4, e.hp, '#9c1f1f');
@@ -459,6 +469,7 @@ function dibujarTextos(dt) {
     if (!e.globo) continue;
     e.globo.t -= dt; if (e.globo.t <= 0) { e.globo = null; continue; }
     const p = pos(e), s = proy(p.x, p.y + e.vis.alto + 0.9, p.z); if (!s) continue;
+    if (e.herm) s[1] -= 14;
     tc.globalAlpha = Math.min(1, e.globo.t * 2);
     if (e.globo.emoji) {
       tc.font = '40px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif';

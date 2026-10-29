@@ -1,5 +1,5 @@
 // Chat global: lo que escribís lo ven todos y sale en un globo arriba de tu personaje.
-// Si mandás solo un emoji, se muestra grande arriba de la cabeza. "/g mensaje" va solo al grupo.
+// Si mandás solo un emoji, se muestra grande arriba de la cabeza. "/g mensaje" va solo al grupo y "/h mensaje" a la hermandad.
 import { iconoBoton } from './iconos.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -16,7 +16,7 @@ export class Chat {
     const el = document.createElement('div'); el.id = 'chat'; el.className = 'caja'; el.hidden = true;
     el.innerHTML = `<div class="chat-log" id="chat-log"></div>
       <div class="chat-emojis">${RAPIDOS.map(e => `<button type="button" data-e="${e}">${e}</button>`).join('')}</div>
-      <form id="chat-form"><input id="chat-txt" maxlength="140" placeholder="Escribí… (/g para tu grupo)" autocomplete="off"><button class="btn chico">Enviar</button></form>`;
+      <form id="chat-form"><input id="chat-txt" maxlength="140" placeholder="Escribí… (/g grupo · /h hermandad)" autocomplete="off"><button class="btn chico">Enviar</button></form>`;
     hud.appendChild(el);
     const vivo = document.createElement('div'); vivo.id = 'chat-vivo'; hud.appendChild(vivo); this.vivo = vivo;
     this.el = el; this.sinLeer = 0;
@@ -33,7 +33,7 @@ export class Chat {
   }
   recibir(m) {
     this.log.push(m); if (this.log.length > 40) this.log.shift();
-    const linea = `<div class="${m.grupo ? 'grupo' : ''} ${m.sistema ? 'sistema' : ''}">${m.sistema ? '' : `<b>${esc(m.nombre)}</b> `}${esc(m.txt)}</div>`;
+    const linea = `<div class="${m.grupo ? 'grupo' : ''} ${m.herm ? 'herm' : ''} ${m.sistema ? 'sistema' : ''}">${m.sistema ? '' : `<b>${esc(m.nombre)}</b> `}${esc(m.txt)}</div>`;
     const l = $('#chat-log'); l.insertAdjacentHTML('beforeend', linea); while (l.children.length > 40) l.firstChild.remove(); l.scrollTop = l.scrollHeight;
     if (this.el.hidden) {
       this.sinLeer++; $('#chat-nuevos').textContent = this.sinLeer > 9 ? '9+' : this.sinLeer;

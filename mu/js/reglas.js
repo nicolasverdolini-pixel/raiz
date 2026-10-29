@@ -28,6 +28,13 @@ export const VEL_JUGADOR = 5.2;
 export const MAX_GRUPO = 5;
 export const BONUS_GRUPO = 0.1;          // +10% de experiencia por cada compañero
 export const DIST_GRUPO = 22;            // hay que estar cerca para compartir experiencia
+// Hermandades: se fundan en una atalaya; los hermanos que cazan cerca ganan un poco más de experiencia.
+export const HERMANDAD = {
+  nivel: 30, oro: 50000, max: 30, bonus: 0.04, bonusMax: 0.2,
+  nombreOk: /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]{1,16}[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]$/,
+  simbolos: ['✠', '☩', '⚜', '☠', '✦', '☽', '♆', '⚚', '✶', '♜'],
+  colores: ['#c0392b', '#d4a24a', '#8fb2d8', '#8fd16e', '#b07ad8', '#e8e0d0', '#e07a3a', '#5ac8b8'],
+};
 export const PUNTOS_POR_NIVEL = 5;
 export const NIVEL_MAX = 400;
 
