@@ -63,6 +63,7 @@ const chat = new Chat(o => red.mandar(o));
 const mapa = new Mapa(() => mio && {
   yo: { x: lx, z: lz, dir: ldir }, nivel: mio.nivel, atalayas: mio.atalayas || [0], lugares: mio.lugares || [],
   sendas: O.NPCS.filter(n => n.rol === 'senda'),
+  misiones: marcasMision,
   grupo: (estado?.grupo || []).map(g => entes.get(g[0])).filter(e => e && e !== yo).map(e => ({ x: pos(e).x, z: pos(e).z })),
 });
 const seleccion = new Seleccion(E, {
@@ -631,10 +632,26 @@ function datosHud() {
 }
 
 // ---------- seguimiento de misiones (arriba a la izquierda) ----------
+// A dónde ir por cada misión: la zona del monstruo, el lugar a visitar o, si ya está lista, quien la dio.
+const lugarCerca = (x, z) => { let m = null, md = 1e9; for (const l of R.MAPA.lugares) { const d = Math.hypot(l.x - x, l.z - z); if (d < md) { md = d; m = l; } } return m?.nombre || ''; };
+function destinoMision(mi, prog) {
+  const npc = MI.NPC_MISION.find(n => n.id === mi.npc);
+  if (MI.completa(mi, prog)) return npc ? { x: npc.x, z: npc.z, donde: `Volvé con ${npc.nombre}` } : null;
+  const o = mi.obj;
+  if (o.tipo === 'visitar') { const l = R.MAPA.lugares.find(x => x.nombre === o.lugar); return l ? { x: l.x, z: l.z, donde: 'Andá hasta ahí' } : null; }
+  const z = R.MONSTRUOS[o.mon]?.zona; return z ? { x: z.x, z: z.z, donde: `En ${lugarCerca(z.x, z.z)}` } : null;
+}
+let marcasMision = [];
 function actualizarSeguimiento() {
   const ms = mio?.misiones; if (!ms) return;
-  const lineas = Object.entries(ms.activas).slice(0, 3).map(([id, prog]) => { const mi = MI.MISIONES[id]; return { texto: MI.textoObjetivo(mi, prog), lista: MI.completa(mi, prog) }; });
-  for (const e of Object.values(ms.encargos || {})) if (e?.tomado && lineas.length < 4) lineas.push({ texto: `Encargo · ${R.MONSTRUOS[e.mon].nombre}: ${Math.min(e.prog, e.n)}/${e.n}`, lista: e.prog >= e.n });
+  const lineas = Object.entries(ms.activas).map(([id, prog]) => { const mi = MI.MISIONES[id], d = destinoMision(mi, prog); return { texto: MI.textoObjetivo(mi, prog), lista: MI.completa(mi, prog), nombre: mi.nombre, ...d }; });
+  for (const e of Object.values(ms.encargos || {})) {
+    if (!e?.tomado) continue;
+    const lista = e.prog >= e.n, z = R.MONSTRUOS[e.mon].zona, at = R.PUEBLOS[e.atalaya];
+    lineas.push({ texto: `Encargo · ${R.MONSTRUOS[e.mon].nombre}: ${Math.min(e.prog, e.n)}/${e.n}`, lista, nombre: 'Encargo del Tablón',
+      ...(lista ? { x: at.x, z: at.z, donde: `Cobralo en el tablón de ${at.nombre}` } : { x: z.x, z: z.z, donde: `En ${lugarCerca(z.x, z.z)}` }) });
+  }
+  marcasMision = lineas.filter(l => l.x != null);
   hud.seguimiento(lineas);
 }
 

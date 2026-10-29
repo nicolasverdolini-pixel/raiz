@@ -2,6 +2,7 @@
 import * as R from './reglas.js';
 import * as C from './clases.js';
 import { iconoHab, iconoAtaque, iconoObjeto, iconoBoton } from './iconos.js';
+import { foto, retrato } from './miniaturas.js';
 
 const IC = {
   atk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 19 19 5M14 5h5v5M4 15l5 5M7 17l-3 3"/></svg>',
@@ -38,8 +39,8 @@ export class Hud {
       </div>
       <button id="b-atk" class="hb grande" aria-label="Atacar al más cercano"><span class="ic"></span></button>
       ${[0, 1, 2, 3].map(i => `<button id="b-h${i}" class="hb hab h${i} vacia"><span class="ic"></span><em></em><b class="cd"></b><i class="mp"></i></button>`).join('')}
-      <button id="b-pot" class="hb pot" aria-label="Poción de Sangre">${iconoObjeto('pocion')}<small id="h-pot">0</small></button>
-      <button id="b-eter" class="hb eter" aria-label="Poción de Éter">${iconoObjeto('eter')}<small id="h-eter">0</small></button>
+      <button id="b-pot" class="hb pot" aria-label="Poción de Sangre"><span class="ic3">${iconoObjeto('pocion')}</span><small id="h-pot" class="cuenta">0</small></button>
+      <button id="b-eter" class="hb eter" aria-label="Poción de Éter"><span class="ic3">${iconoObjeto('eter')}</span><small id="h-eter" class="cuenta">0</small></button>
       <button id="b-puntos" class="boton-puntos" hidden>Puntos <b id="h-puntos">0</b></button>
       <div id="stick" hidden><i></i></div>
       <div id="toasts" aria-live="polite"></div>
@@ -67,10 +68,21 @@ export class Hud {
     this.habs = [];
     h.addEventListener('pointerdown', e => { if (e.target.closest('.caja, button')) e.stopPropagation(); });
     this.mini = $('#h-mini').getContext('2d');
+    $('#h-mis').addEventListener('click', () => $('#h-mis').classList.toggle('grande'));
     tocar('#h-mini', () => cb.mapa());
   }
 
-  mostrar(datos) { this.el.hidden = false; $('#h-nombre').textContent = datos.nombre; this.clase = datos.clase; $('#b-atk .ic').innerHTML = iconoAtaque(datos.clase); }
+  // Cambia los dibujos por fotos 3D cuando están listas: pociones y retrato del personaje.
+  ponerFotos() {
+    if (this.fotosOk) return;
+    const p = foto({ b: 'pocion' }), e = foto({ b: 'eter' }), r = this.clase && retrato(this.clase);
+    if (p && !this.fp) { this.fp = 1; $('#b-pot .ic3').innerHTML = `<img src="${p}" alt="">`; }
+    if (e && !this.fe) { this.fe = 1; $('#b-eter .ic3').innerHTML = `<img src="${e}" alt="">`; }
+    if (r && !this.fr) { this.fr = 1; $('#b-mochila').innerHTML = `<img src="${r}" alt="">`; }
+    this.fotosOk = this.fp && this.fe && this.fr;
+  }
+
+  mostrar(datos) { this.el.hidden = false; $('#h-nombre').textContent = datos.nombre; if (this.clase !== datos.clase) { this.fr = 0; this.fotosOk = false; $('#b-mochila').innerHTML = iconoBoton('mochila', '#5a3a20'); } this.clase = datos.clase; $('#b-atk .ic').innerHTML = iconoAtaque(datos.clase); }
 
   // Pone las habilidades aprendidas en los 4 botones.
   ponerHabilidades(d) {
@@ -99,6 +111,8 @@ export class Hud {
       b.classList.toggle('sin-mp', yo.mp < x.mp); b.classList.toggle('lista', !(cd > 0) && yo.mp >= x.mp);
     });
     $('#h-pot').textContent = yo.pociones; $('#h-eter').textContent = yo.eteres;
+    $('#b-pot').classList.toggle('sin', !yo.pociones); $('#b-eter').classList.toggle('sin', !yo.eteres);
+    this.ponerFotos();
     const libres = extra.puntosHab || 0;
     $('#b-puntos').hidden = !yo.puntos && !libres; $('#h-puntos').textContent = yo.puntos + libres;
     const bf = yo.buffs?.map(b => b[0]).join(',') || '';
@@ -180,7 +194,7 @@ export class Hud {
 
   seguimiento(lineas) {
     const k = JSON.stringify(lineas); if (k === this.misK) return; this.misK = k;
-    $('#h-mis').innerHTML = lineas.map(l => `<div class="${l.lista ? 'lista' : ''}">${l.texto}</div>`).join('');
+    $('#h-mis').innerHTML = lineas.length ? `<b class="mis-tit">Misiones <small>(tocá para ${'agrandar'})</small></b>` + lineas.map(l => `<div class="${l.lista ? 'lista' : ''}">${l.lista ? '✓ ' : '◦ '}${l.texto}${l.donde ? `<small class="donde">${l.donde}</small>` : ''}</div>`).join('') : '';
   }
 
   pedidoComercio(de, nombre) {
