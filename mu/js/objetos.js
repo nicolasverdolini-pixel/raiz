@@ -213,6 +213,7 @@ export const NPCS = ATALAYAS.flatMap((a, i) => {
     { id: 'mercader' + i, rol: 'mercader', atalaya: i, nombre: a.nombres[0], modelo: 'npc_mercader.glb', x: a.x - 4.2, z: a.z - 2.8, giro: 0.9,
       frase: i ? 'Hasta acá llegan pocos. Los que llegan, compran.' : 'La sangre se compra. La tuya también, si no te cuidás.', vende: ['pocion', 'eter', 'vela'] },
     { id: 'herrero' + i, rol: 'herrero', atalaya: i, nombre: a.nombres[1], modelo: 'npc_herrero.glb', x: a.x + 4.4, z: a.z - 2.4, giro: -0.9,
+      frase: i ? 'Acá el hierro es mejor. Y más caro. Lo vale.' : 'El hierro no miente. Las gemas sí, a veces.', vende: equipoDeTier(a.tier), forja: true },
   ];
   lista.push({ id: 'baul' + i, rol: 'baul', atalaya: i, nombre: 'Baúl de la cuenta', x: a.x + 1.8, z: a.z + 1.6, giro: 0.6, frase: 'Lo que guardes acá lo ven todos tus personajes.' });
   lista.push({ id: 'tablon' + i, rol: 'tablon', atalaya: i, nombre: 'Tablón de Encargos', x: a.x - 2.6, z: a.z + 3.4, giro: 2.4, frase: 'Pedidos clavados con cuchillo. Siempre hay uno nuevo.' });
