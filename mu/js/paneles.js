@@ -10,7 +10,7 @@ import * as SND from './sonido.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const NOMBRE_STAT = { fue: 'Fuerza', agi: 'Agilidad', vit: 'Vitalidad', ene: 'Energía' };
+const NOMBRE_STAT = { fue: 'Fuerza', agi: 'Agilidad', vit: 'Vitalidad', ene: 'Energía', sue: 'Suerte', tem: 'Temple' };
 const RANGO = ['comun', 'exc', 'leg', 'mit'];
 export const claseObjeto = it => (it ? 'r-' + RANGO[O.BASES[it.b]?.ala || O.rareza(it)] + ((it.n || 0) >= 7 ? ' alto' : '') : '');
 
@@ -207,7 +207,7 @@ export class Paneles {
 
   htmlAtributos(d) {
     const v = d.der || {};
-    return `<p class="nota">Puntos para repartir: <b>${d.puntos}</b> (5 por nivel).</p>${R.STATS.map(s => `<div class="stat"><span>${R.NOMBRE_STAT[s]}<small>${R.explicaStat(s, C.CLASES[d.clase].atributo)}</small></span><b>${d[s]}</b>
+    return `<p class="nota">Puntos para repartir: <b>${d.puntos}</b> (${R.PUNTOS_POR_NIVEL} por nivel).</p>${R.STATS.map(s => `<div class="stat"><span>${R.NOMBRE_STAT[s]}<small>${R.explicaStat(s, C.CLASES[d.clase].atributo)}</small></span><b>${d[s]}</b>
       <button class="mas" data-s="${s}" data-n="1" ${d.puntos ? '' : 'disabled'}>+1</button><button class="mas" data-s="${s}" data-n="5" ${d.puntos >= 5 ? '' : 'disabled'}>+5</button></div>`).join('')}
       <div class="fila-oro"><span class="nota">¿Te equivocaste? Podés devolver todos los puntos y repartirlos de nuevo.</span><button class="btn chico sec" id="p-redis">Redistribuir (${R.costoRedistribuir(d) ? R.costoRedistribuir(d).toLocaleString('es-AR') + ' de oro' : 'gratis la primera vez'})</button></div>
       <div class="totales"><span>Daño <b>${v.dmin}–${v.dmax}</b></span><span>Defensa <b>${v.def}</b></span><span>Vida <b>${v.maxHp}</b></span><span>Energía <b>${v.maxMp}</b></span><span>Crítico <b>${v.crit}%</b></span><span>Daño crítico <b>+${v.critDano || 50}%</b></span></div>

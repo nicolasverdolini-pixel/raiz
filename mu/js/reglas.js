@@ -1,7 +1,7 @@
 // Reglas compartidas entre el celu y el servidor: números del juego, monstruos, mapa.
 // Si cambiás un número acá, cambia en los dos lados (el servidor es el que manda).
 
-export const VERSION = 1;
+export const VERSION = 2;
 export const TICK = 0.1;                 // el servidor actualiza 10 veces por segundo
 export const MUNDO = 125;                // el mapa va de -125 a 125
 // Atalayas: pueblos seguros (los monstruos no entran). Se viaja entre las que ya visitaste.
@@ -44,19 +44,20 @@ export const HERMANDAD = {
   simbolos: ['✠', '☩', '⚜', '☠', '✦', '☽', '♆', '⚚', '✶', '♜'],
   colores: ['#c0392b', '#d4a24a', '#8fb2d8', '#8fd16e', '#b07ad8', '#e8e0d0', '#e07a3a', '#5ac8b8'],
 };
-export const PUNTOS_POR_NIVEL = 5;
+export const PUNTOS_POR_NIVEL = 6;
 export const NIVEL_MAX = 400;
 
 // ---------- Personaje ----------
 import { CLASES, ARBOL, calcular } from './clases.js';
-import { MOCHILA } from './objetos.js';
-export const STATS = ['fue', 'agi', 'vit', 'ene'];
-export const NOMBRE_STAT = { fue: 'Fuerza', agi: 'Agilidad', vit: 'Vitalidad', ene: 'Energía' };
+import { MOCHILA, BASES } from './objetos.js';
+export const STATS = ['fue', 'agi', 'vit', 'ene', 'sue', 'tem'];
+export const NOMBRE_STAT = { fue: 'Fuerza', agi: 'Agilidad', vit: 'Vitalidad', ene: 'Energía', sue: 'Suerte', tem: 'Temple' };
 // Qué hace cada atributo para TU clase: solo uno sube el daño (el de tu arma).
 // Redistribuir atributos: la primera vez es gratis, después cuesta según el nivel.
 export const costoRedistribuir = d => (d.redistrib ? Math.max(1000, d.nivel * 400) : 0);
 export function explicaStat(s, atributo) {
-  const base = { fue: 'La piden los escudos y las armas de fuerza.', agi: 'Pegás más rápido y defendés más.', vit: 'Más vida y algo de defensa. La piden las armaduras.', ene: 'Más energía para las habilidades.' }[s];
+  const base = { fue: 'La piden los escudos y las armas de fuerza.', agi: 'Pegás más rápido y defendés más.', vit: 'Más vida y algo de defensa. La piden las armaduras.', ene: 'Más energía para las habilidades.',
+    sue: 'Más golpes críticos, críticos más fuertes y más oro. Sirve a todas las clases.', tem: 'Resistencia a fuego, hielo, rayo, veneno y sombra, y la vida vuelve más rápido. Sirve a todas las clases.' }[s];
   return s === atributo ? `<b class="principal">Tu daño sale de acá.</b> ${base}` : s === 'fue' ? 'A tu clase no le sirve: no sube tu daño ni la pide tu equipo.' : base;
 }
 
@@ -79,6 +80,13 @@ export function normalizar(d, nuevo) {
   if (!d.lugares) d.lugares = ['Atalaya del Farol'];
   if (!d.atalayas) d.atalayas = [0];
   if (!d.misiones) d.misiones = { activas: {}, hechas: [], encargos: {} };
+  // Versión 2: Suerte y Temple, y un punto más por nivel (se devuelve el de los niveles ya hechos).
+  if ((d.version || 1) < 2) {
+    const b = CLASES[d.clase].base;
+    if (d.sue == null) d.sue = b.sue; if (d.tem == null) d.tem = b.tem;
+    if (!nuevo) d.puntos = (d.puntos || 0) + Math.max(0, d.nivel - 1);
+    d.version = 2;
+  }
   return d;
 }
 
@@ -397,3 +405,45 @@ export function enCamino(x, z) {
 
 // Tipos de golpe: 0 normal, 1 crítico, 2 excelente, 3 habilidad, 4 recibido.
 export const GOLPE = { NORMAL: 0, CRITICO: 1, EXCELENTE: 2, HABILIDAD: 3 };
+
+// ---------- Equilibrio de dificultad ----------
+// La vida y el daño de cada monstruo se calculan contra un personaje de referencia de su nivel (equipo de esa época,
+// algo forjado, puntos repartidos con sentido), para que en cualquier región un monstruo común muera en unos segundos
+// y te dure lo mismo. Cada monstruo conserva su carácter: los que eran más duros o más dañinos que sus vecinos lo siguen siendo.
+{
+  const REQS = [1, 10, 24, 38, 55, 80, 115], SET = ['cuero', 'vigia', 'osario', 'foso', 'velo', 'escoria', 'rey'];
+  const ref = (clase, L) => {
+    const c = CLASES[clase], d = { clase, nivel: L, ...c.base, puntos: 0 }, pts = (L - 1) * PUNTOS_POR_NIVEL;
+    d[c.atributo] += Math.round(pts * 0.55); d.vit += Math.round(pts * 0.3); d.sue += Math.round(pts * 0.1); d.tem += Math.round(pts * 0.05);
+    let t = 0; REQS.forEach((r, i) => { if (L >= r) t = i; });
+    const arma = Object.values(BASES).find(b => b.r === 'arma' && b.clase === clase && b.req === REQS[t]);
+    d.equipo = { arma: { b: arma.id, n: Math.min(9, 2 + t) } };
+    for (const r of ['casco', 'armadura', 'guantes', 'botas']) d.equipo[r] = { b: `${r}_${SET[t]}`, n: Math.min(7, 1 + t) };
+    return calcular(d);
+  };
+  const cache = {};
+  const medio = L => cache[L] || (cache[L] = (() => {
+    const vs = ['guardian', 'arcanista', 'cazadora'].map(c => ref(c, L));
+    const prom = k => vs.reduce((a, v) => a + k(v), 0) / vs.length;
+    return { dano: prom(v => (v.dmin + v.dmax) / 2 * (1 + v.crit / 100 * v.critDano / 100) * 1.6 / v.cadencia), dmg: prom(v => (v.dmin + v.dmax) / 2), hp: prom(v => v.maxHp), def: prom(v => v.def) };
+  })());
+  const SEG_MATAR = nv => 2 + 2.5 * Math.min(1, nv / 100);          // de 2 s al principio a 4,5 s arriba (con habilidades, menos)
+  const SEG_AGUANTAR = nv => 60 - 35 * Math.min(1, nv / 60);        // de 60 s al principio a 25 s desde el nivel 60
+  const comunes = Object.entries(MONSTRUOS).filter(([, m]) => !m.jefe && !m.soloEvento);
+  const vecinos = m => comunes.map(([, x]) => x).filter(x => Math.abs(x.nivel - m.nivel) <= 8);
+  const mediana = a => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+  const caracter = {};
+  for (const [k, m] of comunes) {
+    const v = vecinos(m), fh = m.hp / mediana(v.map(x => x.hp)), fd = (m.dano[0] + m.dano[1]) / mediana(v.map(x => x.dano[0] + x.dano[1]));
+    caracter[k] = { hp: Math.max(0.6, Math.min(1.6, fh)), dano: Math.max(0.7, Math.min(1.4, fd)) };
+  }
+  const poner = (m, kHp, kDano) => {
+    const R0 = medio(Math.min(160, m.nivel + 2)), cad = m.cadencia || 1.5;
+    m.hp = Math.round(R0.dano * SEG_MATAR(m.nivel) * kHp / 10) * 10 + Math.round(m.def * 0.5 * 4);
+    const golpe = (R0.hp / SEG_AGUANTAR(m.nivel)) * cad * kDano + R0.def * 0.5, r = m.dano[1] / m.dano[0];
+    m.dano = [Math.round(golpe * 2 / (1 + r)), Math.round(golpe * 2 * r / (1 + r))];
+  };
+  for (const [k, m] of comunes) poner(m, caracter[k].hp, caracter[k].dano);
+  // Jefes: pensados para un grupo. Mucha más vida y pegan como dos monstruos y medio.
+  for (const m of Object.values(MONSTRUOS)) if (m.jefe) poner(m, m.soloEvento ? 40 : 28, 2.5);
+}

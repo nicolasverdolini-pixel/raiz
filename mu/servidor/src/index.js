@@ -1043,7 +1043,7 @@ export class Mapa extends DurableObject {
       if (dd > (d.oro && p.der.junta ? 7 : 1.5)) continue;
       const mio = !d.dueno || d.t > 15 || d.dueno === 'p' + p.id || d.dueno === 'g' + p.grupo;
       if (!mio) continue;
-      if (d.oro) { if (dd > 1.5) this.ev.push(['junta', p.id, r2(d.x), r2(d.z)]); d.oro = Math.round(d.oro * (1 + (p.der.oroPct || 0) / 100)); p.d.oro += d.oro; p.cambioInv = true; p.priv.push(['oro', d.oro]); this.drops.delete(d.id); continue; }
+      if (d.oro) { if (dd > 1.5) this.ev.push(['junta', p.id, r2(d.x), r2(d.z)]); d.oro = Math.round(d.oro * (1 + ((p.der.oroPct || 0) + (p.der.oroSuerte || 0)) / 100)); p.d.oro += d.oro; p.cambioInv = true; p.priv.push(['oro', d.oro]); this.drops.delete(d.id); continue; }
       if (this.agregar(p, { ...d.item })) {
         this.drops.delete(d.id); p.priv.push(['recoge', O.nombreObjeto(d.item), O.rareza(d.item)]);
         const ra = O.rareza(d.item);
@@ -1443,7 +1443,7 @@ export class Mapa extends DurableObject {
         if (p.veneno && p.veneno.t <= 0) p.veneno = null;
         if (p.muerto) continue;
       }
-      p.hp = Math.min(p.der.maxHp, p.hp + p.der.maxHp * (enPueblo(p) ? 0.04 : 0.005) * dt);
+      p.hp = Math.min(p.der.maxHp, p.hp + p.der.maxHp * (enPueblo(p) ? 0.04 : p.der.regenVida || 0.005) * dt);
       p.mp = Math.min(p.der.maxMp, p.mp + (enPueblo(p) ? 6 : p.der.regenMp) * dt);
       p.cdAtk -= dt;
       if (p.objetivoJ) {
