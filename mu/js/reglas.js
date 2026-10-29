@@ -416,7 +416,7 @@ export const GOLPE = { NORMAL: 0, CRITICO: 1, EXCELENTE: 2, HABILIDAD: 3 };
     const c = CLASES[clase], d = { clase, nivel: L, ...c.base, puntos: 0 }, pts = (L - 1) * PUNTOS_POR_NIVEL;
     d[c.atributo] += Math.round(pts * 0.55); d.vit += Math.round(pts * 0.3); d.sue += Math.round(pts * 0.1); d.tem += Math.round(pts * 0.05);
     let t = 0; REQS.forEach((r, i) => { if (L >= r) t = i; });
-    const arma = Object.values(BASES).find(b => b.r === 'arma' && b.clase === clase && b.req === REQS[t]);
+    const arma = BASES[c.arma + (t + 1)];
     d.equipo = { arma: { b: arma.id, n: Math.min(9, 2 + t) } };
     for (const r of ['casco', 'armadura', 'guantes', 'botas']) d.equipo[r] = { b: `${r}_${SET[t]}`, n: Math.min(7, 1 + t) };
     return calcular(d);

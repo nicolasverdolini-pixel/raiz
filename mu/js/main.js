@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import * as R from './reglas.js';
 import { cargarTodo, crear, VISUAL } from './modelos.js';
 import { crearAlas, animarAlas } from './alas.js';
+import { vestir } from './vestir.js';
 import { Mapa } from './mapa.js';
 import { foto as fotoObjeto } from './miniaturas.js';
 import { crearEscena } from './escena.js';
@@ -218,7 +219,7 @@ function entrarSeleccion(m) {
 function foto(s) {
   if (!mio) return;
   const ahora = performance.now();
-  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl, clase, brillo, herm, mascota, montura, alas] of s.j) {
+  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl, clase, brillo, herm, mascota, montura, alas, vista] of s.j) {
     const muralla = fl & 1, veneno = fl & 2;
     let e = entes.get(id);
     if (e && e.tipo !== clase && VISUAL[clase]) { quitarEnte(id); e = null; }
@@ -228,6 +229,7 @@ function foto(s) {
     if ((mascota || null) !== (e.mascotaB || null)) ponerMascota(e, mascota);
     if ((montura || null) !== (e.monturaB || null)) ponerMontura(e, montura);
     if ((alas || 0) !== (e.alasN || 0)) ponerAlas(e, alas || 0);
+    if (vista && vista !== e.vista) { e.vista = vista; const [casco, armadura, guantes, botas, arma, escudo] = vista.split(',').map(Number); e.vis.alCambiarArma = () => brillarArma(e); vestir(e.vis, e.tipo, { casco, armadura, guantes, botas, arma, escudo }); }
     if (id !== yoId) { e.buf.push({ t: ahora, x, z, dir }); if (e.buf.length > 30) e.buf.shift(); }
     if (st === 4 && !e.muerto) morir(e);
   }

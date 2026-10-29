@@ -101,6 +101,14 @@ export function efectoGema(g, enArma) {
   return enArma ? { elem: { [b.elem]: 10 } } : { res: { [b.elem]: 12 } };
 }
 export const BASES = B;
+// Nivel visual de lo que tiene puesto (0 = Cuero / nivel 1 ... 6 = Último Rey), para vestir al personaje. -1 = nada.
+const SETS_VIS = ['cuero', 'vigia', 'osario', 'foso', 'velo', 'escoria', 'rey'];
+export function nivelVisual(it) {
+  const b = it && B[it.b]; if (!b?.r || b.especial) return -1;
+  if (b.r === 'arma' || b.r === 'escudo') return (+it.b.match(/(\d+)$/)?.[1] || 1) - 1;
+  return SETS_VIS.indexOf(it.b.split('_')[1]);
+}
+export const vistaEquipo = eq => ['casco', 'armadura', 'guantes', 'botas', 'arma', 'escudo'].map(r => nivelVisual(eq?.[r])).join(',');
 export const esEquipo = b => !!BASES[b]?.r;
 export const forjable = b => esEquipo(b) && !BASES[b].especial;
 export const puedeUsar = (b, clase) => !BASES[b]?.clase || BASES[b].clase === clase;
@@ -205,7 +213,6 @@ export const NPCS = ATALAYAS.flatMap((a, i) => {
     { id: 'mercader' + i, rol: 'mercader', atalaya: i, nombre: a.nombres[0], modelo: 'npc_mercader.glb', x: a.x - 4.2, z: a.z - 2.8, giro: 0.9,
       frase: i ? 'Hasta acá llegan pocos. Los que llegan, compran.' : 'La sangre se compra. La tuya también, si no te cuidás.', vende: ['pocion', 'eter', 'vela'] },
     { id: 'herrero' + i, rol: 'herrero', atalaya: i, nombre: a.nombres[1], modelo: 'npc_herrero.glb', x: a.x + 4.4, z: a.z - 2.4, giro: -0.9,
-      frase: i ? 'Acá el hierro es mejor. Y más caro. Lo vale.' : 'El hierro no miente. Las gemas sí, a veces.', vende: equipoDeTier(a.tier), forja: true },
   ];
   lista.push({ id: 'baul' + i, rol: 'baul', atalaya: i, nombre: 'Baúl de la cuenta', x: a.x + 1.8, z: a.z + 1.6, giro: 0.6, frase: 'Lo que guardes acá lo ven todos tus personajes.' });
   lista.push({ id: 'tablon' + i, rol: 'tablon', atalaya: i, nombre: 'Tablón de Encargos', x: a.x - 2.6, z: a.z + 3.4, giro: 2.4, frase: 'Pedidos clavados con cuchillo. Siempre hay uno nuevo.' });
