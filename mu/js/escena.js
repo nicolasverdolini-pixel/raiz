@@ -42,6 +42,7 @@ export function crearEscena(canvas) {
   const ceniza = crearCeniza(scene);
   crearPozo(scene);
   const bastion = crearBastion(scene);
+  const campos = crearCampamentos(scene);
   const foso = new THREE.PointLight('#ff2a14', 18, 30, 1.5); foso.position.set(L('Foso del Éter').x, 3, L('Foso del Éter').z); scene.add(foso);
   const hemi = scene.children.find(o => o.isHemisphereLight);
   // Ambiente según el evento: normal, marea (ceniza azul) o noche roja (niebla de sangre).
@@ -70,7 +71,7 @@ export function crearEscena(canvas) {
     scene.fog.color.copy(cN); scene.background.copy(cN); hemi.color.copy(cC); ceniza.mat.color.copy(cA);
     cripta.fuego.intensity = 9 + Math.sin(t * 6) * 2; foso.intensity = 16 + Math.sin(t * 3) * 4;
   }
-  return { renderer, efecto, scene, camara, terreno, terrenos, actualizar, movil, ambiente, bastion, poblar: () => poblar(scene) };
+  return { renderer, efecto, scene, camara, terreno, terrenos, actualizar, movil, ambiente, bastion, campos, poblar: () => poblar(scene) };
 }
 
 // ---------- terreno ----------
@@ -268,6 +269,46 @@ function crearPozo(scene) {
     if (k % 2 === 0) { const f = new THREE.Mesh(new THREE.OctahedronGeometry(0.25, 0), sinBorde(new THREE.MeshBasicMaterial({ color: '#ff4a2a' }))); f.position.set(pil.position.x, h + 0.3, pil.position.z); g.add(f); }
   }
   const luz = new THREE.PointLight('#ff3a1a', 30, 40, 1.4); luz.position.set(0, 8, 0); g.add(luz);
+}
+
+// ---------- Campamentos: carpas, fogón y un santuario que brilla si está listo ----------
+function crearCampamentos(scene) {
+  const tela = sinBorde(new THREE.MeshStandardMaterial({ color: '#5a4636', roughness: 1, flatShading: true }));
+  const palo = sinBorde(new THREE.MeshStandardMaterial({ color: '#2e241c', roughness: 1 }));
+  const piedra = sinBorde(new THREE.MeshStandardMaterial({ color: '#6a645c', roughness: 1, flatShading: true }));
+  const brasa = sinBorde(new THREE.MeshBasicMaterial({ color: '#ff7a2a' }));
+  const lista = R.CAMPAMENTOS.map((c, i) => {
+    const rnd = R.azar(100 + i), g = new THREE.Group(); g.position.set(c.x, R.altura(c.x, c.z), c.z); scene.add(g);
+    for (let k = 0; k < 2 + (i % 2); k++) {
+      const a = rnd() * 6.3, r = 4 + rnd() * 2.5;
+      const carpa = new THREE.Mesh(new THREE.ConeGeometry(1.5 + rnd() * 0.4, 2 + rnd() * 0.5, 4), tela);
+      carpa.position.set(Math.cos(a) * r, 0.95, Math.sin(a) * r); carpa.rotation.y = rnd() * 3; carpa.rotation.z = (rnd() - 0.5) * 0.25; carpa.castShadow = true; g.add(carpa);
+    }
+    for (let k = 0; k < 7; k++) { const a = k / 7 * 6.3, p = new THREE.Mesh(new THREE.DodecahedronGeometry(0.22, 0), piedra); p.position.set(Math.cos(a) * 0.7, 0.1, Math.sin(a) * 0.7); g.add(p); }
+    const fuego = new THREE.Mesh(new THREE.OctahedronGeometry(0.35, 0), brasa); fuego.position.y = 0.45; fuego.scale.y = 1.6; g.add(fuego);
+    const est = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.4, 5), palo); est.position.set(-2.2, 1.7, -1.5); g.add(est);
+    const bandera = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.4), sinBorde(new THREE.MeshStandardMaterial({ color: '#4a1410', side: THREE.DoubleSide, roughness: 1 })));
+    bandera.position.set(-1.65, 2.6, -1.5); g.add(bandera);
+    // Santuario: obelisco con una runa del color de su bendición.
+    const S = R.SANTUARIOS[c.santuario], sx = c.sx - c.x, sz = c.sz - c.z;
+    const obe = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.55, 2.4, 4), piedra); obe.position.set(sx, 1.2, sz); obe.castShadow = true; g.add(obe);
+    const runa = new THREE.Mesh(new THREE.OctahedronGeometry(0.32, 0), sinBorde(new THREE.MeshStandardMaterial({ color: S.color, emissive: S.color, emissiveIntensity: 1.5 })));
+    runa.position.set(sx, 2.9, sz); g.add(runa);
+    const aro = new THREE.Mesh(new THREE.RingGeometry(1.6, 1.9, 24), sinBorde(new THREE.MeshBasicMaterial({ color: S.color, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false })));
+    aro.rotation.x = -Math.PI / 2; aro.position.set(sx, 0.06, sz); g.add(aro);
+    return { fuego, runa, aro, bandera };
+  });
+  return {
+    actualizar(t, listos) {
+      lista.forEach((c, i) => {
+        c.fuego.scale.set(1 + Math.sin(t * 9 + i) * 0.12, 1.6 + Math.sin(t * 13 + i) * 0.25, 1);
+        c.bandera.rotation.y = Math.sin(t * 1.3 + i) * 0.25;
+        const ok = !listos || listos[i];
+        c.runa.position.y = ok ? 2.9 + Math.sin(t * 2 + i) * 0.15 : 2.5; c.runa.rotation.y = t * (ok ? 1.5 : 0.2);
+        c.runa.material.emissiveIntensity = ok ? 1.5 : 0.1; c.aro.visible = ok;
+      });
+    },
+  };
 }
 
 // ---------- Bastión Caído: arena de las hermandades ----------

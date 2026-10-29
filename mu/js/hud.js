@@ -37,7 +37,7 @@ export class Hud {
         <div class="orbe mana"><i id="h-mana"></i><span id="h-mana-n"></span></div>
       </div>
       <button id="b-atk" class="hb grande" aria-label="Atacar al más cercano"><span class="ic"></span></button>
-      ${[0, 1, 2, 3].map(i => `<button id="b-h${i}" class="hb hab h${i}" hidden><span class="ic"></span><em></em><i class="nom"></i></button>`).join('')}
+      ${[0, 1, 2, 3].map(i => `<button id="b-h${i}" class="hb hab h${i} vacia"><span class="ic"></span><em></em><b class="cd"></b><i class="mp"></i></button>`).join('')}
       <button id="b-pot" class="hb pot" aria-label="Poción de Sangre">${iconoObjeto('pocion')}<small id="h-pot">0</small></button>
       <button id="b-eter" class="hb eter" aria-label="Poción de Éter">${iconoObjeto('eter')}<small id="h-eter">0</small></button>
       <button id="b-puntos" class="boton-puntos" hidden>Puntos <b id="h-puntos">0</b></button>
@@ -51,7 +51,15 @@ export class Hud {
     this.el = h;
     const tocar = (id, f) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); f(); });
     tocar('#b-atk', () => cb.atacar());
-    [0, 1, 2, 3].forEach(i => tocar('#b-h' + i, () => { if (this.habs[i]) cb.hab(this.habs[i].id); }));
+    [0, 1, 2, 3].forEach(i => tocar('#b-h' + i, () => {
+      const h = this.habs[i], b = $('#b-h' + i);
+      if (!h) return cb.personaje('habilidades');
+      if ((this.yo?.cds?.[h.id] || 0) > 0) return;
+      if (this.yo && this.yo.mp < h.mp) { b.classList.remove('falta'); void b.offsetWidth; b.classList.add('falta'); return this.toast('No te alcanza la energía.'); }
+      b.classList.remove('usa'); void b.offsetWidth; b.classList.add('usa');
+      cb.hab(h.id);
+    }));
+    tocar('#b-atk', () => { const b = $('#b-atk'); b.classList.remove('usa'); void b.offsetWidth; b.classList.add('usa'); });
     tocar('#b-pot', () => cb.pocion());
     tocar('#b-eter', () => cb.eter());
     tocar('#b-puntos', () => cb.personaje('atributos'));
@@ -59,6 +67,7 @@ export class Hud {
     this.habs = [];
     h.addEventListener('pointerdown', e => { if (e.target.closest('.caja, button')) e.stopPropagation(); });
     this.mini = $('#h-mini').getContext('2d');
+    tocar('#h-mini', () => cb.mapa());
   }
 
   mostrar(datos) { this.el.hidden = false; $('#h-nombre').textContent = datos.nombre; this.clase = datos.clase; $('#b-atk .ic').innerHTML = iconoAtaque(datos.clase); }
@@ -69,10 +78,11 @@ export class Hud {
     this.habs = ids.map(id => C.buscarHab(d.clase, id));
     [0, 1, 2, 3].forEach(i => {
       const b = $('#b-h' + i), h = this.habs[i];
-      b.hidden = !h; if (!h) return;
+      b.classList.toggle('vacia', !h);
+      if (!h) { b.dataset.h = ''; b.querySelector('.ic').innerHTML = '<span class="mas">+</span>'; b.querySelector('.mp').textContent = ''; b.setAttribute('aria-label', 'Lugar libre: aprendé una habilidad'); return; }
       b.setAttribute('aria-label', h.nombre); b.classList.toggle('def', !!h.def);
       if (b.dataset.h !== h.id) { b.dataset.h = h.id; b.querySelector('.ic').innerHTML = iconoHab(d.clase, h.id); }
-      b.querySelector('.nom').textContent = h.nombre;
+      b.querySelector('.mp').textContent = h.mp || '';
     });
   }
 
@@ -85,7 +95,8 @@ export class Hud {
     this.habs.forEach((x, i) => {
       const b = $('#b-h' + i), cd = yo.cds[x.id] || 0;
       b.querySelector('em').style.setProperty('--k', cd > 0 ? cd / x.cd : 0);
-      b.classList.toggle('sin-mp', yo.mp < x.mp);
+      b.querySelector('.cd').textContent = cd > 0 ? (cd < 1 ? cd.toFixed(1) : Math.ceil(cd)) : '';
+      b.classList.toggle('sin-mp', yo.mp < x.mp); b.classList.toggle('lista', !(cd > 0) && yo.mp >= x.mp);
     });
     $('#h-pot').textContent = yo.pociones; $('#h-eter').textContent = yo.eteres;
     const libres = extra.puntosHab || 0;

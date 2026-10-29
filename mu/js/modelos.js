@@ -25,7 +25,7 @@ export const VISUAL = {
   nigromante: { archivo: 'nigromante.glb', tam: 1.9, arma: 'baculo_hueso.glb', tinte: '#7a8a6a', anims: { idle: 'Idle', run: 'Running_A', atk: 'Spellcast_Shoot', hechizo: 'Spellcast_Shoot', hechizo2: 'Spellcast_Long',
                invoca: 'Spellcast_Summon', festeja: 'Spellcast_Raise', hit: 'Hit_A', muere: 'Death_A', pot: 'Use_Item' } },
   desterrado: { archivo: 'engendro.glb', tam: 2.1, tinte: '#3a2e3e', anims: { idle: 'Idle', run: 'Run', atk: 'Punch', puno: 'Weapon', festeja: 'Wave', hit: 'HitReact', muere: 'Death', pot: 'Wave' } },
-  siervo:    { archivo: 'huesudo.glb', tam: 1.6, arma: 'hoja_hueso.glb', tinte: '#6a8a5a', anims: { idle: 'Idle', run: 'Walking_D_Skeletons', atk: '1H_Melee_Attack_Chop', muere: 'Death_C_Skeletons', nace: 'Spawn_Ground_Skeletons' } },
+  siervo:    { archivo: 'centinela.glb', tam: 1.6, arma: 'hoja_hueso.glb', tinte: '#6a8a5a', anims: { idle: 'Idle_Combat', run: 'Running_C', atk: '1H_Melee_Attack_Chop', muere: 'Death_C_Skeletons', nace: 'Spawn_Ground_Skeletons' } },
   npc_mercader: { archivo: 'npc_mercader.glb', tam: 1.8, tinte: '#5a4a3a', anims: { idle: 'Idle', saluda: 'Interact' } },
   npc_herrero:  { archivo: 'npc_herrero.glb', tam: 2.0, tinte: '#6a4a30', anims: { idle: 'Idle', saluda: 'Cheer' } },
   npc_vidente:  { archivo: 'npc_vidente.glb', tam: 1.9, tinte: '#3a2a4a', anims: { idle: 'Idle', saluda: 'Interact' } },

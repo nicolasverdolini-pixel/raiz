@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import * as R from './reglas.js';
 import { cargarTodo, crear, VISUAL } from './modelos.js';
 import { crearAlas, animarAlas } from './alas.js';
+import { Mapa } from './mapa.js';
+import { foto as fotoObjeto } from './miniaturas.js';
 import { crearEscena } from './escena.js';
 import { crearEfectos } from './efectos.js';
 import { Red } from './red.js';
@@ -48,6 +50,7 @@ const hud = new Hud({
   lideroHerm: () => paneles.herm?.lider === mio?.nombre,
   invitarHerm: id => red.mandar({ t: 'herm', a: 'inv', id }),
   aceptarHerm: h => red.mandar({ t: 'herm', a: 'acepta', h }),
+  mapa: () => (mapa.abierto() ? mapa.cerrar() : mapa.abrir()),
   dejarBastion: () => { if (confirm('¿Dejar el Bastión? Volvés a la Atalaya del Farol.')) red.mandar({ t: 'bastion', a: 'salir' }); },
 });
 const npcCerca = id => { const n = O.NPCS.find(x => x.id === id) || MI.NPC_MISION.find(x => x.id === id); return n && Math.hypot(lx - n.x, lz - n.z) < O.DIST_NPC + 1; };
@@ -57,6 +60,11 @@ const paneles = new Paneles({
   comerciando: () => !!paneles.com, ofrecido: i => !!paneles.com?.mio.items.some(o => o.i === i),
 });
 const chat = new Chat(o => red.mandar(o));
+const mapa = new Mapa(() => mio && {
+  yo: { x: lx, z: lz, dir: ldir }, nivel: mio.nivel, atalayas: mio.atalayas || [0], lugares: mio.lugares || [],
+  sendas: O.NPCS.filter(n => n.rol === 'senda'),
+  grupo: (estado?.grupo || []).map(g => entes.get(g[0])).filter(e => e && e !== yo).map(e => ({ x: pos(e).x, z: pos(e).z })),
+});
 const seleccion = new Seleccion(E, {
   jugar: nombre => red.jugar(nombre),
   crear: (nombre, clase) => red.crearPj(nombre, clase),
@@ -247,6 +255,7 @@ function foto(s) {
   if (s.mis) { mio.misiones = s.mis; actualizarSeguimiento(); if (['misionNpc', 'tablon'].includes(paneles.abierto?.f) || paneles.abierto?.args[0] === 'misiones') paneles.refrescar(); }
   if (s.inv) { Object.assign(mio, s.inv); mio.der = s.inv.der; hud.ponerHabilidades(mio); paneles.refrescar(); }
   actualizarDrops(s.d || []);
+  if (s.sa) santuariosListos = s.sa;
   for (const ev of s.ev) evento(ev);
   estado = s.yo; mio.nivel = s.yo.nivel; mio.puntos = s.yo.puntos; for (const k of R.STATS) mio[k] = s.yo[k];
   const evt = s.yo.evt; E.ambiente(evt && evt[0][0] !== '-' ? evt[0] : 'normal');
@@ -332,6 +341,7 @@ function evento(ev) {
   else if (tipo === 'forja') { SND.sfx.forja(a === 'ok'); hud.toast(b, a === 'ok' ? 'grande' : 'malo'); const n = rolCerca('herrero') || { x: lx, z: lz }; if (a === 'ok') FX.nivel(n.x, 0, n.z); else FX.chispas(n.x, 1.2, n.z, a === 'roto' ? '#ff3b2a' : '#8c7f6a', 30); }
   else if (tipo === 'fx') {
     const y = R.altura(b, c);
+    if (a === 'santuario') { const S = R.SANTUARIOS[R.CAMPAMENTOS[d]?.santuario]; FX.nivel(b, y, c); FX.chispas(b, y + 2.5, c, S?.color || '#fff', 30); SND.sfx.nivel(); }
     if (a === 'alas') { FX.nivel(b, y, c); FX.chispas(b, y + 1.6, c, ['#bbb2a8', '#ff3020', '#ffb030'][d - 1] || '#fff', 50); }
     if (a === 'hielo') { FX.golpeSuelo(b, y, c, '#9fd8ff'); FX.chispas(b, y + 0.5, c, '#bfe8ff', 30); }
     else if (a === 'lluvia') FX.golpeSuelo(b, y, c, '#c9b47a');
@@ -352,6 +362,7 @@ addEventListener('keydown', e => {
   if (e.key === ' ') { e.preventDefault(); atacarCercano(); }
   if (['1', '2', '3', '4'].includes(e.key)) { const h = hud.habs[+e.key - 1]; if (h) usarHabilidad(h.id); }
   if (e.key.toLowerCase() === 'q') red.mandar({ t: 'pot' });
+  if (e.key.toLowerCase() === 'm') { if (mapa.abierto()) mapa.cerrar(); else mapa.abrir(); }
   if (e.key.toLowerCase() === 'p') paneles.personaje('atributos');
   if (e.key.toLowerCase() === 'i') paneles.personaje('equipo');
   if (e.key.toLowerCase() === 'k') paneles.personaje('habilidades');
@@ -436,6 +447,7 @@ function usarHabilidad(id) {
   } else red.mandar({ t: 'hab', h: id });
 }
 
+let santuariosListos = null;
 // ---------- mi movimiento ----------
 let yoCorre = false;
 function moverme(dt) {
@@ -662,11 +674,20 @@ function brillarArma(e) {
 // ---------- objetos en el piso ----------
 const geoMoneda = new THREE.CylinderGeometry(0.16, 0.16, 0.05, 10), geoObjeto = new THREE.OctahedronGeometry(0.2, 0);
 const geoRayo = new THREE.CylinderGeometry(0.05, 0.05, 2.6, 6, 1, true);
+// Los equipos tirados se ven con su foto (la misma de la mochila), flotando y del color de su calidad.
+function ponerFotoDrop(dd) {
+  const url = fotoObjeto(dd.item); if (!url) return;
+  const tex = new THREE.TextureLoader().load(url); tex.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sp.material.userData.outlineParameters = { visible: false };
+  sp.scale.setScalar(1.15); sp.position.y = 0.45; dd.obj.add(sp); dd.sprite = sp;
+  const viejo = dd.obj.children[0]; if (viejo?.geometry === geoObjeto) viejo.scale.setScalar(0.45);
+}
 function actualizarDrops(lista) {
   const vistos = new Set();
   for (const [id, x, z, b, n, exc] of lista) {
     vistos.add(id);
-    if (drops.has(id)) continue;
+    if (drops.has(id)) { const dd = drops.get(id); if (dd.item && !dd.sprite) ponerFotoDrop(dd); continue; }
     const g = new THREE.Group(); g.position.set(x, R.altura(x, z) + 0.25, z);
     const esOro = b === 'oro', base = O.BASES[b];
     const color = esOro ? '#e6b84a' : exc ? COLOR_RAREZA[exc] : base?.gema ? '#b48cff' : base?.r ? (n >= 7 ? '#8fb2ff' : '#d8cfbd') : '#d0453a';
@@ -682,7 +703,8 @@ function actualizarDrops(lista) {
     E.scene.add(g);
     const nombre = esOro ? `${n} de oro` : O.nombreObjeto({ b, n: base?.r ? n : 0, x: exc ? [0] : null, ra: exc > 1 ? exc : 0 }) + (!base?.r && n > 1 ? ` × ${n}` : '');
     if (exc >= 2) { FX.nivel(x, R.altura(x, z), z); }
-    drops.set(id, { id, x, z, obj: g, nombre, color, esOro });
+    const dd = { id, x, z, obj: g, nombre, color, esOro, item: base?.r ? { b, n, x: exc ? [0] : null, ra: exc > 1 ? exc : 0 } : null };
+    drops.set(id, dd); if (dd.item) ponerFotoDrop(dd);
   }
   for (const [id, d] of drops) if (!vistos.has(id)) { E.scene.remove(d.obj); drops.delete(id); }
 }
@@ -720,6 +742,7 @@ function cuadro() {
     mira.set(foco.x, foco.y + 1, foco.z); E.camara.lookAt(mira);
     const o = objetivo && entes.get(objetivo); FX.marcar(o && !o.muerto ? o.vis.raiz : null, o ? o.radio * 1.6 + 0.4 : 1);
     if (estado) hud.actualizar(estado, datosHud());
+    E.campos.actualizar(performance.now() / 1000, santuariosListos);
     if (estado?.asedio || R.enBastion(lx, lz)) E.bastion.actualizar(performance.now() / 1000, (() => { const d = estado?.asedio?.dueno; if (d === '') return ''; if (!d) return null; return estado.asedio.lista.find(x => x[0] === d)?.[3] || '#d4a24a'; })());
   } else {
     // Antes de entrar: la cámara gira lento alrededor de la Atalaya.
@@ -733,4 +756,4 @@ function cuadro() {
   dibujarTextos(dt);
 }
 cuadro();
-if (['localhost', '127.0.0.1'].includes(location.hostname)) window.__sendas = { E, entes, FX, red, mio: () => mio, pos: () => [lx, lz] };
+if (['localhost', '127.0.0.1'].includes(location.hostname)) window.__sendas = { E, entes, FX, red, paneles, mio: () => mio, pos: () => [lx, lz] };

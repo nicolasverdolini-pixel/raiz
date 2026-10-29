@@ -144,6 +144,8 @@ export class Mapa extends DurableObject {
     this.evento = null; this.proximo = null;
     this.drops = new Map(); this.sigDrop = 1; this.siervos = new Map(); this.sigSiervo = 5000000;
     for (const tipo of R.TIPOS) for (let i = 0; i < R.MONSTRUOS[tipo].cantidad; i++) this.crearMonstruo(tipo);
+    for (const c of R.CAMPAMENTOS) for (const [tipo, n] of c.mons) for (let i = 0; i < n; i++) { const m = this.crearMonstruo(tipo, this.puntoCampo(c)); m.campo = c; }
+    this.santuarios = R.CAMPAMENTOS.map(() => 0);
     this.senor = null; this.asedio = null;
     ctx.blockConcurrencyWhile(async () => { this.senor = (await ctx.storage.get('senor')) || null; });
   }
@@ -1192,8 +1194,9 @@ export class Mapa extends DurableObject {
     for (const h of def.habs || []) m.timers[h.t] = h.cada * (0.5 + Math.random() * 0.5);
   }
 
+  puntoCampo(c) { const a = Math.random() * 6.3, r = 2 + Math.random() * 8; return { x: c.x + Math.cos(a) * r, z: c.z + Math.sin(a) * r }; }
   revivirMonstruo(m) {
-    this.ponerVivo(m);
+    this.ponerVivo(m, m.campo ? this.puntoCampo(m.campo) : undefined);
     this.ev.push(['a', m.id, 'nace']);
     if (m.def.jefe) this.msgTodos(`${m.def.nombre} despertó en ${this.lugarDe(m)}. Hace falta un grupo.`);
   }
@@ -1343,6 +1346,7 @@ export class Mapa extends DurableObject {
     if (!this.evT || this.t - this.evT > 1) { this.evT = this.t; this.revisarEventos(); }
     this.tickPozo();
     this.tickAsedio(dt);
+    for (let i = 0; i < this.santuarios.length; i++) if (this.santuarios[i] > 0) this.santuarios[i] -= dt;
     for (const p of this.jug.values()) {
       if (p.muerto) {
         p.muerto -= dt;
@@ -1372,6 +1376,15 @@ export class Mapa extends DurableObject {
           const l = R.MAPA.lugares.find(x => x.nombre === o.lugar);
           if (l && Math.hypot(l.x - p.x, l.z - p.z) < 14) { p.d.misiones.activas[id] = 1; p.cambioMis = true; this.aviso(p, `Misión lista: «${MI.MISIONES[id].nombre}».`); }
         }
+        R.CAMPAMENTOS.forEach((c, i) => {
+          if (this.santuarios[i] > 0 || Math.hypot(c.sx - p.x, c.sz - p.z) > R.SANTUARIO.radio) return;
+          const S = R.SANTUARIOS[c.santuario];
+          this.santuarios[i] = R.SANTUARIO.espera;
+          p.buffs = p.buffs.filter(b => !b.santuario);
+          p.buffs.push({ id: S.nombre, t: R.SANTUARIO.dura, ef: S.ef, santuario: true });
+          this.ev.push(['fx', 'santuario', r2(c.sx), r2(c.sz), i]);
+          this.aviso(p, `${S.nombre}: ${S.texto} por ${R.SANTUARIO.dura} segundos.`);
+        });
         for (const l of R.MAPA.lugares) if (!p.d.lugares.includes(l.nombre) && Math.hypot(l.x - p.x, l.z - p.z) < 14) { p.d.lugares.push(l.nombre); this.aviso(p, `Descubriste ${l.nombre}. Ya podés volver con una Vela de Paso.`); p.cambioInv = true; }
         if (p.com) { const o = this.jug.get(p.com.a === p.id ? p.com.b : p.com.a); if (!o || dist(o, p) > 14) this.cancelarComercio(p, 'Se alejaron demasiado: el comercio se cerró.'); }
       }
@@ -1478,7 +1491,7 @@ export class Mapa extends DurableObject {
       };
       const sv = [];
       for (const x of this.siervos.values()) if (dist(x, p) < VISTA) sv.push([x.id, r2(x.x), r2(x.z), r2(x.dir), x.mueve ? 1 : 0, x.dueno]);
-      const foto = { t: 's', j, m, d: dr, sv, ev: p.priv.length ? ev.concat(p.priv) : ev, yo };
+      const foto = { t: 's', j, m, d: dr, sv, sa: this.santuarios.map(t => (t > 0 ? 0 : 1)), ev: p.priv.length ? ev.concat(p.priv) : ev, yo };
       if (p.cambioMis || p.cambioInv) { p.cambioMis = false; foto.mis = p.d.misiones; }
       if (p.cambioInv) { p.cambioInv = false; foto.inv = { oro: p.d.oro, inv: p.d.inv, equipo: p.d.equipo, arbol: p.d.arbol, lugares: p.d.lugares, atalayas: p.d.atalayas, der: p.der, baul: p.baul }; }
       this.enviar(p.s, foto);

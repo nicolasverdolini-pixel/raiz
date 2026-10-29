@@ -375,3 +375,62 @@ input:focus { outline: 1px solid var(--sangre-2); }
 #h-asedio .as-fila span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #h-asedio .link { align-self: flex-start; margin-top: 4px; }
 @media (max-height: 480px) { #h-asedio { top: auto; bottom: calc(150px + env(safe-area-inset-bottom)); left: calc(10px + env(safe-area-inset-left)); right: auto; width: 170px; } }
+.stat small .principal { color: #e9c37a; font-weight: 600; }
+
+/* ===== Pestañas: entran todas en el celu parado ===== */
+.panel nav { flex-wrap: wrap; row-gap: 3px; }
+.panel nav button { flex: 1 1 auto; white-space: nowrap; }
+@media (max-width: 520px) { .panel nav { padding: 6px 6px 0; gap: 3px; } .panel nav button { padding: 6px 8px; font-size: .82em; border-bottom: 1px solid rgba(216,207,189,.15); } }
+
+/* ===== Botonera de acción: ataque grande y 4 habilidades en arco ===== */
+#hud { --A: clamp(74px, 21vmin, 108px); --S: clamp(50px, 14vmin, 68px); --P: clamp(40px, 10.5vmin, 52px); --m: 14px; --R: calc(var(--A) * .5 + var(--S) * .62 + 10px); --R2: calc(var(--R) + var(--S) * .5 + var(--P) * .55 + 6px); }
+#b-atk { width: var(--A); height: var(--A); right: calc(var(--m) + env(safe-area-inset-right)); bottom: calc(var(--m) + env(safe-area-inset-bottom)); border-radius: 50%;
+  box-shadow: 0 0 0 3px #1a1110, 0 0 0 5px #6e2a22, 0 6px 18px rgba(0,0,0,.7); }
+#hud .hb.hab { width: var(--S); height: var(--S); border-radius: 50%; overflow: visible; box-shadow: 0 0 0 2px #120e0d, 0 0 0 3.5px #4a4440, 0 4px 12px rgba(0,0,0,.65); }
+#hud .hb.hab.def { box-shadow: 0 0 0 2px #120e0d, 0 0 0 3.5px #c9a24a, 0 0 14px rgba(240,190,90,.4); }
+#b-h0 { right: calc(var(--m) + env(safe-area-inset-right) + var(--A) / 2 + var(--R) - var(--S) / 2); bottom: calc(var(--m) + env(safe-area-inset-bottom) + var(--A) / 2 - var(--S) / 2); }
+#b-h1 { right: calc(var(--m) + env(safe-area-inset-right) + var(--A) / 2 + var(--R) * .866 - var(--S) / 2); bottom: calc(var(--m) + env(safe-area-inset-bottom) + var(--A) / 2 + var(--R) * .5 - var(--S) / 2); }
+#b-h2 { right: calc(var(--m) + env(safe-area-inset-right) + var(--A) / 2 + var(--R) * .5 - var(--S) / 2); bottom: calc(var(--m) + env(safe-area-inset-bottom) + var(--A) / 2 + var(--R) * .866 - var(--S) / 2); }
+#b-h3 { right: calc(var(--m) + env(safe-area-inset-right) + var(--A) / 2 - var(--S) / 2); bottom: calc(var(--m) + env(safe-area-inset-bottom) + var(--A) / 2 + var(--R) - var(--S) / 2); }
+#b-pot { width: var(--P); height: var(--P); right: calc(var(--m) + env(safe-area-inset-right) + var(--A) / 2 + var(--R2) - var(--P) / 2); bottom: calc(var(--m) + env(safe-area-inset-bottom) + var(--A) / 2 - var(--P) / 2); }
+#b-eter { width: var(--P); height: var(--P); right: calc(var(--m) + env(safe-area-inset-right) + var(--A) / 2 + var(--R2) * .866 - var(--P) / 2); bottom: calc(var(--m) + env(safe-area-inset-bottom) + var(--A) / 2 + var(--R2) * .5 - var(--P) / 2); }
+#hud .hb.hab .ic { border-radius: 50%; overflow: hidden; }
+#hud .hb.hab em { border-radius: 50%; inset: 0; }
+#hud .hb.hab .cd { position: absolute; inset: 0; display: grid; place-items: center; z-index: 3; font: 700 calc(var(--S) * .32) var(--titulo); color: #fff; text-shadow: 0 0 4px #000, 0 1px 2px #000; pointer-events: none; }
+#hud .hb.hab .mp { position: absolute; right: -4px; bottom: -4px; z-index: 4; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #1d2f4d; border: 1px solid #6f8fbf; font: 700 10px/16px var(--texto); color: #cfe0ff; font-style: normal; pointer-events: none; }
+#hud .hb.hab .mp:empty { display: none; }
+#hud .hb.hab.sin-mp .ic { filter: grayscale(.8) brightness(.55); }
+#hud .hb.hab.sin-mp .mp { background: #4a1414; border-color: #c0392b; color: #ffb0a8; }
+#hud .hb.hab.lista { animation: lista-brillo .5s ease-out; }
+#hud .hb.hab.vacia { background: rgba(10,9,10,.55); box-shadow: 0 0 0 2px #120e0d, 0 0 0 2px rgba(216,207,189,.18); border: 1px dashed rgba(216,207,189,.3); }
+#hud .hb.hab.vacia .mas { font: 1.4em var(--titulo); color: rgba(216,207,189,.35); }
+#hud .hb.usa { animation: tocar-hab .28s ease-out; }
+#hud .hb.falta { animation: falta-hab .3s; }
+@keyframes tocar-hab { 0% { transform: scale(.86); filter: brightness(1.8); } 100% { transform: scale(1); filter: none; } }
+@keyframes falta-hab { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+@keyframes lista-brillo { 0% { filter: brightness(1.9); } 100% { filter: none; } }
+#b-pot small, #b-eter small { right: -2px; bottom: -2px; font-size: 11px; }
+
+.abajo { width: min(560px, max(260px, calc(100vw - 2 * (var(--m) + var(--A) / 2 + var(--R2) + var(--P) / 2 + 12px)))); }
+/* Celu parado: las barras van a la izquierda, la botonera a la derecha. */
+@media (max-aspect-ratio: 1/1) {
+  #hud { --A: clamp(70px, 19vw, 92px); --S: clamp(46px, 12.5vw, 58px); --P: clamp(38px, 10vw, 46px); }
+  .abajo { left: calc(10px + env(safe-area-inset-left)); transform: none; width: calc(100vw - var(--A) - var(--R2) - var(--P) - 40px); min-width: 120px; flex-wrap: wrap; gap: 6px; }
+  .abajo .orbe { width: 54px; }
+  .abajo .expw { order: 3; flex-basis: 100%; }
+  #h-asedio { top: auto; bottom: calc(120px + env(safe-area-inset-bottom)); left: calc(10px + env(safe-area-inset-left)); right: auto; width: 170px; }
+}
+
+/* Mapa grande */
+#h-mini { cursor: pointer; pointer-events: auto; }
+#mapa { position: absolute; inset: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left)); z-index: 6;
+  display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: rgba(8,7,8,.95); pointer-events: auto; }
+#mapa header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#mapa header > b { font: 1.2em var(--titulo); color: var(--hueso); }
+#mapa .tabs { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
+#mapa .tabs button { padding: 4px 10px; background: #141315; border: 1px solid rgba(216,207,189,.15); color: var(--hueso-2); font-family: var(--titulo); cursor: pointer; }
+#mapa .tabs button.on { background: #2a1210; color: var(--hueso); border-color: #6e2a22; }
+#mapa .x { background: none; border: 0; color: var(--hueso); font-size: 1.3em; cursor: pointer; }
+#mapa canvas { flex: 1; min-height: 0; width: 100%; }
+#mapa .leyenda { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; font-size: .78em; }
+#mapa .ley.yo { color: #fff; } #mapa .ley.gr { color: #8fd16e; } #mapa .ley.at { color: #ffb070; } #mapa .ley.ca { color: #e9c37a; } #mapa .ley.zn { color: #e9c37a; }

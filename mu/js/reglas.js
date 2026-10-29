@@ -43,7 +43,11 @@ import { CLASES, ARBOL, calcular } from './clases.js';
 import { MOCHILA } from './objetos.js';
 export const STATS = ['fue', 'agi', 'vit', 'ene'];
 export const NOMBRE_STAT = { fue: 'Fuerza', agi: 'Agilidad', vit: 'Vitalidad', ene: 'Energía' };
-export const EXPLICA_STAT = { fue: 'Más daño para Guardián y Bárbaro.', agi: 'Pegás más rápido y defendés. Más daño para la Cazadora.', vit: 'Más vida.', ene: 'Más energía. Más daño para el Arcanista.' };
+// Qué hace cada atributo para TU clase: solo uno sube el daño (el de tu arma).
+export function explicaStat(s, atributo) {
+  const base = { fue: 'La piden los escudos y las armas de fuerza.', agi: 'Pegás más rápido y defendés más.', vit: 'Más vida y algo de defensa. La piden las armaduras.', ene: 'Más energía para las habilidades.' }[s];
+  return s === atributo ? `<b class="principal">Tu daño sale de acá.</b> ${base}` : s === 'fue' ? 'A tu clase no le sirve: no sube tu daño ni la pide tu equipo.' : base;
+}
 
 export function nuevoPersonaje(nombre, clase) {
   if (!CLASES[clase]) clase = 'guardian';
@@ -231,6 +235,27 @@ MAPA.lugares.push(
   { nombre: 'Fosa de la Sal', x: 676, z: -18, frase: 'El mar se abre hacia abajo. Algo respira ahí.' },
   { nombre: 'Salinas', x: 600, z: -72, frase: 'Sal blanca, cuerpos blancos. Nadie viene a buscarla.' });
 MAPA.lugares.push(...PUEBLOS.slice(1).map(p => ({ nombre: p.nombre, x: p.x, z: p.z, frase: p.frase, atalaya: true })));
+// Campamentos: llenan los huecos del Páramo. Cada uno tiene su manada y un santuario que da fuerzas por un rato.
+export const SANTUARIOS = {
+  furia: { nombre: 'Santuario de la Furia', color: '#ff5a3a', ef: { dmgPct: 25 }, texto: '+25% de daño' },
+  prisa: { nombre: 'Santuario de la Prisa', color: '#e9c37a', ef: { vel: 25 }, texto: 'pegás 25% más rápido' },
+  piedra: { nombre: 'Santuario de la Piedra', color: '#8fb2d8', ef: { menos: 20 }, texto: '20% menos de daño recibido' },
+  sed: { nombre: 'Santuario de la Sed', color: '#c0304a', ef: { robo: 6 }, texto: 'robás 6% de vida al pegar' },
+};
+export const SANTUARIO = { dura: 60, espera: 150, radio: 2.6 };
+export const CAMPAMENTOS = [
+  { nombre: 'Campamento de los Desertores', x: -105, z: -30, frase: 'Huyeron de la guerra. La guerra los encontró igual.', mons: [['huesudo', 4], ['lobo', 3]], santuario: 'furia' },
+  { nombre: 'Ermita Quemada', x: -100, z: 15, frase: 'Rezaban para que no llegara la noche. Llegó.', mons: [['sierpe', 4], ['ciervo', 2]], santuario: 'piedra' },
+  { nombre: 'Charca de Brea', x: -62, z: -18, frase: 'Lo que se hunde acá no flota nunca más.', mons: [['sierpe', 3], ['avispon', 3]], santuario: 'prisa' },
+  { nombre: 'Tumbas sin Nombre', x: -105, z: 105, frase: 'Nadie talló los nombres. Nadie los extraña.', mons: [['ciervo', 3], ['bruto', 2]], santuario: 'sed' },
+  { nombre: 'Puente de los Ahorcados', x: -10, z: 95, frase: 'El río se secó. Las sogas siguen.', mons: [['lobo', 4], ['ciervo', 2]], santuario: 'prisa' },
+  { nombre: 'Mojón del Peregrino', x: 25, z: 60, frase: 'Una piedra marca el camino. Nadie sabe adónde.', mons: [['sapo', 4], ['arana', 3]], santuario: 'piedra' },
+  { nombre: 'Hondonada Gris', x: 30, z: 112, frase: 'La niebla se junta acá y no se va.', mons: [['degollador', 3], ['anima', 3]], santuario: 'furia' },
+  { nombre: 'Hondonada de las Cruces', x: 15, z: -105, frase: 'Cruces torcidas, todas mirando para el mismo lado.', mons: [['huesudo', 4], ['anima', 2]], santuario: 'sed' },
+  { nombre: 'Torre del Vigía Loco', x: 105, z: 0, frase: 'Vigiló tanto que se olvidó de qué.', mons: [['degollador', 3], ['acechador', 3]], santuario: 'furia' },
+  { nombre: 'Cantera Abandonada', x: 110, z: 40, frase: 'Sacaron piedra hasta que la piedra empezó a sangrar.', mons: [['bruto', 3], ['engendro', 2]], santuario: 'piedra' },
+];
+for (const c of CAMPAMENTOS) { c.sx = c.x + 3.5; c.sz = c.z + 2.5; MAPA.lugares.push({ nombre: c.nombre, x: c.x, z: c.z, frase: c.frase, campamento: true }); }
 export const CIENAGA = { x: MONSTRUOS.sapo.zona.x, z: MONSTRUOS.sapo.zona.z };
 
 // Altura del piso: suave, plana en la atalaya y en la ciénaga. La usan los dos lados.
