@@ -144,6 +144,8 @@ export class Mapa extends DurableObject {
     this.evento = null; this.proximo = null;
     this.drops = new Map(); this.sigDrop = 1; this.siervos = new Map(); this.sigSiervo = 5000000;
     for (const tipo of R.TIPOS) for (let i = 0; i < R.MONSTRUOS[tipo].cantidad; i++) this.crearMonstruo(tipo);
+    this.senor = null; this.asedio = null;
+    ctx.blockConcurrencyWhile(async () => { this.senor = (await ctx.storage.get('senor')) || null; });
   }
 
   // ----- conexiones -----
@@ -196,6 +198,7 @@ export class Mapa extends DurableObject {
       case 'alas': return this.forjarAlas(p, m.n | 0);
       case 'ranking': return this.enviar(s, { t: 'ranking', lista: (await this.cuenta('#ranking').rankingVer()).slice(0, 50) });
       case 'pozo': return this.entrarPozo(p);
+      case 'bastion': return m.a === 'salir' ? this.salirBastion(p) : this.entrarBastion(p);
       case 'senda': return this.cruzarSenda(p);
       case 'encargo': return this.encargo(p, m);
       case 'salirPj': { this.salir(s); await new Promise(r => setTimeout(r, 300)); return this.mandarLista(s); }
@@ -264,7 +267,9 @@ export class Mapa extends DurableObject {
     const p = s.p; if (!p || !this.jug.has(p.id)) return;
     this.cancelarComercio(p, `${p.nombre} se fue.`);
     if (p.enPozo) { p.enPozo = false; this.pozo?.dentro.delete(p.id); p.x = 0; p.z = 0; }
+    if (p.enBastion) { p.enBastion = false; p.x = 0; p.z = 0; }
     this.dejarGrupo(p, true);
+    for (const q of this.jug.values()) if (q.objetivoJ === p.id) q.objetivoJ = null;
     this.guardar(p);
     this.jug.delete(p.id);
     if (p.d.hermandad) this.avisarHerm(p.d.hermandad);
@@ -293,6 +298,7 @@ export class Mapa extends DurableObject {
     const max = R.VEL_JUGADOR * (1 + (p.der.velMov || 0) / 100) * dt * 1.5 + 0.7;
     if (Math.hypot(x - p.x, z - p.z) > max) { p.priv.push(['tp', p.id, r2(p.x), r2(p.z)]); p.ultPos = ahora; return; }
     if (p.enPozo) { const dx = x - R.POZO.x, dz = z - R.POZO.z, d = Math.hypot(dx, dz); if (d > R.POZO.r) { x = R.POZO.x + dx / d * R.POZO.r; z = R.POZO.z + dz / d * R.POZO.r; } }
+    else if (p.enBastion) { const dx = x - R.BASTION.x, dz = z - R.BASTION.z, d = Math.hypot(dx, dz); if (d > R.BASTION.r) { x = R.BASTION.x + dx / d * R.BASTION.r; z = R.BASTION.z + dz / d * R.BASTION.r; } }
     else if (R.enCosta(p.x, p.z)) { const dx = x - R.COSTA.x, d = Math.hypot(dx, z); if (d > R.COSTA.r) { x = R.COSTA.x + dx / d * R.COSTA.r; z = z / d * R.COSTA.r; } }
     else { x = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, x)); z = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, z)); }
     p.mueve = Math.hypot(x - p.x, z - p.z) > 0.01;
@@ -301,8 +307,10 @@ export class Mapa extends DurableObject {
   }
 
   marcar(p, id) {
+    const q = this.jug.get(id);
+    if (q && this.enemigos(p, q)) { p.objetivoJ = id; p.objetivo = null; return; }
     const m = this.mons.get(id);
-    p.objetivo = m && !m.muerto ? id : null;
+    p.objetivo = m && !m.muerto ? id : null; p.objetivoJ = null;
   }
 
   // Suma lo que dan las mejoras temporales (buffs) activas.
@@ -314,6 +322,8 @@ export class Mapa extends DurableObject {
     if (!h || !rk || h.tipo === 'pasiva' || p.muerto) return;
     if (p.cds[id] > 0) return;
     if (p.mp < h.mp) return this.aviso(p, 'No te alcanza la energía.');
+    const rival = this.jug.get(objId ?? p.objetivoJ);
+    if (rival && this.enemigos(p, rival) && ['golpe', 'proyectil', 'lluvia'].includes(h.tipo)) return this.habilidadPvP(p, h, rk, rival);
     const objetivo = () => {
       let m = this.mons.get(objId ?? p.objetivo);
       if (!m || m.muerto) { let md = 12; for (const x of this.mons.values()) { if (x.muerto) continue; const d = dist(p, x); if (d < md) { md = d; m = x; } } }
@@ -330,6 +340,7 @@ export class Mapa extends DurableObject {
     this.ev.push(['a', p.id, h.anim, m?.id ?? null]);
     if (h.tipo === 'area') {
       for (const x of this.mons.values()) if (!x.muerto && dist(p, x) < h.radio + x.def.radio) { this.golpear(p, x, mult, true); if (h.frena) x.frenado = Math.max(x.frenado || 0, h.frena); }
+      for (const q of this.jug.values()) if (this.enemigos(p, q) && dist(p, q) < h.radio + 0.5) this.golpearJugador(p, q, mult, true);
       this.ev.push(['fx', h.frena ? 'hielo' : 'tajo', r2(p.x), r2(p.z), h.radio]);
     } else if (h.tipo === 'golpe') {
       if (h.salto) {
@@ -482,6 +493,7 @@ export class Mapa extends DurableObject {
   }
 
   vela(p, lugar) {
+    if (p.enBastion || p.enPozo) return this.aviso(p, 'Acá las velas no prenden.');
     const l = R.MAPA.lugares.find(x => x.nombre === lugar);
     if (!l || !p.d.lugares.includes(lugar)) return this.aviso(p, 'Todavía no conocés ese lugar.');
     if (p.muerto) return;
@@ -662,6 +674,105 @@ export class Mapa extends DurableObject {
     this.cancelarComercio(p, 'El comercio se cerró por un viaje.');
     this.ev.push(['tp', p.id, r2(p.x), r2(p.z)], ['fx', 'cura', r2(p.x), r2(p.z), 2]);
     this.aviso(p, n.destino === 5 ? 'Cruzaste la Senda Negra. Bienvenido a la Costa de la Sal Negra.' : 'Volviste al Páramo.');
+  }
+
+  // ----- Asedio del Bastión: PvP entre hermandades -----
+  enemigos(p, q) {
+    return p !== q && !!this.asedio && p.enBastion && q.enBastion && !p.muerto && !q.muerto
+      && !!p.d.hermandad && !!q.d.hermandad && p.d.hermandad !== q.d.hermandad;
+  }
+  golpearJugador(p, q, mult, hab) {
+    if (q.muerto) return;
+    let f = mult * (1 + this.buff(p, 'dmgPct') / 100);
+    const r = Math.random() * 100;
+    if (r < p.der.exc) f *= 2; else if (r < p.der.exc + p.der.crit) f *= 1.5;
+    this.herirJugador(q, entre(p.der.dmin, p.der.dmax) * f * R.BASTION.pvp, null, 4, p);
+  }
+  habilidadPvP(p, h, rk, q) {
+    const lim = h.tipo === 'golpe' ? (h.salto ? h.salto + 2 : p.der.alcance + 1.6) : h.tipo === 'lluvia' ? h.alcance + 1 : p.der.alcance + 3;
+    if (dist(p, q) > lim) return this.aviso(p, 'Está muy lejos.');
+    p.mp -= h.mp; p.cds[h.id] = h.cd;
+    const mult = h.mult ? h.mult(rk) : 1;
+    p.objetivoJ = q.id; p.dir = Math.atan2(q.x - p.x, q.z - p.z);
+    this.ev.push(['a', p.id, h.anim, q.id]);
+    if (h.tipo === 'golpe' && h.salto) {
+      const d = dist(p, q), k = Math.max(0, d - p.der.alcance) / (d || 1);
+      p.x += (q.x - p.x) * k; p.z += (q.z - p.z) * k; p.ultPos = Date.now(); this.ev.push(['tp', p.id, r2(p.x), r2(p.z)]);
+    }
+    if (h.tipo === 'proyectil') this.ev.push(['p', p.id, q.id, h.robo ? 'rojo' : p.der.proyectil || 'saeta', 0]);
+    if (h.tipo === 'lluvia') {
+      const cx = q.x, cz = q.z;
+      this.ev.push(['p', p.id, q.id, p.der.proyectil || 'saeta', h.radio], ['fx', 'lluvia', r2(cx), r2(cz), h.radio]);
+      for (const x of this.jug.values()) if (this.enemigos(p, x) && Math.hypot(x.x - cx, x.z - cz) < h.radio + 0.5) this.golpearJugador(p, x, mult, true);
+      return;
+    }
+    this.golpearJugador(p, q, mult, true);
+  }
+  muertePvP(asesino, p) {
+    for (const q of this.jug.values()) if (q.objetivoJ === p.id) q.objetivoJ = null;
+    this.aviso(p, `Te venció ${asesino.nombre}. Volvés al borde del Bastión en 5 segundos.`);
+    this.aviso(asesino, `Venciste a ${p.nombre}. +${R.BASTION.porMuerte} para ${asesino.d.hermandad}.`);
+    this.sumarAsedio(asesino.d.hermandad, R.BASTION.porMuerte);
+    for (const q of this.jug.values()) if (q.enBastion && q !== asesino && q !== p) this.aviso(q, `${asesino.nombre} venció a ${p.nombre}.`);
+  }
+  sumarAsedio(nombre, n) { if (!this.asedio || !nombre) return; this.asedio.puntos.set(nombre, (this.asedio.puntos.get(nombre) || 0) + n); }
+  marcadorAsedio() {
+    const A = this.asedio;
+    return { dueno: A.duenoAltar, lista: [...A.puntos].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([n, pts]) => { const h = this.herm.get(n.toLowerCase()); return [n, pts, h?.simbolo || '', h?.color || '#d8cfbd']; }) };
+  }
+  entrarBastion(p) {
+    if (!this.rolCerca(p, 'vidente')) return this.aviso(p, 'Al Bastión te lleva Oria la Vidente.');
+    if (!this.asedio) return this.aviso(p, 'El Bastión está cerrado. El asedio es cada 2 horas.');
+    if (!p.d.hermandad) return this.aviso(p, 'Al asedio solo entran las hermandades.');
+    if (p.d.nivel < R.BASTION.nivelMin && !(p.d.resets > 0)) return this.aviso(p, `Hace falta nivel ${R.BASTION.nivelMin}.`);
+    if (p.muerto || p.enBastion) return;
+    this.cancelarComercio(p, 'El comercio se cerró por un viaje.');
+    const a = Math.random() * 6.3; p.x = R.BASTION.x + Math.cos(a) * (R.BASTION.r - 2); p.z = R.BASTION.z + Math.sin(a) * (R.BASTION.r - 2);
+    p.enBastion = true; p.objetivo = null; p.ultPos = Date.now();
+    this.ev.push(['tp', p.id, r2(p.x), r2(p.z)]);
+    if (!this.asedio.puntos.has(p.d.hermandad)) this.asedio.puntos.set(p.d.hermandad, 0);
+    this.aviso(p, 'Llegaste al Bastión Caído. Quedate en el altar sin enemigos cerca para sumar puntos.');
+    for (const q of this.jug.values()) if (q.enBastion && q !== p) this.aviso(q, `${p.nombre} (${p.d.hermandad}) entró al Bastión.`);
+  }
+  salirBastion(p) {
+    if (!p.enBastion || p.muerto) return;
+    p.enBastion = false; p.objetivoJ = null;
+    const a = Math.random() * 6.3; p.x = Math.cos(a) * 3; p.z = Math.sin(a) * 3; p.ultPos = Date.now();
+    this.ev.push(['tp', p.id, r2(p.x), r2(p.z)]);
+    this.aviso(p, 'Dejaste el Bastión.');
+  }
+  tickAsedio(dt) {
+    const A = this.asedio; if (!A) return;
+    A.altarT += dt; if (A.altarT < 1) return; A.altarT = 0;
+    const en = new Set();
+    for (const p of this.jug.values()) if (p.enBastion && !p.muerto && p.d.hermandad && Math.hypot(p.x - R.BASTION.x, p.z - R.BASTION.z) < R.BASTION.altar) en.add(p.d.hermandad);
+    const antes = A.duenoAltar;
+    A.duenoAltar = en.size === 1 ? [...en][0] : en.size > 1 ? '' : null;
+    if (en.size === 1) this.sumarAsedio(A.duenoAltar, R.BASTION.porSegundo);
+    if (A.duenoAltar && A.duenoAltar !== antes) for (const q of this.jug.values()) if (q.enBastion) this.aviso(q, `${A.duenoAltar} tomó el altar.`);
+  }
+  terminarAsedio() {
+    const A = this.asedio; this.asedio = null; if (!A) return;
+    const lista = [...A.puntos].sort((a, b) => b[1] - a[1]);
+    const gana = lista[0] && lista[0][1] >= R.BASTION.minimo && (!lista[1] || lista[1][1] < lista[0][1]) ? lista[0][0] : null;
+    for (const p of this.jug.values()) {
+      if (!p.enBastion) continue;
+      const premio = p.d.hermandad === gana ? R.BASTION.premio.ganador : R.BASTION.premio.otros;
+      p.d.oro += premio; if (p.d.hermandad === gana) this.agregar(p, { b: 'abismo', c: 1 });
+      p.cambioInv = true; p.objetivoJ = null; p.enBastion = false;
+      this.aviso(p, `El asedio terminó. Te llevás ${premio.toLocaleString('es-AR')} de oro${p.d.hermandad === gana ? ' y una Gema del Abismo' : ''}.`);
+      if (p.muerto) { p.muerto = 0.1; } else {
+        const a = Math.random() * 6.3; p.x = Math.cos(a) * 3; p.z = Math.sin(a) * 3; p.ultPos = Date.now();
+        this.ev.push(['tp', p.id, r2(p.x), r2(p.z)]);
+      }
+      this.guardar(p);
+    }
+    if (gana) {
+      const h = this.herm.get(gana.toLowerCase());
+      this.senor = { nombre: gana, simbolo: h?.simbolo || '♜', color: h?.color || '#d4a24a', desde: Date.now(), puntos: lista[0][1] };
+      this.ctx.storage.put('senor', this.senor).catch(() => {});
+      this.msgTodos(`¡${gana} ganó el Asedio del Bastión con ${lista[0][1]} puntos! Mandan en el Bastión y ganan +${Math.round(R.BASTION.bonusExp * 100)}% de experiencia hasta el próximo asedio.`);
+    } else this.msgTodos(this.senor ? `Nadie se impuso en el asedio. ${this.senor.nombre} sigue mandando en el Bastión.` : 'Nadie se impuso en el asedio. El Bastión sigue sin dueño.');
   }
 
   // ----- Pozo de las Almas -----
@@ -1009,6 +1120,7 @@ export class Mapa extends DurableObject {
       if (p.d.hermandad) {
         let n = 0; for (const q of this.jug.values()) if (q !== p && q.d.hermandad === p.d.hermandad && !q.muerto && dist(q, p) < R.DIST_GRUPO) n++;
         cant *= 1 + Math.min(R.HERMANDAD.bonusMax, n * R.HERMANDAD.bonus);
+        if (this.senor?.nombre === p.d.hermandad) cant *= 1 + R.BASTION.bonusExp;
       }
     }
     cant = Math.max(1, Math.round(cant));
@@ -1028,18 +1140,19 @@ export class Mapa extends DurableObject {
     return entre(rango[0], rango[1]) * (m.campeon ? R.CAMPEON.dano : 1) * (this.evento?.id === 'noche' ? 1.3 : 1) * (m.furioso ? 1.15 : 1);
   }
 
-  herirJugador(p, dano, m, tipo = 4) {
+  herirJugador(p, dano, m, tipo = 4, atacante = null) {
     if (p.muerto) return;
     dano = tipo === 5 ? Math.round(dano) : Math.max(1, Math.round(dano - p.der.def * 0.5));
     const menos = Math.min(75, p.der.menos + this.buff(p, 'menos'));
     if (menos) dano = Math.max(1, Math.round(dano * (1 - menos / 100)));
     if (m && p.der.refleja && !m.muerto) { m.hp -= Math.round(dano * p.der.refleja / 100); if (m.hp <= 0) this.matar(m, 'p' + p.id); }
     p.hp -= dano;
-    this.ev.push(['g', m?.id || 0, p.id, dano, tipo]);
+    this.ev.push(['g', atacante?.id || m?.id || 0, p.id, dano, tipo]);
     if (m && tipo === 4 && m.def.veneno && Math.random() < m.def.veneno.prob) { p.veneno = { dps: m.def.veneno.dps, t: m.def.veneno.dura }; this.aviso(p, 'Estás envenenado.'); }
     if (p.hp <= 0) {
       p.hp = 0; p.muerto = 5; p.objetivo = null; p.mueve = false; p.veneno = null;
       this.ev.push(['m', p.id]);
+      if (atacante) return this.muertePvP(atacante, p);
       this.aviso(p, `Te venció ${m ? m.def.nombre : 'el veneno'}. Despertás junto al Farol en 5 segundos.`);
       for (const x of this.mons.values()) if (x.obj === p.id) x.obj = null;
     }
@@ -1209,6 +1322,8 @@ export class Mapa extends DurableObject {
       for (const id of this.pozo?.dentro || []) { const p = this.jug.get(id); if (p) this.sacarDelPozo(p); }
       this.limpiarPozo(); this.pozo = null;
     }
+    if (antes === 'asedio') this.terminarAsedio();
+    if (activo?.id === 'asedio') this.asedio = { puntos: new Map(), altarT: 0, duenoAltar: null };
     if (activo?.id === 'pozo') this.pozo = { fase: 'entrada', inicio: Date.now() - (activo.dura * 60 - activo.resta) * 1000, dentro: new Set() };
     if (activo) {
       this.msgTodos(`${activo.nombre}: ${activo.desc}`);
@@ -1227,12 +1342,18 @@ export class Mapa extends DurableObject {
     const dt = R.TICK; this.t += dt;
     if (!this.evT || this.t - this.evT > 1) { this.evT = this.t; this.revisarEventos(); }
     this.tickPozo();
+    this.tickAsedio(dt);
     for (const p of this.jug.values()) {
       if (p.muerto) {
         p.muerto -= dt;
         if (p.muerto <= 0) {
           p.muerto = 0; p.hp = p.der.maxHp; p.mp = p.der.maxMp;
           if (p.enPozo) { p.enPozo = false; this.pozo?.dentro.delete(p.id); p.x = 0; p.z = 0; }
+          if (p.enBastion && this.asedio) {
+            const a = Math.random() * 6.3; p.x = R.BASTION.x + Math.cos(a) * (R.BASTION.r - 2); p.z = R.BASTION.z + Math.sin(a) * (R.BASTION.r - 2); p.ultPos = Date.now();
+            this.ev.push(['rv', p.id, r2(p.x), r2(p.z)]); continue;
+          }
+          p.enBastion = false;
           const at = R.PUEBLOS[R.atalayaCercana(p.x, p.z, p.d.atalayas)], a = Math.random() * 6.3;
           p.x = at.x + Math.cos(a) * 3; p.z = at.z + Math.sin(a) * 3; p.ultPos = Date.now();
           this.ev.push(['rv', p.id, r2(p.x), r2(p.z)]);
@@ -1263,6 +1384,16 @@ export class Mapa extends DurableObject {
       p.hp = Math.min(p.der.maxHp, p.hp + p.der.maxHp * (enPueblo(p) ? 0.04 : 0.005) * dt);
       p.mp = Math.min(p.der.maxMp, p.mp + (enPueblo(p) ? 6 : p.der.regenMp) * dt);
       p.cdAtk -= dt;
+      if (p.objetivoJ) {
+        const q = this.jug.get(p.objetivoJ);
+        if (!q || q.muerto || !this.enemigos(p, q)) p.objetivoJ = null;
+        else if (dist(p, q) <= p.der.alcance + 0.45 + 0.6 && p.cdAtk <= 0) {
+          p.cdAtk = this.cadencia(p); p.dir = Math.atan2(q.x - p.x, q.z - p.z);
+          this.ev.push(['a', p.id, 'atk', q.id]);
+          if (p.der.distancia) this.ev.push(['p', p.id, q.id, p.der.proyectil, 0]);
+          this.golpearJugador(p, q, 1, false);
+        }
+      }
       if (p.objetivo) {
         const m = this.mons.get(p.objetivo);
         if (!m || m.muerto) p.objetivo = null;
@@ -1323,7 +1454,7 @@ export class Mapa extends DurableObject {
 
   etiquetaHerm(q) {
     const h = q.d.hermandad && this.herm.get(q.d.hermandad.toLowerCase());
-    return h ? [h.nombre, h.simbolo, h.color] : 0;
+    return h ? [h.nombre, h.simbolo, h.color, this.senor?.nombre === h.nombre ? 1 : 0] : 0;
   }
 
   enviarFotos() {
@@ -1341,6 +1472,7 @@ export class Mapa extends DurableObject {
         hp: Math.round(p.hp), mp: Math.round(p.mp), maxHp: p.der.maxHp, maxMp: p.der.maxMp, nivel: p.d.nivel, exp: p.d.exp, sig: R.expParaSubir(p.d.nivel),
         puntos: p.d.puntos, fue: p.d.fue, agi: p.d.agi, vit: p.d.vit, ene: p.d.ene, dmin: p.der.dmin, dmax: p.der.dmax, def: p.der.def,
         cds: Object.fromEntries(Object.entries(p.cds).map(([k, v]) => [k, r2(v)])), muerto: r2(p.muerto), obj: p.objetivo, veneno: p.veneno ? r2(p.veneno.t) : 0, evt,
+        asedio: p.enBastion && this.asedio ? this.marcadorAsedio() : null, senor: this.senor,
         atalaya: R.enAtalaya(p.x, p.z), resets: p.d.resets || 0, pozo: p.enPozo ? (this.pozo?.oleada || 0) : -1, pociones: this.cuantos(p, 'pocion'), eteres: this.cuantos(p, 'eter'), buffs: p.buffs.map(b => [b.id, r2(b.t)]), alcance: p.der.alcance, clase: p.d.clase,
         grupo: g ? g.miembros.map(id => { const x = this.jug.get(id); return x ? [x.id, x.nombre, Math.round(x.hp / x.der.maxHp * 100), x.d.nivel, x.id === g.lider ? 1 : 0] : null; }).filter(Boolean) : null,
       };

@@ -258,7 +258,7 @@ export class Paneles {
     const n = O.NPCS.find(x => x.id === id), d = this.ctx.mio(); if (!n || !d) return;
     if (elegido) { this.forjaSel = elegido; this.sel = null; }
     const tabs = n.rol === 'herrero' ? [['tienda', 'Comprar'], ['forja', 'Forja'], ['vender', 'Vender']]
-      : n.rol === 'vidente' ? [['eventos', 'Eventos'], ['pozo', 'Pozo'], ['tienda', 'Comprar'], ['alas', 'Alas'], ['renacer', 'Renacer'], ['ranking', 'Ranking'], ['viajes', 'Velas']] : [['tienda', 'Comprar'], ['vender', 'Vender']];
+      : n.rol === 'vidente' ? [['eventos', 'Eventos'], ['pozo', 'Pozo'], ['tienda', 'Comprar'], ['asedio', 'Asedio'], ['alas', 'Alas'], ['renacer', 'Renacer'], ['ranking', 'Ranking'], ['viajes', 'Velas']] : [['tienda', 'Comprar'], ['vender', 'Vender']];
     tab = tab || tabs[0][0];
     let cuerpo = `<p class="frase">«${n.frase}»</p>`;
     if (tab === 'tienda') cuerpo += this.htmlTienda(n, d);
@@ -269,6 +269,7 @@ export class Paneles {
     if (tab === 'pozo') cuerpo += this.htmlPozo(d);
     if (tab === 'renacer') cuerpo += this.htmlRenacer(d);
     if (tab === 'alas') cuerpo += this.htmlAlas(d);
+    if (tab === 'asedio') cuerpo += this.htmlAsedio(d);
     if (tab === 'ranking') { cuerpo += this.htmlRanking(d); if (!this.pedidoRanking || Date.now() - this.pedidoRanking > 10000) { this.pedidoRanking = Date.now(); this.ctx.mandar({ t: 'ranking' }); } }
     this.marco(n.nombre, R.PUEBLOS[n.atalaya]?.nombre, tabs, tab, cuerpo, 'npc', [id, tab]);
     const m = this.ctx.mandar;
@@ -280,6 +281,7 @@ export class Paneles {
     this.el.querySelectorAll('[data-lugar]').forEach(b => b.onclick = () => { m({ t: 'vela', lugar: b.dataset.lugar }); this.cerrar(); });
     this.el.querySelectorAll('[data-fsel]').forEach(b => b.onclick = () => { const [t, k] = b.dataset.fsel.split(':'); this.forjaSel = t === 'e' ? { r: k } : { i: +k }; this.npc(id, 'forja'); });
     const bf = $('#p-forjar', this.el); if (bf) bf.onclick = () => m({ t: 'forjar', ...this.forjaSel });
+    const bb = $('#p-bastion', this.el); if (bb) bb.onclick = () => { m({ t: 'bastion' }); this.cerrar(); };
     const bp = $('#p-pozo', this.el); if (bp) bp.onclick = () => { m({ t: 'pozo' }); this.cerrar(); };
     const br = $('#p-renacer', this.el); if (br) br.onclick = () => { if (br.dataset.ok) { m({ t: 'renacer' }); this.cerrar(); } else { br.dataset.ok = 1; br.textContent = 'Tocá otra vez para confirmar'; } };
   }
@@ -342,6 +344,19 @@ export class Paneles {
       <span class="nota">${R.POZO.oleadas} oleadas, una más dura que la otra, y un jefe al final. Cada oleada da experiencia; el jefe deja un tesoro para cada uno. Nivel mínimo ${R.POZO.nivelMin}. Si caés, quedás afuera.</span>
       <span>Sellos del Pozo: <b>${sellos}</b> (los vende Oria en "Comprar")</span>
       <div class="acciones"><button class="btn" id="p-pozo" ${abierta && sellos ? '' : 'disabled'}>Bajar al Pozo</button></div></div>`;
+  }
+  htmlAsedio(d) {
+    const e = R.EVENTOS.find(x => x.id === 'asedio'), B = R.BASTION, fase = ((Date.now() / 60000 - e.desfase) % e.cada + e.cada) % e.cada;
+    const abierto = fase < e.dura, min = abierto ? e.dura - fase : e.cada - fase, mm = `${Math.floor(min)}:${String(Math.floor(min % 1 * 60)).padStart(2, '0')}`;
+    const s = this.ctx.senor?.(), h = this.herm, puede = abierto && h && (d.nivel >= B.nivelMin || d.resets);
+    return `${s ? `<div class="h-cabeza"><span class="h-emblema" style="color:${s.color};border-color:${s.color}">${s.simbolo}&#xFE0E;</span><div><small>Mandan en el Bastión</small><b style="color:${s.color}">♛&#xFE0E; ${esc(s.nombre)}</b><small>Ganaron con ${s.puntos} puntos</small></div></div>` : '<p class="nota">El Bastión no tiene dueño todavía.</p>'}
+      <div class="mision"><b>Asedio del Bastión Caído</b><span class="m-texto">${e.desc}</span>
+      <span class="m-obj">${abierto ? `En curso · termina en ${mm}` : `Empieza en ${mm} (cada 2 horas, dura ${e.dura} minutos)`}</span>
+      <span class="nota">· Solo entran hermandades (nivel ${B.nivelMin} o renacidos). Adentro, los de otra hermandad son enemigos: tocalos para atacar.<br>
+      · Cada segundo que tu hermandad esté sola en el círculo del altar suma ${B.porSegundo} punto; cada enemigo que caiga, ${B.porMuerte}. Si caés, volvés al borde.<br>
+      · Gana la que más puntos tenga (mínimo ${B.minimo}). Premio: ${B.premio.ganador.toLocaleString('es-AR')} de oro y una Gema del Abismo para cada miembro adentro (${B.premio.otros.toLocaleString('es-AR')} de oro para los demás), y +${Math.round(B.bonusExp * 100)}% de experiencia para toda la hermandad hasta el próximo asedio.</span>
+      ${!h ? '<span class="peligro">Necesitás una hermandad.</span>' : ''}
+      <div class="acciones"><button class="btn" id="p-bastion" ${puede ? '' : 'disabled'}>Ir al Bastión</button></div></div>`;
   }
   htmlAlas(d) {
     const tiene = b => d.equipo.alas?.b === b || d.inv.some(x => x?.b === b);

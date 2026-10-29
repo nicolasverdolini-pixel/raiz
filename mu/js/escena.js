@@ -41,6 +41,7 @@ export function crearEscena(canvas) {
   const luces = [0, 1].map(() => { const l = new THREE.PointLight('#ff8a3d', 26, 22, 1.6); scene.add(l); return l; });
   const ceniza = crearCeniza(scene);
   crearPozo(scene);
+  const bastion = crearBastion(scene);
   const foso = new THREE.PointLight('#ff2a14', 18, 30, 1.5); foso.position.set(L('Foso del Éter').x, 3, L('Foso del Éter').z); scene.add(foso);
   const hemi = scene.children.find(o => o.isHemisphereLight);
   // Ambiente según el evento: normal, marea (ceniza azul) o noche roja (niebla de sangre).
@@ -69,7 +70,7 @@ export function crearEscena(canvas) {
     scene.fog.color.copy(cN); scene.background.copy(cN); hemi.color.copy(cC); ceniza.mat.color.copy(cA);
     cripta.fuego.intensity = 9 + Math.sin(t * 6) * 2; foso.intensity = 16 + Math.sin(t * 3) * 4;
   }
-  return { renderer, efecto, scene, camara, terreno, terrenos, actualizar, movil, ambiente, poblar: () => poblar(scene) };
+  return { renderer, efecto, scene, camara, terreno, terrenos, actualizar, movil, ambiente, bastion, poblar: () => poblar(scene) };
 }
 
 // ---------- terreno ----------
@@ -267,6 +268,49 @@ function crearPozo(scene) {
     if (k % 2 === 0) { const f = new THREE.Mesh(new THREE.OctahedronGeometry(0.25, 0), sinBorde(new THREE.MeshBasicMaterial({ color: '#ff4a2a' }))); f.position.set(pil.position.x, h + 0.3, pil.position.z); g.add(f); }
   }
   const luz = new THREE.PointLight('#ff3a1a', 30, 40, 1.4); luz.position.set(0, 8, 0); g.add(luz);
+}
+
+// ---------- Bastión Caído: arena de las hermandades ----------
+// Muralla rota en círculo, cuatro braseros y en el medio un altar con un cristal que toma el color de quien lo domina.
+function crearBastion(scene) {
+  const B = R.BASTION, g = new THREE.Group(); g.position.set(B.x, 0, B.z); scene.add(g);
+  const piedra = sinBorde(new THREE.MeshStandardMaterial({ color: '#7a7068', roughness: 1, flatShading: true }));
+  const oscura = sinBorde(new THREE.MeshStandardMaterial({ color: '#5a524a', roughness: 1, flatShading: true }));
+  const vacio = new THREE.Mesh(new THREE.CircleGeometry(90, 24), sinBorde(new THREE.MeshBasicMaterial({ color: '#050405' })));
+  vacio.rotation.x = -Math.PI / 2; vacio.position.y = -6; g.add(vacio);
+  const piso = new THREE.Mesh(new THREE.CylinderGeometry(B.r + 3, B.r + 1, 3, 24), oscura); piso.position.y = -1.5; piso.receiveShadow = true; g.add(piso);
+  const losas = new THREE.Mesh(new THREE.RingGeometry(B.altar + 0.4, B.altar + 1.2, 8), sinBorde(new THREE.MeshBasicMaterial({ color: '#6a5a48', side: THREE.DoubleSide })));
+  losas.rotation.x = -Math.PI / 2; losas.position.y = 0.03; g.add(losas);
+  const circulo = new THREE.Mesh(new THREE.RingGeometry(B.altar - 0.15, B.altar, 40), sinBorde(new THREE.MeshBasicMaterial({ color: '#d4a24a', side: THREE.DoubleSide, transparent: true, opacity: 0.7 })));
+  circulo.rotation.x = -Math.PI / 2; circulo.position.y = 0.04; g.add(circulo);
+  // Muralla: tramos con huecos, almenas y torres caídas.
+  for (let k = 0; k < 28; k++) {
+    if (k % 7 === 3) continue;   // brechas para entrar
+    const a = k / 28 * Math.PI * 2, h = 2.4 + ((k * 7) % 5) * 0.5, largo = (B.r + 2) * Math.PI * 2 / 28 + 0.2;
+    const muro = new THREE.Mesh(new THREE.BoxGeometry(largo, h, 1.2), piedra);
+    muro.position.set(Math.cos(a) * (B.r + 2), h / 2, Math.sin(a) * (B.r + 2)); muro.rotation.y = -a + Math.PI / 2; muro.castShadow = true; g.add(muro);
+    if (k % 2 === 0) { const al = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 1.3), piedra); al.position.set(muro.position.x, h + 0.35, muro.position.z); al.rotation.y = muro.rotation.y; g.add(al); }
+  }
+  for (let k = 0; k < 4; k++) {
+    const a = k / 4 * Math.PI * 2 + Math.PI / 4, r = B.r * 0.62;
+    const pie = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.55, 1.4, 6), piedra); pie.position.set(Math.cos(a) * r, 0.7, Math.sin(a) * r); pie.castShadow = true; g.add(pie);
+    const fuego = new THREE.Mesh(new THREE.OctahedronGeometry(0.4, 0), sinBorde(new THREE.MeshBasicMaterial({ color: '#ff7a2a' }))); fuego.position.set(pie.position.x, 1.75, pie.position.z); g.add(fuego);
+  }
+  // Altar con escalones y el cristal.
+  for (let i = 0; i < 3; i++) { const e = new THREE.Mesh(new THREE.CylinderGeometry(2.6 - i * 0.7, 2.8 - i * 0.7, 0.35, 8), piedra); e.position.y = 0.175 + i * 0.35; e.receiveShadow = true; g.add(e); }
+  const cristal = new THREE.Mesh(new THREE.OctahedronGeometry(0.75, 0), sinBorde(new THREE.MeshStandardMaterial({ color: '#d8cfbd', emissive: '#d8cfbd', emissiveIntensity: 0.8, flatShading: true })));
+  cristal.position.y = 2.6; cristal.scale.y = 1.6; g.add(cristal);
+  const luz = new THREE.PointLight('#d8cfbd', 90, 60, 1.1); luz.position.set(0, 7, 0); g.add(luz);
+  const color = new THREE.Color();
+  return {
+    // dueño: color de la hermandad que domina el altar, '' si está disputado, null si nadie.
+    actualizar(t, dueno) {
+      cristal.rotation.y = t * 0.8; cristal.position.y = 2.6 + Math.sin(t * 1.5) * 0.15;
+      color.set(dueno === '' ? (Math.sin(t * 10) > 0 ? '#ff3020' : '#d8cfbd') : dueno || '#8a8378');
+      cristal.material.color.copy(color); cristal.material.emissive.copy(color); luz.color.copy(color);
+      circulo.material.color.copy(color);
+    },
+  };
 }
 
 // ---------- Osario: tumbas y cruces ----------

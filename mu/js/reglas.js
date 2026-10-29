@@ -173,7 +173,13 @@ export const EVENTOS = [
     desc: 'El cielo sangra. Aparecen campeones por todos lados y llega el Heraldo del Éter.' },
   { id: 'pozo', nombre: 'Pozo de las Almas', cada: 60, desfase: 45, dura: 13, entrada: 3,
     desc: 'Se abre la entrada por 3 minutos (hace falta un Sello del Pozo, lo vende Oria). Adentro: oleadas cada vez peores y un jefe al final.' },
+  { id: 'asedio', nombre: 'Asedio del Bastión', cada: 120, desfase: 75, dura: 12,
+    desc: 'Las hermandades pelean por el Bastión Caído (se entra con Oria). La que domine el altar manda hasta el próximo asedio.' },
 ];
+// Bastión Caído: arena de las hermandades. Solo ahí los jugadores se pueden pegar entre sí.
+export const BASTION = { x: -300, z: 300, r: 24, altar: 5, nivelMin: 30, porSegundo: 1, porMuerte: 3, minimo: 10,
+  premio: { ganador: 30000, otros: 5000 }, bonusExp: 0.1, pvp: 0.5 };
+export const enBastion = (x, z) => Math.hypot(x - BASTION.x, z - BASTION.z) < BASTION.r + 4;
 // Arena del Pozo: un lugar aparte, lejos del Páramo.
 export const POZO = { x: 300, z: 300, r: 17, oleadas: 8, nivelMin: 10 };
 export const enPozo = (x, z) => Math.hypot(x - POZO.x, z - POZO.z) < POZO.r + 4;

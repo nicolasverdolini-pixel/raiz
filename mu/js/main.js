@@ -48,11 +48,12 @@ const hud = new Hud({
   lideroHerm: () => paneles.herm?.lider === mio?.nombre,
   invitarHerm: id => red.mandar({ t: 'herm', a: 'inv', id }),
   aceptarHerm: h => red.mandar({ t: 'herm', a: 'acepta', h }),
+  dejarBastion: () => { if (confirm('¿Dejar el Bastión? Volvés a la Atalaya del Farol.')) red.mandar({ t: 'bastion', a: 'salir' }); },
 });
 const npcCerca = id => { const n = O.NPCS.find(x => x.id === id) || MI.NPC_MISION.find(x => x.id === id); return n && Math.hypot(lx - n.x, lz - n.z) < O.DIST_NPC + 1; };
 const rolCerca = rol => yo && O.NPCS.find(n => n.rol === rol && Math.hypot(lx - n.x, lz - n.z) < O.DIST_NPC + 1);
 const paneles = new Paneles({
-  mio: () => mio, mandar: o => red.mandar(o), npcCerca, rolCerca, enAtalaya: () => R.enAtalaya(lx, lz) >= 0, toast: t => hud.toast(t), cambiarPj: () => red.salirPj(),
+  mio: () => mio, mandar: o => red.mandar(o), npcCerca, rolCerca, senor: () => estado?.senor, enAtalaya: () => R.enAtalaya(lx, lz) >= 0, toast: t => hud.toast(t), cambiarPj: () => red.salirPj(),
   comerciando: () => !!paneles.com, ofrecido: i => !!paneles.com?.mio.items.some(o => o.i === i),
 });
 const chat = new Chat(o => red.mandar(o));
@@ -407,6 +408,7 @@ function elegir(sx, sy) {
     if (Math.hypot(x - sx, y - sy) < 36) { destino = { x: d.x, z: d.z }; soltarObjetivo(); return; }
   }
   if (mejor && !mejor.esJ) { marcarObjetivo(mejor.id); return; }
+  if (mejor && mejor.esJ && enemigo(mejor)) { marcarObjetivo(mejor.id); return; }
   if (mejor && mejor.esJ) { hud.menuJugador(mejor, sx, sy); return; }
   ray.setFromCamera({ x: sx / innerWidth * 2 - 1, y: -(sy / innerHeight) * 2 + 1 }, E.camara);
   const hit = ray.intersectObjects(E.terrenos)[0];
@@ -414,12 +416,17 @@ function elegir(sx, sy) {
 }
 function marcarObjetivo(id) { objetivo = id; destino = null; red.mandar({ t: 'atk', id }); }
 function soltarObjetivo() { if (objetivo !== null) { objetivo = null; red.mandar({ t: 'atk', id: null }); } }
+// En el Bastión, durante el asedio, los de otra hermandad son enemigos.
+function enemigo(e) {
+  if (!e?.esJ || e === yo || e.muerto || !estado?.asedio || !e.herm) return false;
+  const p = pos(e); return R.enBastion(p.x, p.z) && e.herm[0] !== paneles.herm?.nombre;
+}
 function cercano(max) {
   let mejor = null, md = max;
-  for (const e of entes.values()) { if (e.esJ || e.muerto || e.aliado) continue; const d = Math.hypot(pos(e).x - lx, pos(e).z - lz); if (d < md) { md = d; mejor = e; } }
+  for (const e of entes.values()) { if ((e.esJ && !enemigo(e)) || e.muerto || e.aliado) continue; const d = Math.hypot(pos(e).x - lx, pos(e).z - lz); if (d < md) { md = d; mejor = e; } }
   return mejor;
 }
-function atacarCercano() { const e = cercano(14); if (e) marcarObjetivo(e.id); else hud.toast('No hay monstruos cerca.'); }
+function atacarCercano() { const e = cercano(14); if (e) marcarObjetivo(e.id); else hud.toast(estado?.asedio ? 'No hay enemigos cerca.' : 'No hay monstruos cerca.'); }
 function usarHabilidad(id) {
   const h = C.buscarHab(mio.clase, id); if (!h) return;
   if (['golpe', 'proyectil', 'lluvia'].includes(h.tipo)) {
@@ -454,7 +461,8 @@ function moverme(dt) {
   const vel = R.VEL_JUGADOR * (1 + (mio.der?.velMov || 0) / 100) * (atacando && !(ix || iz) ? 0.3 : 1);
   if (mx || mz) {
     lx += mx * vel * dt; lz += mz * vel * dt;
-    if (R.enPozo(lx, lz)) { const dx = lx - R.POZO.x, dz = lz - R.POZO.z, d = Math.hypot(dx, dz); if (d > R.POZO.r) { lx = R.POZO.x + dx / d * R.POZO.r; lz = R.POZO.z + dz / d * R.POZO.r; } }
+    if (R.enBastion(lx, lz)) { const dx = lx - R.BASTION.x, dz = lz - R.BASTION.z, d = Math.hypot(dx, dz); if (d > R.BASTION.r) { lx = R.BASTION.x + dx / d * R.BASTION.r; lz = R.BASTION.z + dz / d * R.BASTION.r; } }
+    else if (R.enPozo(lx, lz)) { const dx = lx - R.POZO.x, dz = lz - R.POZO.z, d = Math.hypot(dx, dz); if (d > R.POZO.r) { lx = R.POZO.x + dx / d * R.POZO.r; lz = R.POZO.z + dz / d * R.POZO.r; } }
     else if (R.enCosta(lx, lz)) { const dx = lx - R.COSTA.x, d = Math.hypot(dx, lz); if (d > R.COSTA.r) { lx = R.COSTA.x + dx / d * R.COSTA.r; lz = lz / d * R.COSTA.r; } }
     else { lx = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, lx)); lz = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, lz)); }
     ldir = Math.atan2(mx, mz);
@@ -516,14 +524,15 @@ function dibujarTextos(dt) {
       tc.font = '600 14px "Spectral SC", Spectral, Georgia, serif';
       tc.lineWidth = 3; tc.strokeStyle = 'rgba(0,0,0,.8)';
       const t = `${e.nombre} · ${e.nivel}`;
-      tc.fillStyle = e === yo ? '#efe6d2' : mismo ? '#a8d48f' : '#b9c1c9';
+      tc.fillStyle = e === yo ? '#efe6d2' : enemigo(e) ? '#ff5a4a' : mismo ? '#a8d48f' : '#b9c1c9';
       tc.strokeText(t, s[0], s[1]); tc.fillText(t, s[0], s[1]);
       if (e.herm) {
-        const [hn, hs, hc] = e.herm, ht = `${hs}\uFE0E ${hn}`;
+        const [hn, hs, hc, senor] = e.herm, ht = `${senor ? '♛\uFE0E ' : ''}${hs}\uFE0E ${hn}`;
         tc.font = 'italic 600 13px Spectral, Georgia, serif'; tc.fillStyle = hc;
         tc.strokeText(ht, s[0], s[1] - 15); tc.fillText(ht, s[0], s[1] - 15);
       }
       if (e !== yo) barra(s[0], s[1] + 11, 46, 4, e.hp, mismo ? '#6fae4f' : '#a33');
+      if (e.id === objetivo) { tc.strokeStyle = '#ff5a4a'; tc.lineWidth = 2; tc.strokeRect(s[0] - 26, s[1] + 7, 52, 12); }
     } else if (e.id === objetivo || e.hp < 100 || e.def.jefe || e.campeon) {
       barra(s[0], s[1], e.def.jefe ? 90 : 50, e.def.jefe ? 6 : 4, e.hp, '#9c1f1f');
       if (e.id === objetivo || e.def.jefe || e.campeon) {
@@ -596,7 +605,8 @@ function datosHud() {
   for (const e of entes.values()) if (e.def?.jefe && !e.muerto && Math.hypot(pos(e).x - lx, pos(e).z - lz) < 26) jefe = { nombre: e.def.nombre + (e.furioso ? ' · en furia' : ''), hp: e.hp };
   let lugar = R.enCosta(lx, lz) ? { nombre: 'Costa de la Sal Negra', frase: 'El mar también está muerto.' } : { nombre: R.MAPA.nombre, frase: 'La noche no se termina.' };
   if (R.enPozo(lx, lz)) lugar = { nombre: 'Pozo de las Almas', frase: estado?.pozo > 0 ? `Oleada ${estado.pozo} de ${R.POZO.oleadas}` : 'Esperá a que se cierre la entrada.' };
-  if (!R.enPozo(lx, lz)) for (const l of R.MAPA.lugares) if (Math.hypot(l.x - lx, l.z - lz) < (l.x || l.z ? 14 : R.PUEBLO.r)) lugar = l;
+  if (R.enBastion(lx, lz)) lugar = { nombre: 'Bastión Caído', frase: estado?.asedio ? 'Quien tenga el altar, tiene el Bastión.' : 'Piedra vieja. Sangre nueva.' };
+  if (!R.enPozo(lx, lz) && !R.enBastion(lx, lz)) for (const l of R.MAPA.lugares) if (Math.hypot(l.x - lx, l.z - lz) < (l.x || l.z ? 14 : R.PUEBLO.r)) lugar = l;
   const puntos = [];
   for (const e of entes.values()) {
     if (e === yo || (e.muerto && !e.esJ)) continue;
@@ -681,7 +691,7 @@ function actualizarDrops(lista) {
 let ambT = 0;
 function ambienteMusical() {
   if (!yo) return 'menu';
-  if (R.enPozo(lx, lz)) return 'pozo';
+  if (R.enPozo(lx, lz) || R.enBastion(lx, lz)) return 'pozo';
   for (const e of entes.values()) if (e.def?.jefe && !e.muerto && Math.hypot(pos(e).x - lx, pos(e).z - lz) < 26) return 'jefe';
   if (estado?.evt?.[0] === 'noche') return 'noche';
   if (performance.now() - ultimaPelea < 6000) return 'pelea';
@@ -710,6 +720,7 @@ function cuadro() {
     mira.set(foco.x, foco.y + 1, foco.z); E.camara.lookAt(mira);
     const o = objetivo && entes.get(objetivo); FX.marcar(o && !o.muerto ? o.vis.raiz : null, o ? o.radio * 1.6 + 0.4 : 1);
     if (estado) hud.actualizar(estado, datosHud());
+    if (estado?.asedio || R.enBastion(lx, lz)) E.bastion.actualizar(performance.now() / 1000, (() => { const d = estado?.asedio?.dueno; if (d === '') return ''; if (!d) return null; return estado.asedio.lista.find(x => x[0] === d)?.[3] || '#d4a24a'; })());
   } else {
     // Antes de entrar: la cámara gira lento alrededor de la Atalaya.
     angIntro += dt * 0.08; foco.set(0, 0, 0);

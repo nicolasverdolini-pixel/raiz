@@ -28,6 +28,7 @@ export class Hud {
       <div class="caja arriba-izq"><div id="h-yo"><b id="h-nombre"></b><span id="h-nivel"></span><span id="h-buffs"></span></div><div id="h-grupo"></div><div id="h-mis"></div></div>
       <button id="b-mochila" class="hb mochila" aria-label="Personaje y mochila">${iconoBoton('mochila', '#5a3a20')}</button>
       <div id="h-obj" class="caja" hidden><b id="h-obj-nombre"></b><div class="barra"><i id="h-obj-vida"></i></div><small id="h-obj-desc"></small></div>
+      <div id="h-asedio" hidden></div>
       <div id="h-jefe" hidden><b id="h-jefe-nombre"></b><div class="barra"><i id="h-jefe-vida"></i></div></div>
       <div class="arriba-der"><canvas id="h-mini" width="140" height="140"></canvas><span id="h-lugar"></span><span id="h-evento"></span><span id="h-ping"></span></div>
       <div class="abajo">
@@ -105,6 +106,17 @@ export class Hud {
     const j = extra.jefe;
     $('#h-jefe').hidden = !j;
     if (j) { $('#h-jefe-nombre').textContent = j.nombre; $('#h-jefe-vida').style.width = j.hp + '%'; }
+    // Marcador del asedio
+    const as = yo.asedio, ak = JSON.stringify(as);
+    if (ak !== this.ak) {
+      this.ak = ak; const el = $('#h-asedio'); el.hidden = !as;
+      if (as) {
+        el.innerHTML = `<b>Asedio del Bastión</b><small>${as.dueno ? `Altar: <span style="color:${as.lista.find(x => x[0] === as.dueno)?.[3] || '#d4a24a'}">${esc(as.dueno)}</span>` : as.dueno === '' ? '<span class="peligro">Altar disputado</span>' : 'Altar libre'}</small>
+          ${as.lista.map(([n, pts, sim, col]) => `<div class="as-fila"><span style="color:${col}">${sim}&#xFE0E; ${esc(n)}</span><b>${pts}</b></div>`).join('')}
+          <button class="link" id="b-dejar-bastion">Dejar el Bastión</button>`;
+        $('#b-dejar-bastion').onclick = () => this.cb.dejarBastion();
+      }
+    }
     $('#h-ping').textContent = extra.ping ? `${extra.ping} ms` : '';
     if (extra.lugar.nombre !== this.lugar) { this.lugar = extra.lugar.nombre; $('#h-lugar').textContent = extra.lugar.nombre; this.tituloLugar(extra.lugar.nombre, extra.lugar.frase); }
     const ev = yo.evt, he = $('#h-evento');
