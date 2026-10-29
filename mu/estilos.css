@@ -500,3 +500,13 @@ input:focus { outline: 1px solid var(--sangre-2); }
 #tuto-aro { position: absolute; z-index: 7; border: 3px solid #e9c37a; border-radius: 50%; box-shadow: 0 0 0 4000px rgba(0,0,0,.35), 0 0 18px #e9c37a; pointer-events: none; animation: tuto-latir 1.2s infinite; }
 @keyframes tuto-latir { 50% { transform: scale(1.12); } }
 @media (max-height: 480px) { #tuto { top: 8%; } }
+
+/* El retrato (mochila) y el chat van arriba a la izquierda, lejos del joystick */
+#hud .hb.mochila { top: calc(10px + env(safe-area-inset-top)); bottom: auto; left: calc(10px + env(safe-area-inset-left)); width: 58px; height: 58px; }
+#hud .hb.chatb { top: calc(76px + env(safe-area-inset-top)); bottom: auto; left: calc(17px + env(safe-area-inset-left)); width: 44px; height: 44px; }
+.arriba-izq { left: calc(76px + env(safe-area-inset-left)); }
+#h-botin { bottom: calc(96px + env(safe-area-inset-bottom)); }
+@media (max-aspect-ratio: 1/1) {
+  #hud .hb.mochila { top: calc(10px + env(safe-area-inset-top)); bottom: auto; width: 54px; height: 54px; }
+  #hud .hb.chatb { top: calc(72px + env(safe-area-inset-top)); bottom: auto; left: calc(15px + env(safe-area-inset-left)); }
+}
