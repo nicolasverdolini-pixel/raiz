@@ -191,6 +191,7 @@ function alMensaje(m) {
     return;
   }
   if (m.t === 'inv') return hud.invitacion(m.de, m.nombre, m.nivel);
+  if (m.t === 'diaria') return hud.diaria(m);
   if (m.t === 'invherm') return hud.invitacionHerm(m.de, m.h);
   if (m.t === 'herm') return paneles.hermandad(m.h, m.online);
   if (m.t === 'compide') return hud.pedidoComercio(m.de, m.nombre);

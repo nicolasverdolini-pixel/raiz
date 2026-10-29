@@ -171,6 +171,18 @@ export class Hud {
     $('#m-despertar').onclick = () => { m.hidden = true; m.classList.remove('lore'); despues?.(); };
   }
 
+  // Regalo del día: los 7 días de la racha, el de hoy resaltado.
+  diaria(m) {
+    const caja = document.createElement('div'); caja.className = 'caja diaria';
+    caja.innerHTML = `<b>Regalo del día</b><small>${m.racha === 1 ? 'Entrá mañana para seguir la racha.' : `Racha de ${m.racha} días. No la cortes.`}</small>
+      <div class="dias">${R.DIARIA.map((_, i) => `<span class="${i + 1 < m.racha ? 'hecho' : i + 1 === m.racha ? 'hoy' : ''}">${i + 1}</span>`).join('')}</div>
+      <p>+${m.oro.toLocaleString('es-AR')} de oro${m.cosas.length ? ' · ' + m.cosas.join(' · ') : ''}</p><button class="btn">Tomar</button>`;
+    caja.addEventListener('pointerdown', e => e.stopPropagation());
+    caja.querySelector('button').onclick = () => caja.remove();
+    const poner = () => { if ($('#tuto') || !$('#modal').hidden) return setTimeout(poner, 1500); this.el.appendChild(caja); setTimeout(() => caja.remove(), 20000); };
+    poner();
+  }
+
   // Tutorial corto para personajes nuevos: un cartel por paso, señalando el botón del que habla.
   tutorial(clase) {
     const atr = { fue: 'Fuerza', agi: 'Agilidad', ene: 'Energía' }[C.CLASES[clase]?.atributo] || 'Fuerza';

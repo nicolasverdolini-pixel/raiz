@@ -108,6 +108,21 @@ export function nivelVisual(it) {
   if (b.r === 'arma' || b.r === 'escudo') return (+it.b.match(/(\d+)$/)?.[1] || 1) - 1;
   return SETS_VIS.indexOf(it.b.split('_')[1]);
 }
+// Bonus de set: llevar varias piezas (casco, armadura, guantes, botas) del mismo set suma extra. Más fuerte cuanto más alto el set.
+export const SETS_BONUS = SETS_VIS.map((id, t) => ({
+  id, nombre: { cuero: 'Cuero Gastado', vigia: 'Vigía', osario: 'Osario', foso: 'Foso', velo: 'Velo', escoria: 'Escoria', rey: 'Último Rey' }[id],
+  2: { defPct: 6 + t * 3, hpPct: 2 + t },
+  4: { dmgPct: 5 + t * 3, crit: 1 + Math.floor(t / 2), resTodo: 4 + t * 3, ...(t >= 5 ? { velMov: 5 } : {}) },
+}));
+export function setsPuestos(eq) {
+  const cuenta = {};
+  for (const r of ['casco', 'armadura', 'guantes', 'botas']) { const t = SETS_VIS.indexOf(eq?.[r]?.b?.split('_')[1]); if (t >= 0) cuenta[t] = (cuenta[t] || 0) + 1; }
+  return Object.entries(cuenta).filter(([, n]) => n >= 2).map(([t, n]) => ({ set: SETS_BONUS[t], n }));
+}
+export function textoBonus(ef) {
+  const T = { defPct: v => `Defensa +${v}%`, hpPct: v => `Vida +${v}%`, dmgPct: v => `Daño +${v}%`, crit: v => `Crítico +${v}%`, resTodo: v => `Resistencias +${v}%`, velMov: v => `Velocidad +${v}%` };
+  return Object.entries(ef).map(([k, v]) => T[k]?.(v) || '').filter(Boolean).join(' · ');
+}
 export const vistaEquipo = eq => ['casco', 'armadura', 'guantes', 'botas', 'arma', 'escudo'].map(r => nivelVisual(eq?.[r])).join(',');
 export const esEquipo = b => !!BASES[b]?.r;
 export const forjable = b => esEquipo(b) && !BASES[b].especial;
@@ -184,6 +199,7 @@ export function bonusEquipo(equipo) {
     if (v.def) t.def += v.def;
     for (const i of it.x || []) { const [k, , val] = opcionesDe(it)[i]; t[k] += val; }
   }
+  for (const { set, n } of setsPuestos(equipo)) { sumar(set[2]); if (n >= 4) sumar(set[4]); }
   return t;
 }
 

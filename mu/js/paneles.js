@@ -57,6 +57,9 @@ function ficha(it, d, acciones = '') {
       <div><b>${esc(O.nombreObjeto(it))}${it.c > 1 ? ' × ' + it.c : ''}</b><span class="rareza">${b.engarce ? 'Gema para engarzar' : b.ala ? `Alas · nivel ${b.ala}` : b.bestia ? O.NOMBRE_RANURA[b.r] : b.r ? O.RAREZAS[ra].nombre + ' · ' + O.NOMBRE_RANURA[b.r] : b.gema ? 'Gema' : 'Consumible'}</span></div></div>
     ${lineas.join('')}
     ${O.textoExcelente(it).map(t => `<span class="exc-op">◆ ${t}</span>`).join('')}
+    ${(() => { const t = ['casco', 'armadura', 'guantes', 'botas'].includes(b.r) ? O.SETS_BONUS.findIndex(x => x.id === it.b.split('_')[1]) : -1; if (t < 0) return '';
+      const S = O.SETS_BONUS[t], n = d ? O.setsPuestos(d.equipo).find(x => x.set === S)?.n || ['casco', 'armadura', 'guantes', 'botas'].filter(r => d.equipo[r]?.b?.endsWith('_' + S.id)).length : 0;
+      return `<div class="set-bonus"><b>Set ${S.nombre}</b> <small>(tenés ${n} de 4 puestas)</small><span class="${n >= 2 ? 'activo' : ''}">2 piezas: ${O.textoBonus(S[2])}</span><span class="${n >= 4 ? 'activo' : ''}">4 piezas: ${O.textoBonus(S[4])}</span></div>`; })()}
     ${it.s ? `<div class="engarces">${Array.from({ length: it.s }, (_, k) => { const g = it.g?.[k]; return g ? `<span class="eng lleno" style="--c:${R.ELEMENTOS[O.BASES[g].elem]?.color || '#e8e8f0'}">◆ ${O.BASES[g].nombre}: ${textoGema(g, b.r === 'arma')}</span>` : '<span class="eng">◇ Engarce libre</span>'; }).join('')}</div>` : ''}
     ${req.length ? `<div class="req">Pide: ${req.join(' · ')}</div>` : ''}
     ${b.desc ? `<p class="nota">${b.desc}</p>` : ''}
@@ -211,6 +214,7 @@ export class Paneles {
       <button class="mas" data-s="${s}" data-n="1" ${d.puntos ? '' : 'disabled'}>+1</button><button class="mas" data-s="${s}" data-n="5" ${d.puntos >= 5 ? '' : 'disabled'}>+5</button></div>`).join('')}
       <div class="fila-oro"><span class="nota">¿Te equivocaste? Podés devolver todos los puntos y repartirlos de nuevo.</span><button class="btn chico sec" id="p-redis">Redistribuir (${R.costoRedistribuir(d) ? R.costoRedistribuir(d).toLocaleString('es-AR') + ' de oro' : 'gratis la primera vez'})</button></div>
       <div class="totales"><span>Daño <b>${v.dmin}–${v.dmax}</b></span><span>Defensa <b>${v.def}</b></span><span>Vida <b>${v.maxHp}</b></span><span>Energía <b>${v.maxMp}</b></span><span>Crítico <b>${v.crit}%</b></span><span>Daño crítico <b>+${v.critDano || 50}%</b></span></div>
+      ${O.setsPuestos(d.equipo).map(({ set, n }) => `<div class="set-bonus"><b>Set ${set.nombre} (${n} de 4)</b><span class="activo">${O.textoBonus(set[2])}</span>${n >= 4 ? `<span class="activo">${O.textoBonus(set[4])}</span>` : `<span>Con 4 piezas: ${O.textoBonus(set[4])}</span>`}</div>`).join('')}
       <div class="totales elem">${Object.entries(R.ELEMENTOS).map(([k, e]) => `<span style="color:${e.color}">${e.nombre}: <b>${v.elem?.[k] ? `+${v.elem[k]}% daño · ` : ''}${v.res?.[k] || 0}% resist.</b></span>`).join('')}</div>`;
   }
 

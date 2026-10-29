@@ -510,3 +510,9 @@ input:focus { outline: 1px solid var(--sangre-2); }
   #hud .hb.mochila { top: calc(10px + env(safe-area-inset-top)); bottom: auto; width: 54px; height: 54px; }
   #hud .hb.chatb { top: calc(72px + env(safe-area-inset-top)); bottom: auto; left: calc(15px + env(safe-area-inset-left)); }
 }
+.set-bonus { display: flex; flex-direction: column; gap: 1px; margin-top: 5px; font-size: .85em; color: var(--hueso-2); border-left: 2px solid #6a5a48; padding-left: 8px; }
+.set-bonus b { color: #c9a24a; font-family: var(--titulo); } .set-bonus .activo { color: #9fe0a0; }
+.diaria { position: absolute; left: 50%; top: 20%; transform: translateX(-50%); width: min(340px, 88vw); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; z-index: 8; border: 1px solid #8a6a3a; background: rgba(10,9,10,.95); pointer-events: auto; }
+.diaria > b { font: 1.25em var(--titulo); color: #e9c37a; } .diaria small { color: var(--hueso-2); } .diaria p { margin: 4px 0; }
+.diaria .dias { display: flex; gap: 6px; } .diaria .dias span { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid rgba(216,207,189,.25); font-family: var(--titulo); color: var(--hueso-2); }
+.diaria .dias .hecho { background: #2a2014; color: #c9a24a; } .diaria .dias .hoy { background: #6e2a22; color: #fff; border-color: #e9c37a; box-shadow: 0 0 10px rgba(233,195,122,.5); }

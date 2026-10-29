@@ -264,6 +264,20 @@ export class Mapa extends DurableObject {
     if (!p.d.visto) p.d.visto = true;
     if (!this.reloj) { this.reloj = setInterval(() => this.tick(), R.TICK * 1000); }
     if (p.d.hermandad) await this.cargarHerm(p);
+    this.recompensaDiaria(p);
+  }
+
+  // Un regalo por día, por personaje. El oro crece con el nivel.
+  recompensaDiaria(p) {
+    const hoy = R.hoyAR(), ayer = R.hoyAR(Date.now() - 86400000), D = p.d.diaria || {};
+    if (D.dia === hoy) return;
+    const racha = D.dia === ayer ? (D.racha % 7) + 1 : 1, pr = R.DIARIA[racha - 1];
+    const oro = Math.round(pr.oro * (1 + p.d.nivel / 20)), cosas = [...pr.items];
+    for (let i = 0; i < (pr.gema || 0); i++) cosas.push({ b: O.GEMAS[Math.floor(Math.random() * O.GEMAS.length)], c: 1 });
+    p.d.oro += oro; const dadas = [];
+    for (const it of cosas) if (this.agregar(p, { ...it })) dadas.push(`${it.c > 1 ? it.c + ' × ' : ''}${O.BASES[it.b].nombre}`);
+    p.d.diaria = { dia: hoy, racha }; p.cambioInv = true; this.guardar(p);
+    setTimeout(() => this.enviar(p.s, { t: 'diaria', racha, oro, cosas: dadas }), 1500);
   }
 
   salir(s) {

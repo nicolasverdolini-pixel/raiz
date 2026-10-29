@@ -33,6 +33,17 @@ export const atalayaCercana = (x, z, visitadas) => {
   PUEBLOS.forEach((p, i) => { if (visitadas && !visitadas.includes(i)) return; const d = Math.hypot(x - p.x, z - p.z); if (d < md) { md = d; mejor = i; } });
   return mejor;
 };
+// Recompensa por entrar cada día (hora argentina). La racha sube si venís días seguidos; al 7° vuelve a empezar.
+export const hoyAR = (ms = Date.now()) => new Date(ms - 3 * 3600000).toISOString().slice(0, 10);
+export const DIARIA = [
+  { oro: 300, items: [{ b: 'pocion', c: 10 }] },
+  { oro: 500, items: [{ b: 'eter', c: 10 }] },
+  { oro: 800, items: [{ b: 'forja', c: 3 }] },
+  { oro: 1200, items: [{ b: 'vela', c: 3 }, { b: 'pocion', c: 15 }] },
+  { oro: 1600, items: [{ b: 'destino', c: 2 }], gema: 1 },
+  { oro: 2200, items: [{ b: 'sello', c: 1 }, { b: 'eter', c: 15 }] },
+  { oro: 3500, items: [{ b: 'abismo', c: 1 }, { b: 'guardiana', c: 1 }], gema: 2 },
+];
 export const VEL_JUGADOR = 5.2;
 export const MAX_GRUPO = 5;
 export const BONUS_GRUPO = 0.1;          // +10% de experiencia por cada compañero
