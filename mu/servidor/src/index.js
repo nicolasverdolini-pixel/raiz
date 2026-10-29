@@ -1032,13 +1032,14 @@ export class Mapa extends DurableObject {
       const q = this.jug.get(m.id); if (!q || q === p) return;
       if (dist(p, q) > 10) return this.aviso(p, 'Acercate para comerciar.');
       if (q.com || p.com) return this.aviso(p, 'Ya hay un comercio abierto.');
+      if (p.puesto || q.puesto) return this.aviso(p, 'No se puede comerciar con un puesto abierto.');
       q.pedidoCom = { de: p.id, t: Date.now() };
       this.enviar(q.s, { t: 'compide', de: p.id, nombre: p.nombre });
       return this.aviso(p, `Le ofreciste comerciar a ${q.nombre}.`);
     }
     if (m.a === 'acepta') {
       const q = this.jug.get(m.de);
-      if (!q || p.pedidoCom?.de !== q.id || Date.now() - p.pedidoCom.t > 60_000 || q.com || p.com) return this.aviso(p, 'El pedido ya no vale.');
+      if (!q || p.pedidoCom?.de !== q.id || Date.now() - p.pedidoCom.t > 60_000 || q.com || p.com || p.puesto || q.puesto) return this.aviso(p, 'El pedido ya no vale.');
       p.pedidoCom = null;
       const N = { a: q.id, b: p.id, ofertas: { [q.id]: { items: [], oro: 0 }, [p.id]: { items: [], oro: 0 } }, listo: {}, conf: {} };
       p.com = q.com = N; return this.mandarComercio(N);
@@ -1047,7 +1048,7 @@ export class Mapa extends DurableObject {
     const otro = this.jug.get(T.a === p.id ? T.b : T.a);
     if (m.a === 'cancelar') return this.cancelarComercio(p, `${p.nombre} cerró el comercio.`);
     const mia = T.ofertas[p.id];
-    if (m.a === 'poner') { const i = m.i | 0; const it = p.d.inv[i]; if (!it || mia.items.includes(i) || mia.items.length >= 8) return; mia.items.push(i); }
+    if (m.a === 'poner') { const i = m.i | 0; const it = p.d.inv[i]; if (!it || mia.items.includes(i) || mia.items.length >= 8 || p.puesto?.items.some(x => x.i === i)) return; mia.items.push(i); }
     else if (m.a === 'sacar') mia.items = mia.items.filter(x => x !== (m.i | 0));
     else if (m.a === 'oro') mia.oro = Math.max(0, Math.min(p.d.oro, m.n | 0));
     else if (m.a === 'listo') { T.listo[p.id] = true; return this.mandarComercio(T); }

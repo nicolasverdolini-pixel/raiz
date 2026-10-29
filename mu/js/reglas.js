@@ -439,7 +439,7 @@ export const GOLPE = { NORMAL: 0, CRITICO: 1, EXCELENTE: 2, HABILIDAD: 3 };
     return { dano: prom(v => (v.dmin + v.dmax) / 2 * (1 + v.crit / 100 * v.critDano / 100) * 1.6 / v.cadencia), dmg: prom(v => (v.dmin + v.dmax) / 2), hp: prom(v => v.maxHp), def: prom(v => v.def) };
   })());
   const SEG_MATAR = nv => 2 + 2.5 * Math.min(1, nv / 100);          // de 2 s al principio a 4,5 s arriba (con habilidades, menos)
-  const SEG_AGUANTAR = nv => 60 - 35 * Math.min(1, nv / 60);        // de 60 s al principio a 25 s desde el nivel 60
+  const SEG_AGUANTAR = nv => 100 - 75 * Math.min(1, nv / 60);       // de 100 s al principio (para aprender) a 25 s desde el nivel 60
   const comunes = Object.entries(MONSTRUOS).filter(([, m]) => !m.jefe && !m.soloEvento);
   const vecinos = m => comunes.map(([, x]) => x).filter(x => Math.abs(x.nivel - m.nivel) <= 8);
   const mediana = a => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
@@ -449,9 +449,10 @@ export const GOLPE = { NORMAL: 0, CRITICO: 1, EXCELENTE: 2, HABILIDAD: 3 };
     caracter[k] = { hp: Math.max(0.6, Math.min(1.6, fh)), dano: Math.max(0.7, Math.min(1.4, fd)) };
   }
   const poner = (m, kHp, kDano) => {
-    const R0 = medio(Math.min(160, m.nivel + 2)), cad = m.cadencia || 1.5;
+    const R0 = medio(Math.min(160, m.nivel + (m.nivel < 10 ? 0 : 2))), cad = m.cadencia || 1.5;
     m.hp = Math.round(R0.dano * SEG_MATAR(m.nivel) * kHp / 10) * 10 + Math.round(m.def * 0.5 * 4);
-    const golpe = (R0.hp / SEG_AGUANTAR(m.nivel)) * cad * kDano + R0.def * 0.5, r = m.dano[1] / m.dano[0];
+    // Al principio el jugador tiene poca armadura: la parte que «come» la defensa crece de a poco hasta el nivel 20.
+    const golpe = (R0.hp / SEG_AGUANTAR(m.nivel)) * cad * kDano + R0.def * 0.5 * (0.3 + 0.7 * Math.min(1, m.nivel / 20)), r = m.dano[1] / m.dano[0];
     m.dano = [Math.round(golpe * 2 / (1 + r)), Math.round(golpe * 2 * r / (1 + r))];
   };
   for (const [k, m] of comunes) poner(m, caracter[k].hp, caracter[k].dano);
