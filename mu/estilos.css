@@ -359,3 +359,9 @@ input:focus { outline: 1px solid var(--sangre-2); }
 .chat-log .herm b, #chat-vivo .herm b { color: #b07ad8; }
 .chat-log .herm, #chat-vivo .herm { color: #d9c8ec; }
 .h-punto { width: 14px; color: #8fd16e; text-align: center; } .fila-t.gris .h-punto { color: var(--hueso-2); }
+
+/* Alas */
+.alas-rec { margin-top: 10px; }
+.alas-rec .ficha-top { margin-bottom: 6px; }
+.req-lista { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: .9em; }
+.req-lista .si { color: #8fd16e; } .req-lista .no { color: #d0675a; }

@@ -42,6 +42,7 @@ const F = {
   guantes: '<path d="M18 58V38l-4-8V14h5v14h2V10h5v18h2V8h5v20h2V12h5v28l-6 18z"/>',
   botas: '<path d="M20 6h16v28l18 8v14H14v-8l6-4z"/>',
   herradura: '<path d="M14 10h10v22c0 6 4 10 8 10s8-4 8-10V10h10v22c0 12-8 22-18 22S14 44 14 32z"/><circle cx="19" cy="18" r="1.8" fill="#0b0a0b"/><circle cx="45" cy="18" r="1.8" fill="#0b0a0b"/><circle cx="19" cy="28" r="1.8" fill="#0b0a0b"/><circle cx="45" cy="28" r="1.8" fill="#0b0a0b"/>',
+  ala: '<path d="M30 16C22 8 10 8 4 14c6 0 10 4 10 10-4-2-8 0-8 4 4-2 8 0 9 4-3 0-5 3-4 6 4-3 9-3 12 2 2-6 5-10 7-12zM34 16c8-8 20-8 26-2-6 0-10 4-10 10 4-2 8 0 8 4-4-2-8 0-9 4 3 0 5 3 4 6-4-3-9-3-12 2-2-6-5-10-7-12z"/><path d="M30 16h4v26h-4z"/>',
   pata: '<ellipse cx="32" cy="42" rx="13" ry="11"/><ellipse cx="15" cy="27" rx="5.5" ry="7"/><ellipse cx="25" cy="16" rx="5.5" ry="7.5"/><ellipse cx="39" cy="16" rx="5.5" ry="7.5"/><ellipse cx="49" cy="27" rx="5.5" ry="7"/>',
   mochila: '<path d="M16 22h32l4 34H12z"/><path d="M24 22v-6a8 8 0 0 1 16 0v6h-4v-6a4 4 0 0 0-8 0v6z"/><path d="M24 36h16v4H24z" fill="#0b0a0b"/>',
 };
@@ -83,7 +84,7 @@ export const iconoAtaque = clase => medallon(ARMA[clase] || 'espada', '#7a1a14')
 export const iconoBoton = (fig, color = '#3a3330') => medallon(fig, color);
 
 const COLOR_OBJ = { pocion: '#8e1b1b', eter: '#2f4f86', vela: '#8a6b32', forja: '#8a7a40', destino: '#5a3a9e', abismo: '#8e1b3a', guardiana: '#2f6a8e', oro: '#8a6b20',
-  tabano: '#4a4038', anima_g: '#3a5a7e', diablillo: '#8e2a1a', lobo_m: '#5a5650', ciervo_m: '#2a2430', acechador_m: '#6a2a1a' };
+  tabano: '#4a4038', anima_g: '#3a5a7e', diablillo: '#8e2a1a', lobo_m: '#5a5650', ciervo_m: '#2a2430', acechador_m: '#6a2a1a', alas1: '#5a5652', alas2: '#5a1010', alas3: '#b06a18' };
 export function iconoObjeto(b, it) {
   const base = O.BASES[b];
   let fig = 'gema';
@@ -91,6 +92,7 @@ export function iconoObjeto(b, it) {
   else if (base?.r === 'arma') fig = ARMA[base.clase] || 'espada';
   else if (base?.r === 'montura') fig = 'herradura';
   else if (base?.r === 'mascota') fig = 'pata';
+  else if (base?.r === 'alas') fig = 'ala';
   else if (base?.r) fig = base.r;
   else if (b === 'pocion' || b === 'eter') fig = 'pocion';
   else if (b === 'vela') fig = 'vela';

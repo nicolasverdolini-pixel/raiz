@@ -12,7 +12,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const NOMBRE_STAT = { fue: 'Fuerza', agi: 'Agilidad', vit: 'Vitalidad', ene: 'Energía' };
 const RANGO = ['comun', 'exc', 'leg', 'mit'];
-export const claseObjeto = it => (it ? 'r-' + RANGO[O.rareza(it)] + ((it.n || 0) >= 7 ? ' alto' : '') : '');
+export const claseObjeto = it => (it ? 'r-' + RANGO[O.BASES[it.b]?.ala || O.rareza(it)] + ((it.n || 0) >= 7 ? ' alto' : '') : '');
 
 // Imagen del objeto: foto 3D si es arma o escudo, si no el ícono.
 export function imagen(it) {
@@ -47,7 +47,7 @@ function ficha(it, d, acciones = '') {
   }
   return `<div class="ficha ${claseObjeto(it)}">
     <div class="ficha-top"><div class="ficha-img ${claseObjeto(it)}">${imagen(it)}</div>
-      <div><b>${esc(O.nombreObjeto(it))}${it.c > 1 ? ' × ' + it.c : ''}</b><span class="rareza">${b.r ? O.RAREZAS[ra].nombre + (b.r ? ' · ' + O.NOMBRE_RANURA[b.r] : '') : b.gema ? 'Gema' : 'Consumible'}</span></div></div>
+      <div><b>${esc(O.nombreObjeto(it))}${it.c > 1 ? ' × ' + it.c : ''}</b><span class="rareza">${b.ala ? `Alas · nivel ${b.ala}` : b.bestia ? O.NOMBRE_RANURA[b.r] : b.r ? O.RAREZAS[ra].nombre + ' · ' + O.NOMBRE_RANURA[b.r] : b.gema ? 'Gema' : 'Consumible'}</span></div></div>
     ${lineas.join('')}
     ${O.textoExcelente(it).map(t => `<span class="exc-op">◆ ${t}</span>`).join('')}
     ${req.length ? `<div class="req">Pide: ${req.join(' · ')}</div>` : ''}
@@ -258,7 +258,7 @@ export class Paneles {
     const n = O.NPCS.find(x => x.id === id), d = this.ctx.mio(); if (!n || !d) return;
     if (elegido) { this.forjaSel = elegido; this.sel = null; }
     const tabs = n.rol === 'herrero' ? [['tienda', 'Comprar'], ['forja', 'Forja'], ['vender', 'Vender']]
-      : n.rol === 'vidente' ? [['eventos', 'Eventos'], ['pozo', 'Pozo'], ['tienda', 'Comprar'], ['renacer', 'Renacer'], ['ranking', 'Ranking'], ['viajes', 'Velas']] : [['tienda', 'Comprar'], ['vender', 'Vender']];
+      : n.rol === 'vidente' ? [['eventos', 'Eventos'], ['pozo', 'Pozo'], ['tienda', 'Comprar'], ['alas', 'Alas'], ['renacer', 'Renacer'], ['ranking', 'Ranking'], ['viajes', 'Velas']] : [['tienda', 'Comprar'], ['vender', 'Vender']];
     tab = tab || tabs[0][0];
     let cuerpo = `<p class="frase">«${n.frase}»</p>`;
     if (tab === 'tienda') cuerpo += this.htmlTienda(n, d);
@@ -268,10 +268,12 @@ export class Paneles {
     if (tab === 'viajes') cuerpo += this.htmlVelas(d);
     if (tab === 'pozo') cuerpo += this.htmlPozo(d);
     if (tab === 'renacer') cuerpo += this.htmlRenacer(d);
+    if (tab === 'alas') cuerpo += this.htmlAlas(d);
     if (tab === 'ranking') { cuerpo += this.htmlRanking(d); if (!this.pedidoRanking || Date.now() - this.pedidoRanking > 10000) { this.pedidoRanking = Date.now(); this.ctx.mandar({ t: 'ranking' }); } }
     this.marco(n.nombre, R.PUEBLOS[n.atalaya]?.nombre, tabs, tab, cuerpo, 'npc', [id, tab]);
     const m = this.ctx.mandar;
     this.el.querySelectorAll('[data-tsel]').forEach(b => b.onclick = () => { this.sel = 't:' + b.dataset.tsel; this.npc(id, tab); });
+    this.el.querySelectorAll('[data-alas]').forEach(b => b.onclick = () => { const a = O.BASES[O.ALAS[+b.dataset.alas].b]; if (confirm(`¿Pedirle a Oria ${a.nombre}? Si falla, perdés lo que entregás.`)) this.ctx.mandar({ t: 'alas', n: +b.dataset.alas }); });
     this.el.querySelectorAll('[data-comprar]').forEach(b => b.onclick = () => m({ t: 'comprar', npc: id, b: b.dataset.comprar, c: +b.dataset.c }));
     this.el.querySelectorAll('[data-vsel]').forEach(b => b.onclick = () => { this.sel = 'v:' + b.dataset.vsel; this.npc(id, tab); });
     this.el.querySelectorAll('[data-vender]').forEach(b => b.onclick = () => { m({ t: 'vender', i: +b.dataset.vender }); this.sel = null; });
@@ -341,6 +343,27 @@ export class Paneles {
       <span>Sellos del Pozo: <b>${sellos}</b> (los vende Oria en "Comprar")</span>
       <div class="acciones"><button class="btn" id="p-pozo" ${abierta && sellos ? '' : 'disabled'}>Bajar al Pozo</button></div></div>`;
   }
+  htmlAlas(d) {
+    const tiene = b => d.equipo.alas?.b === b || d.inv.some(x => x?.b === b);
+    const cant = b => d.inv.reduce((a, x) => a + (x?.b === b ? x.c || 1 : 0), 0);
+    return `<p class="nota">Oria cose alas con lo que le traigas. Puede fallar: si falla, se pierden el oro, las gemas y el equipo que entregaste (las alas anteriores no). Usa el equipo más flojo que sirva de tu mochila.</p>
+      ${O.ALAS.map((rec, n) => {
+        const a = O.BASES[rec.b], it = { b: rec.b, n: 0 };
+        const reqs = [
+          [d.nivel >= a.req && (!rec.renacido || d.resets >= rec.renacido), `Nivel ${a.req}${rec.renacido ? ' y haber renacido' : ''}`],
+          [d.oro >= rec.oro, `${rec.oro.toLocaleString('es-AR')} de oro`],
+          [cant(rec.gema) >= rec.gemas, `${rec.gemas} × ${O.BASES[rec.gema].nombre} (tenés ${cant(rec.gema)})`],
+          [O.sacrificioAlas(d.inv, rec) >= 0, `${rec.texto[0].toUpperCase() + rec.texto.slice(1)} en la mochila`],
+          ...(rec.previa ? [[tiene(rec.previa), O.BASES[rec.previa].nombre]] : []),
+        ];
+        const ok = reqs.every(r => r[0]);
+        return `<div class="mision alas-rec"><div class="ficha-top"><div class="ficha-img ${claseObjeto(it)}">${imagen(it)}</div><div><b>${a.nombre}</b><span class="rareza">Alas · nivel ${a.ala}</span></div></div>
+          <span class="m-texto">${a.desc}</span>
+          <ul class="req-lista">${reqs.map(([v, t]) => `<li class="${v ? 'si' : 'no'}">${v ? '✓' : '✗'} ${t}</li>`).join('')}</ul>
+          <div class="acciones"><span class="precio">Sale ${Math.round(rec.chance * 100)}% de las veces</span><button class="btn" data-alas="${n}" ${ok ? '' : 'disabled'}>${tiene(rec.b) ? 'Hacer otras' : 'Pedírselas a Oria'}</button></div></div>`;
+      }).join('')}`;
+  }
+
   htmlRenacer(d) {
     const n = d.resets || 0, oro = R.RENACER.oro(n), puede = d.nivel >= R.RENACER.nivel && d.oro >= oro;
     return `<div class="mision"><b>Renacer</b><span class="m-texto">El Farol te devuelve al nivel 1, pero no te olvidás de lo que aprendiste: renacés con puntos de regalo.</span>

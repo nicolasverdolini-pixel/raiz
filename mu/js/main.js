@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import * as R from './reglas.js';
 import { cargarTodo, crear, VISUAL } from './modelos.js';
+import { crearAlas, animarAlas } from './alas.js';
 import { crearEscena } from './escena.js';
 import { crearEfectos } from './efectos.js';
 import { Red } from './red.js';
@@ -119,6 +120,15 @@ function ponerMontura(e, b) {
     e.piernas = [h('upperlegl'), h('upperlegr'), h('lowerlegl'), h('lowerlegr')];   // el cargador les saca los puntos
   }
 }
+// Alas: cuelgan del cuerpo (que ya viene escalado), así suben con la montura y caen con el personaje.
+function ponerAlas(e, n) {
+  if (e.alas) { e.alas.parent?.remove(e.alas); e.alas = null; }
+  e.alasN = n; if (!n) return;
+  const v = VISUAL[e.tipo], k = 1 / e.vis.cuerpo.scale.x;
+  e.alas = crearAlas(n); if (!e.alas) return;
+  e.alas.scale.setScalar(k); e.alas.position.set(0, v.tam * 0.55 * k, -0.2 * k);
+  e.vis.cuerpo.add(e.alas);
+}
 // Después de animar: jinete sentado (piernas dobladas y abiertas) y la bestia corre o espera.
 function animarBestias(e, dt, corre) {
   if (e.mon) {
@@ -198,7 +208,7 @@ function entrarSeleccion(m) {
 function foto(s) {
   if (!mio) return;
   const ahora = performance.now();
-  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl, clase, brillo, herm, mascota, montura] of s.j) {
+  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl, clase, brillo, herm, mascota, montura, alas] of s.j) {
     const muralla = fl & 1, veneno = fl & 2;
     let e = entes.get(id);
     if (e && e.tipo !== clase && VISUAL[clase]) { quitarEnte(id); e = null; }
@@ -207,6 +217,7 @@ function foto(s) {
     Object.assign(e, { nombre, hp, nivel, st, grupo, muralla, veneno, herm: herm || null, visto: ahora });
     if ((mascota || null) !== (e.mascotaB || null)) ponerMascota(e, mascota);
     if ((montura || null) !== (e.monturaB || null)) ponerMontura(e, montura);
+    if ((alas || 0) !== (e.alasN || 0)) ponerAlas(e, alas || 0);
     if (id !== yoId) { e.buf.push({ t: ahora, x, z, dir }); if (e.buf.length > 30) e.buf.shift(); }
     if (st === 4 && !e.muerto) morir(e);
   }
@@ -315,10 +326,12 @@ function evento(ev) {
   else if (tipo === 'mision') { SND.sfx.nivel(); hud.toast(`${a}. «${b}»`, 'grande'); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } }
   else if (tipo === 'oro') { hud.toast(`+${a} de oro`, 'exp'); SND.sfx.oro(); }
   else if (tipo === 'recoge') SND.sfx.recoger(b), hud.toast(`Recogiste ${a}`, ['exp', 'excelente', 'legendario', 'mitico'][b] || 'exp');
+  else if (tipo === 'alas') { SND.sfx.forja(a === 'ok'); hud.toast(b, a === 'ok' ? 'grande' : 'malo'); if (a === 'ok') SND.sfx.nivel(); }
   else if (tipo === 'junta') { FX.chispas(b, R.altura(b, c) + 0.4, c, '#f0c040', 8); }
   else if (tipo === 'forja') { SND.sfx.forja(a === 'ok'); hud.toast(b, a === 'ok' ? 'grande' : 'malo'); const n = rolCerca('herrero') || { x: lx, z: lz }; if (a === 'ok') FX.nivel(n.x, 0, n.z); else FX.chispas(n.x, 1.2, n.z, a === 'roto' ? '#ff3b2a' : '#8c7f6a', 30); }
   else if (tipo === 'fx') {
     const y = R.altura(b, c);
+    if (a === 'alas') { FX.nivel(b, y, c); FX.chispas(b, y + 1.6, c, ['#bbb2a8', '#ff3020', '#ffb030'][d - 1] || '#fff', 50); }
     if (a === 'hielo') { FX.golpeSuelo(b, y, c, '#9fd8ff'); FX.chispas(b, y + 0.5, c, '#bfe8ff', 30); }
     else if (a === 'lluvia') FX.golpeSuelo(b, y, c, '#c9b47a');
     else if (a === 'buff') FX.golpeSuelo(b, y, c, '#c9b47a');
@@ -483,6 +496,7 @@ function actualizarEntes(dt) {
     }
     e.vis.muneco.update(dt);
     if (e.esJ && (e.mon || e.pet)) animarBestias(e, dt, e === yo ? yoCorre : e.corre);
+    if (e.alas) animarAlas(e.alas, dt, e === yo ? yoCorre : e.corre);
   }
 }
 

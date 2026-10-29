@@ -1,7 +1,7 @@
 // Objetos, equipo, gemas, forja, tiendas y lo que tiran los monstruos. Compartido celu ↔ servidor.
 
-export const RANURAS = ['arma', 'escudo', 'casco', 'armadura', 'guantes', 'botas', 'mascota', 'montura'];
-export const NOMBRE_RANURA = { arma: 'Arma', escudo: 'Escudo', casco: 'Casco', armadura: 'Armadura', guantes: 'Guantes', botas: 'Botas', mascota: 'Mascota', montura: 'Montura' };
+export const RANURAS = ['arma', 'escudo', 'casco', 'armadura', 'guantes', 'botas', 'alas', 'mascota', 'montura'];
+export const NOMBRE_RANURA = { arma: 'Arma', escudo: 'Escudo', casco: 'Casco', armadura: 'Armadura', guantes: 'Guantes', botas: 'Botas', alas: 'Alas', mascota: 'Mascota', montura: 'Montura' };
 export const MOCHILA = 40;          // casilleros de la mochila
 export const PILA = 50;             // cuántas pociones o gemas entran en un casillero
 
@@ -48,7 +48,7 @@ B.abismo = { id: 'abismo', nombre: 'Gema del Abismo', gema: true, precio: 0, pil
 B.sello = { id: 'sello', nombre: 'Sello del Pozo', precio: 500, pila: true, desc: 'Entrada al Pozo de las Almas. Se gasta al entrar.' };
 B.guardiana = { id: 'guardiana', nombre: 'Piedra Guardiana', precio: 0, pila: true, desc: 'Si la tenés en la mochila, evita que un equipo se rompa en la forja (se gasta).' };
 // Mascotas (te siguen) y monturas (vas arriba, más rápido). ef: lo que dan. No se forjan ni salen excelentes.
-const bestia = (id, nombre, r, req, precio, ef, desc) => B[id] = { id, nombre, r, req, precio, ef, desc, bestia: true };
+const bestia = (id, nombre, r, req, precio, ef, desc) => B[id] = { id, nombre, r, req, precio, ef, desc, bestia: true, especial: true };
 bestia('tabano', 'Tábano de Ceniza', 'mascota', 5, 4000, { junta: 1, oroPct: 10 }, 'Te sigue zumbando y junta solo el oro que cae cerca. +10% de oro.');
 bestia('anima_g', 'Ánima Guardiana', 'mascota', 12, 15000, { menos: 12 }, 'Un alma vieja que se pone en el medio. Recibís 12% menos de daño.');
 bestia('diablillo', 'Diablillo de Brasa', 'mascota', 28, 60000, { dmgPct: 12 }, 'Chiquito, malo y con hambre. Hacés 12% más de daño.');
@@ -56,9 +56,31 @@ bestia('lobo_m', 'Lobo Gris', 'montura', 15, 12000, { velMov: 25 }, 'Lo criaron 
 bestia('ciervo_m', 'Ciervo Negro', 'montura', 35, 70000, { velMov: 35, defPct: 5 }, 'No le teme a nada. Corrés 35% más rápido y +5% de defensa.');
 bestia('acechador_m', 'Acechador Domado', 'montura', 50, 0, { velMov: 45, dmgPct: 5 }, 'Solo lo sueltan los jefes. Corrés 45% más rápido y +5% de daño.');
 B.acechador_m.valor = 200000;
+// Alas: no se compran ni caen. Se forjan con Oria (ver ALAS) y se ven en la espalda.
+const ala = (id, nombre, nivel, req, ef, desc, valor) => B[id] = { id, nombre, r: 'alas', ala: nivel, req, ef, desc, valor, especial: true };
+ala('alas1', 'Alas de Ceniza', 1, 60, { dmgPct: 12, menos: 10 }, 'Membrana gris, rota en los bordes. +12% de daño y 10% menos de daño recibido.', 150000);
+ala('alas2', 'Alas del Luto', 2, 120, { dmgPct: 22, menos: 18, hpPct: 5 }, 'Negras, con venas que todavía laten. +22% de daño, 18% menos de daño recibido y +5% de vida.', 800000);
+ala('alas3', 'Alas del Sol Hondo', 3, 150, { dmgPct: 32, menos: 26, hpPct: 10, velMov: 10 }, 'Arden con la última luz del Sol que se apagó. +32% de daño, 26% menos de daño recibido, +10% de vida y +10% de velocidad.', 3000000);
+// Receta de cada nivel de alas: oro, gemas, un equipo que se sacrifica y (desde el 2) las alas anteriores.
+export const ALAS = [
+  { b: 'alas1', oro: 100000, gema: 'destino', gemas: 5, sacrificio: { n: 7 }, texto: 'un equipo +7 o más', chance: 0.7 },
+  { b: 'alas2', oro: 600000, gema: 'abismo', gemas: 3, sacrificio: { ra: 1 }, previa: 'alas1', texto: 'un equipo excelente', chance: 0.55 },
+  { b: 'alas3', oro: 2000000, gema: 'abismo', gemas: 5, sacrificio: { ra: 2 }, previa: 'alas2', texto: 'un equipo legendario o mítico', chance: 0.4, renacido: 1 },
+];
+// Qué equipo de la mochila se usa en la receta (el más flojo que sirva). Devuelve el índice o -1.
+export function sacrificioAlas(inv, receta) {
+  let mejor = -1, peor = 1e9;
+  inv.forEach((it, i) => {
+    const b = it && BASES[it.b]; if (!b?.r || b.especial) return;
+    const s = receta.sacrificio;
+    if ((s.n && (it.n || 0) < s.n) || (s.ra && rareza(it) < s.ra)) return;
+    const v = rareza(it) * 100 + (it.n || 0); if (v < peor) { peor = v; mejor = i; }
+  });
+  return mejor;
+}
 export const BASES = B;
 export const esEquipo = b => !!BASES[b]?.r;
-export const forjable = b => esEquipo(b) && !BASES[b].bestia;
+export const forjable = b => esEquipo(b) && !BASES[b].especial;
 export const puedeUsar = (b, clase) => !BASES[b]?.clase || BASES[b].clase === clase;
 
 // ---------- requisitos para ponerse un equipo ----------
@@ -67,7 +89,7 @@ const STAT_ARMA = { guardian: 'fue', barbaro: 'fue', desterrado: 'fue', cazadora
 const TIER = req => (req >= 55 ? 4 : req >= 38 ? 3 : req >= 24 ? 2 : req >= 10 ? 1 : 0);
 export function requisitos(it) {
   const b = BASES[it.b]; if (!b?.r) return null;
-  if (b.bestia) return { nivel: b.req, stat: {} };
+  if (b.especial) return { nivel: b.req, stat: {} };
   const t = TIER(b.req), ra = rareza(it), n = it.n || 0;
   const nivel = b.req + [0, 0, 8, 15][ra] + Math.floor(n / 3) + (ra === 3 ? Math.max(0, 40 - b.req - 15) : 0);
   const base = b.r === 'arma' ? [0, 45, 90, 150, 220][t] : b.r === 'escudo' ? [0, 35, 70, 120, 180][t] : [0, 30, 60, 100, 150][t];
@@ -194,7 +216,7 @@ export function tirada(def, rnd, extra = 1) {
 }
 
 export function equipoAlAzar(nv, rnd, probExc, clase, probLeg = 0, probMit = 0) {
-  const posibles = Object.values(BASES).filter(b => b.r && !b.bestia && b.req <= nv + 3 && (!clase || !b.clase || b.clase === clase || rnd() < 0.25));
+  const posibles = Object.values(BASES).filter(b => b.r && !b.especial && b.req <= nv + 3 && (!clase || !b.clase || b.clase === clase || rnd() < 0.25));
   const maxReq = Math.max(...posibles.map(b => b.req));
   const lista = posibles.filter(b => b.req >= maxReq - 12);
   const b = lista[Math.floor(rnd() * lista.length)];
