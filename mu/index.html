@@ -38,6 +38,13 @@
     </form>
   </div>
   <script type="module" src="js/main.js"></script>
-  <script>if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');</script>
+  <script>
+    // Si al abrir llega una versión nueva del juego, se recarga sola una vez (solo en los primeros segundos, nunca en plena partida).
+    if ('serviceWorker' in navigator && location.protocol === 'https:') {
+      const habia = !!navigator.serviceWorker.controller, t0 = Date.now();
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update());
+      navigator.serviceWorker.addEventListener('controllerchange', () => { if (habia && Date.now() - t0 < 20000 && !sessionStorage.getItem('sendas-recargo')) { sessionStorage.setItem('sendas-recargo', '1'); location.reload(); } });
+    }
+  </script>
 </body>
 </html>
