@@ -10,6 +10,7 @@ const RATA = { idle: 'Rat_Idle', run: 'Rat_Run', atk: 'Rat_Attack', muere: 'Rat_
 const ARANA = { idle: 'Spider_Idle', run: 'Spider_Walk', atk: 'Spider_Attack', muere: 'Spider_Death', lanza: 'Spider_Attack', invoca: 'Spider_Jump' };
 const AVISPA = { idle: 'Wasp_Flying', run: 'Wasp_Flying', atk: 'Wasp_Attack', muere: 'Wasp_Death', lanza: 'Wasp_Attack' };
 const MAGO = { ...SK, atk: 'Spellcast_Shoot', lanza: 'Spellcast_Shoot', invoca: 'Spellcast_Summon' };
+const CENT = { idle: 'Idle_Combat', run: 'Running_C', atk: '1H_Melee_Attack_Chop', pisoton: '1H_Melee_Attack_Jump_Chop', invoca: 'Taunt', hit: 'Hit_B', muere: 'Death_C_Skeletons', nace: 'Spawn_Ground_Skeletons' };
 const DEMONIO = { idle: 'Idle', run: 'Run', atk: 'Punch', lanza: 'Weapon', pisoton: 'Weapon', invoca: 'Wave', hit: 'HitReact', muere: 'Death' };
 export const VISUAL = {
   guardian:  { archivo: 'guardian.glb', tam: 1.85, anims: { idle: 'Idle', run: 'Running_A', atk: ['1H_Melee_Attack_Chop', '1H_Melee_Attack_Slice_Diagonal', '1H_Melee_Attack_Slice_Horizontal'],
@@ -66,6 +67,26 @@ export const VISUAL = {
   mon_lobo_m:    { archivo: 'lobo.glb', tam: 3.0, bajo: 1, tinte: '#77706a', anims: { idle: 'Idle', run: 'Gallop' }, silla: 0.12 },
   mon_ciervo_m:  { archivo: 'ciervo.glb', tam: 3.2, tinte: '#141216', tinteK: 0.75, anims: { idle: 'Idle', run: 'Gallop' }, silla: 0.2 },
   mon_acechador_m: { archivo: 'raptor.glb', tam: 3.0, bajo: 1, tinte: '#4a1a12', tinteK: 0.7, anims: { idle: 'Velociraptor_Idle', run: 'Velociraptor_Run' }, silla: 0.14 },
+  // ----- Yermo Calcinado -----
+  calcinado: { archivo: 'huesudo.glb', tam: 1.9, arma: 'hoja_hueso.glb', tinte: '#2a1e1a', tinteK: 0.8, anims: SK },
+  perrobrasa: { archivo: 'lobo.glb', tam: 2.0, bajo: 1, tinte: '#6a1a0e', tinteK: 0.75, anims: { idle: 'Idle', run: 'Gallop', atk: 'Attack', muere: 'Death', hit: 'Idle_HitReact_Left' } },
+  tejedoraceniza: { archivo: 'spider.glb', tam: 2.4, bajo: 1, tinte: '#3a3532', tinteK: 0.8, anims: ARANA },
+  diablo:    { archivo: 'engendro.glb', tam: 2.2, tinte: '#8a1a10', tinteK: 0.7, anims: DEMONIO },
+  devorador: { archivo: 'raptor.glb', tam: 3.0, bajo: 1, tinte: '#4a1a0a', tinteK: 0.75, anims: { idle: 'Velociraptor_Idle', run: 'Velociraptor_Run', atk: 'Velociraptor_Attack', carga: 'Velociraptor_Run', muere: 'Velociraptor_Death' } },
+  coloso:    { archivo: 'bruto.glb', tam: 3.5, tinte: '#2a2624', tinteK: 0.8, anims: { ...DEMONIO, pisoton: 'Weapon' } },
+  sacerdoteazufre: { archivo: 'anima.glb', tam: 2.1, arma: 'baculo_hueso.glb', tinte: '#a05a14', tinteK: 0.7, anims: MAGO },
+  senorbrasas: { archivo: 'heraldo.glb', tam: 4.6, tinte: '#c03010', tinteK: 0.7, anims: { ...DEMONIO, pisoton: 'Weapon' } },
+  grandevorador: { archivo: 'trex.glb', tam: 8.2, tinte: '#3a0a04', tinteK: 0.8, anims: { idle: 'TRex_Idle', run: 'TRex_Run', atk: 'TRex_Attack', pisoton: 'TRex_Jump', carga: 'TRex_Run', lanza: 'TRex_Attack', muere: 'TRex_Death' } },
+  // ----- Ciudad del Trono Hundido -----
+  guardiareal: { archivo: 'centinela.glb', tam: 2.3, arma: 'hacha_hueso.glb', tinte: '#5a6a8a', tinteK: 0.6, anims: CENT },
+  espectrocorte: { archivo: 'anima.glb', tam: 2.0, tinte: '#c8d8f0', tinteK: 0.7, anims: MAGO },
+  sabueso:   { archivo: 'lobo.glb', tam: 2.0, bajo: 1, tinte: '#d8dce4', tinteK: 0.7, anims: { idle: 'Idle', run: 'Gallop', atk: 'Attack', muere: 'Death', hit: 'Idle_HitReact_Left' } },
+  verdugo:   { archivo: 'degollador.glb', tam: 2.2, arma: 'hacha_hueso.glb', tinte: '#141218', tinteK: 0.85, anims: { ...SK, idle: 'Idle_Combat', run: 'Running_C', atk: ['Dualwield_Melee_Attack_Slice', 'Dualwield_Melee_Attack_Chop'] } },
+  gargola:   { archivo: 'wasp.glb', tam: 1.9, vuela: 1.4, tinte: '#5a5a5e', tinteK: 0.85, anims: AVISPA },
+  caballerohueco: { archivo: 'centinela.glb', tam: 2.8, arma: 'hacha_hueso.glb', tinte: '#6a5a30', tinteK: 0.6, anims: { ...CENT, carga: 'Running_C' } },
+  arzobispo: { archivo: 'anima.glb', tam: 2.5, arma: 'baculo_hueso.glb', tinte: '#6a3a8a', tinteK: 0.65, anims: MAGO },
+  reinahueca: { archivo: 'anima.glb', tam: 4.3, arma: 'baculo_hueso.glb', tinte: '#e0e8ff', tinteK: 0.6, anims: MAGO },
+  ultimorey: { archivo: 'centinela.glb', tam: 5.4, arma: 'hacha_hueso.glb', tinte: '#c8a040', tinteK: 0.55, anims: { ...CENT, carga: 'Running_C' } },
   heraldo:   { archivo: 'heraldo.glb', tam: 4.3, tinte: '#8a1a14', anims: DEMONIO },
 };
 

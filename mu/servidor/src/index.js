@@ -201,7 +201,7 @@ export class Mapa extends DurableObject {
       case 'ranking': return this.enviar(s, { t: 'ranking', lista: (await this.cuenta('#ranking').rankingVer()).slice(0, 50) });
       case 'pozo': return this.entrarPozo(p);
       case 'bastion': return m.a === 'salir' ? this.salirBastion(p) : this.entrarBastion(p);
-      case 'senda': return this.cruzarSenda(p);
+      case 'senda': return this.cruzarSenda(p, String(m.id || ''));
       case 'encargo': return this.encargo(p, m);
       case 'salirPj': { this.salir(s); await new Promise(r => setTimeout(r, 300)); return this.mandarLista(s); }
       case 'punto': return this.repartir(p, m.s, m.n | 0);
@@ -302,7 +302,7 @@ export class Mapa extends DurableObject {
     if (Math.hypot(x - p.x, z - p.z) > max) { p.priv.push(['tp', p.id, r2(p.x), r2(p.z)]); p.ultPos = ahora; return; }
     if (p.enPozo) { const dx = x - R.POZO.x, dz = z - R.POZO.z, d = Math.hypot(dx, dz); if (d > R.POZO.r) { x = R.POZO.x + dx / d * R.POZO.r; z = R.POZO.z + dz / d * R.POZO.r; } }
     else if (p.enBastion) { const dx = x - R.BASTION.x, dz = z - R.BASTION.z, d = Math.hypot(dx, dz); if (d > R.BASTION.r) { x = R.BASTION.x + dx / d * R.BASTION.r; z = R.BASTION.z + dz / d * R.BASTION.r; } }
-    else if (R.enCosta(p.x, p.z)) { const dx = x - R.COSTA.x, d = Math.hypot(dx, z); if (d > R.COSTA.r) { x = R.COSTA.x + dx / d * R.COSTA.r; z = z / d * R.COSTA.r; } }
+    else if (R.islaDe(p.x, p.z)) { const I = R.islaDe(p.x, p.z), dx = x - I.x, dz = z - I.z, d = Math.hypot(dx, dz); if (d > I.r) { x = I.x + dx / d * I.r; z = I.z + dz / d * I.r; } }
     else { x = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, x)); z = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, z)); }
     p.mueve = Math.hypot(x - p.x, z - p.z) > 0.01;
     p.x = x; p.z = z; p.ultPos = ahora;
@@ -668,15 +668,17 @@ export class Mapa extends DurableObject {
   }
 
   // ----- la Senda Negra: portal a la Costa -----
-  cruzarSenda(p) {
-    const n = this.rolCerca(p, 'senda'); if (!n) return this.aviso(p, 'Acercate a la Senda Negra.');
+  cruzarSenda(p, id) {
+    const n = (id && this.npcCerca(p, id)) || this.rolCerca(p, 'senda'); if (!n || n.rol !== 'senda') return this.aviso(p, 'Acercate a la Senda.');
     if (p.muerto) return;
-    if (p.d.nivel < R.COSTA.nivel && !(p.d.resets > 0)) return this.aviso(p, `La Senda Negra no te deja pasar. Volvé en el nivel ${R.COSTA.nivel}.`);
+    const destino = R.ISLAS.find(i => i.atalaya === n.destino), origen = R.ISLAS.find(i => i.atalaya === n.atalaya);
+    // Solo pide nivel para ir hacia adelante; volver siempre se puede.
+    if (destino && (!origen || destino.nivel > origen.nivel) && p.d.nivel < destino.nivel && !(p.d.resets > 0)) return this.aviso(p, `${n.nombre} no te deja pasar. Volvé en el nivel ${destino.nivel}.`);
     const at = R.PUEBLOS[n.destino], a = Math.random() * 6.3;
     p.x = at.x + Math.cos(a) * 3; p.z = at.z + Math.sin(a) * 3; p.ultPos = Date.now(); p.objetivo = null;
     this.cancelarComercio(p, 'El comercio se cerró por un viaje.');
     this.ev.push(['tp', p.id, r2(p.x), r2(p.z)], ['fx', 'cura', r2(p.x), r2(p.z), 2]);
-    this.aviso(p, n.destino === 5 ? 'Cruzaste la Senda Negra. Bienvenido a la Costa de la Sal Negra.' : 'Volviste al Páramo.');
+    this.aviso(p, destino ? `Cruzaste la ${n.nombre}. ${destino.nombre}: ${destino.frase}` : 'Volviste al Páramo.');
   }
 
   // ----- Asedio del Bastión: PvP entre hermandades -----
@@ -1183,7 +1185,7 @@ export class Mapa extends DurableObject {
       let x, y;
       if (z.rmax) { const a = Math.random() * Math.PI * 2, r = entre(z.rmin, z.rmax); x = z.x + Math.cos(a) * r; y = z.z + Math.sin(a) * r; }
       else { const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * z.r; x = z.x + Math.cos(a) * r; y = z.z + Math.sin(a) * r; }
-      const dentro = z.x > 400 ? Math.hypot(x - R.COSTA.x, y - R.COSTA.z) < R.COSTA.r - 8 : Math.abs(x) < R.MUNDO - 6 && Math.abs(y) < R.MUNDO - 6;
+      const I = R.islaDe(z.x, z.z), dentro = I ? Math.hypot(x - I.x, y - I.z) < I.r - 8 : Math.abs(x) < R.MUNDO - 6 && Math.abs(y) < R.MUNDO - 6;
       if (R.PUEBLOS.every(at => Math.hypot(x - at.x, y - at.z) > at.r + 3) && dentro) return { x, z: y };
     }
     return { x: z.x, z: z.z };
@@ -1345,7 +1347,7 @@ export class Mapa extends DurableObject {
     if (activo) {
       this.msgTodos(`${activo.nombre}: ${activo.desc}`, true);
       if (activo.id === 'noche') {
-        const opciones = R.MAPA.lugares.filter(l => l.x < 400 && (l.x || l.z) && !l.atalaya);
+        const opciones = R.MAPA.lugares.filter(l => !R.islaDe(l.x, l.z) && (l.x || l.z) && !l.atalaya);
         const l = opciones[Math.floor(Math.random() * opciones.length)];
         const h = this.crearMonstruo('heraldo', { x: l.x, z: l.z });
         this.ev.push(['a', h.id, 'nace']);

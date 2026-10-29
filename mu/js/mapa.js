@@ -10,7 +10,7 @@ export class Mapa {
   constructor(datos) {
     this.datos = datos; this.region = 'paramo';
     const el = document.createElement('div'); el.id = 'mapa'; el.className = 'caja'; el.hidden = true;
-    el.innerHTML = `<header><b>Mapa</b><span class="tabs"><button data-r="paramo" class="on">Páramo del Luto</button><button data-r="costa">Costa de la Sal Negra</button></span><span class="zoom"><button data-z="-1" aria-label="Alejar">−</button><button data-z="1" aria-label="Acercar">+</button><button data-z="0">Yo</button></span><button class="x" aria-label="Cerrar">✕</button></header>
+    el.innerHTML = `<header><b>Mapa</b><span class="tabs"><button data-r="paramo" class="on">Páramo del Luto</button>${R.ISLAS.map(i => `<button data-r="${i.id}">${i.nombre}</button>`).join('')}</span><span class="zoom"><button data-z="-1" aria-label="Alejar">−</button><button data-z="1" aria-label="Acercar">+</button><button data-z="0">Yo</button></span><button class="x" aria-label="Cerrar">✕</button></header>
       <canvas></canvas><p class="nota leyenda"><span class="ley mi">! misión</span><span class="ley yo">▲ vos</span><span class="ley gr">● tu grupo</span><span class="ley at">◆ atalaya</span><span class="ley ca">✦ campamento</span><span class="ley zn">○ monstruos (nivel)</span></p>`;
     document.getElementById('hud').appendChild(el); this.el = el;
     el.addEventListener('pointerdown', e => e.stopPropagation());
@@ -37,7 +37,7 @@ export class Mapa {
   acercar(f) { this.vista.zoom = Math.max(1, Math.min(8, this.vista.zoom * f)); }
   abrir() {
     const d = this.datos(); if (!d) return;
-    const region = d.yo.x > 400 ? 'costa' : 'paramo';
+    const region = R.islaDe(d.yo.x, d.yo.z)?.id || 'paramo';
     if (region !== this.region || !this.vista) { this.region = region; this.vista = null; }
     this.el.hidden = false; this.dibujar();
   }
@@ -45,28 +45,27 @@ export class Mapa {
 
   dibujar() {
     const d = this.datos(); if (!d) return;
-    const costaVista = d.atalayas.includes(5);
-    this.el.querySelectorAll('[data-r]').forEach(b => { b.classList.toggle('on', b.dataset.r === this.region); b.hidden = b.dataset.r === 'costa' && !costaVista; });
+    this.el.querySelectorAll('[data-r]').forEach(b => { const I = R.ISLAS.find(i => i.id === b.dataset.r); b.classList.toggle('on', b.dataset.r === this.region); b.hidden = !!I && !d.atalayas.includes(I.atalaya); });
     const caja = this.cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
     const W = Math.max(200, Math.round(caja.width)), H = Math.max(200, Math.round(caja.height));
     this.cv.width = W * dpr; this.cv.height = H * dpr;
     const c = this.c; c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
-    const costa = this.region === 'costa';
-    const medio = costa ? R.COSTA.r + 12 : R.MUNDO;
-    if (!this.vista) this.vista = { x: costa ? R.COSTA.x : 0, z: 0, zoom: 1 };
-    const V = this.vista, base = costa ? R.COSTA.x : 0;
-    V.x = Math.max(base - medio, Math.min(base + medio, V.x)); V.z = Math.max(-medio, Math.min(medio, V.z));
+    const I = R.ISLAS.find(i => i.id === this.region), costa = !!I;
+    const medio = I ? I.r + 12 : R.MUNDO, base = I ? I.x : 0, bz = I ? I.z : 0;
+    if (!this.vista) this.vista = { x: base, z: bz, zoom: 1 };
+    const V = this.vista;
+    V.x = Math.max(base - medio, Math.min(base + medio, V.x)); V.z = Math.max(bz - medio, Math.min(bz + medio, V.z));
     const cx = V.x, cz = V.z, k = Math.min(W, H) / 2 / medio * 0.96 * V.zoom, ox = W / 2, oz = H / 2;
     this.k = k;
     const P = (x, z) => [ox + (x - cx) * k, oz + (z - cz) * k];
-    const dentro = (x, z) => Math.abs(x - base) <= medio + 5 && Math.abs(z) <= medio + 5;
+    const dentro = (x, z) => Math.abs(x - base) <= medio + 5 && Math.abs(z - bz) <= medio + 5;
     const grande = V.zoom >= 2;
     // Fondo: tierra gastada y borde.
     c.fillStyle = '#16120f';
-    if (costa) { c.beginPath(); c.arc(...P(R.COSTA.x, 0), R.COSTA.r * k, 0, 7); c.fill(); c.strokeStyle = '#3a5a6a'; c.lineWidth = 3; c.stroke(); }
+    if (costa) { c.beginPath(); c.arc(...P(I.x, I.z), I.r * k, 0, 7); c.fill(); c.strokeStyle = { costa: '#3a5a6a', yermo: '#8a3a14', trono: '#6a7a9a' }[I.id]; c.lineWidth = 3; c.stroke(); }
     else { const [x0, z0] = P(-R.MUNDO, -R.MUNDO); c.fillRect(x0, z0, R.MUNDO * 2 * k, R.MUNDO * 2 * k); c.strokeStyle = '#4a4038'; c.lineWidth = 2; c.strokeRect(x0, z0, R.MUNDO * 2 * k, R.MUNDO * 2 * k); }
     c.strokeStyle = 'rgba(216,207,189,.05)'; c.lineWidth = 1;
-    for (let g = -150; g <= 150; g += 25) { const [a] = P(base + g, 0), [, b] = P(0, g); c.beginPath(); c.moveTo(a, 0); c.lineTo(a, H); c.moveTo(0, b); c.lineTo(W, b); c.stroke(); }
+    for (let g = -150; g <= 150; g += 25) { const [a] = P(base + g, 0), [, b] = P(0, bz + g); c.beginPath(); c.moveTo(a, 0); c.lineTo(a, H); c.moveTo(0, b); c.lineTo(W, b); c.stroke(); }
     const fz = Math.min(1.5, 0.85 + V.zoom * 0.15), letra = (n, t = '600') => `${t} ${Math.round(n * fz)}px Spectral, Georgia, serif`;
     // Zonas de monstruos: verde si son fáciles para vos, amarillo parejas, rojo peligrosas.
     c.font = letra(11); c.textAlign = 'center'; c.textBaseline = 'middle';

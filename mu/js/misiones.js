@@ -26,6 +26,14 @@ export const NPC_MISION = [
     saludo: 'Mientras el faro esté apagado, ellos van a seguir saliendo del agua.' },
   { id: 'ultimo', nombre: 'El Último Pescador', modelo: 'npc_mercader', tinte: '#2a3a3a', x: 650, z: -6, giro: -1.6,
     saludo: 'Pesqué algo que no tenía que pescar. Ahora la Fosa respira.' },
+  { id: 'fundidor', nombre: 'El Fundidor', modelo: 'npc_herrero', tinte: '#5a2a14', x: 20, z: 585, giro: 2.4,
+    saludo: 'Fundí hierro cuarenta años. Ahora el hierro me funde a mí.' },
+  { id: 'quemada', nombre: 'La Quemada', modelo: 'npc_mercader', tinte: '#3a2a22', x: -45, z: 600, giro: 1.2,
+    saludo: 'No me mires la cara. Mirá lo que viene detrás tuyo.' },
+  { id: 'escudero', nombre: 'El Escudero', modelo: 'npc_herrero', tinte: '#3a4258', x: -575, z: -15, giro: -0.6,
+    saludo: 'Le cargaba el escudo al rey. Ahora no tengo a quién.' },
+  { id: 'bufon', nombre: 'El Bufón', modelo: 'npc_vidente', tinte: '#5a2a4a', x: -625, z: 30, giro: 2.2,
+    saludo: '¿Sabés por qué el rey no se ríe? Porque está muerto. Ja. Ja.' },
   { id: 'penitente', nombre: 'El Penitente', modelo: 'npc_vidente', tinte: '#5a1a14', x: 72, z: 82, giro: -2.4,
     saludo: 'Yo abrí el Foso. Me queda poca vida para pedir perdón.' },
 ];
@@ -93,6 +101,28 @@ export const MISIONES = Object.fromEntries([
     'Doce Leviatanes Menores. Si crecen, no hay isla que aguante.', 'Doce menos. La madre se va a enojar.'),
   M('ult2', 'ultimo', 'Lo que respira abajo', 72, { tipo: 'jefe', mon: 'leviatan' }, { exp: 400000, oro: 60000, equipo: { exc: 1, leg: 0.6, mit: 0.15 }, items: [{ b: 'guardiana', c: 3 }] },
     'El Leviatán salió de la Fosa. Juntá a los mejores que conozcas.', 'Volvió a dormir. O se murió. Con estas cosas nunca se sabe.', 'ult1'),
+  // ----- Yermo Calcinado -----
+  M('fun1', 'fundidor', 'Ceniza que camina', 78, { tipo: 'matar', mon: 'calcinado', n: 20 }, { exp: 300000, oro: 50000, items: [{ b: 'abismo', c: 3 }] },
+    'Veinte Calcinados. Eran mis aprendices. Que descansen de una vez.', 'Veinte. Uno por cada martillazo que les enseñé.'),
+  M('fun2', 'fundidor', 'Metal con odio', 98, { tipo: 'juntar', mon: 'coloso', cosa: 'Escoria viva', prob: 0.35, n: 10 }, { exp: 700000, oro: 120000, equipo: { exc: 1, leg: 0.4, mit: 0.06 } },
+    'Los Colosos tienen escoria viva adentro. Traeme diez pedazos y te hago algo que valga.', 'Todavía late. Perfecto.', 'fun1'),
+  M('fun3', 'fundidor', 'El que se comió el volcán', 108, { tipo: 'jefe', mon: 'grandevorador' }, { exp: 1600000, oro: 300000, equipo: { exc: 1, leg: 0.7, mit: 0.18 }, items: [{ b: 'guardiana', c: 3 }] },
+    'El Gran Devorador duerme en la Boca del Volcán. Despertalo. Con muchos.', 'El volcán está en silencio. Primera vez en mi vida.', 'fun2'),
+  M('que1', 'quemada', 'Perros', 82, { tipo: 'matar', mon: 'perrobrasa', n: 20 }, { exp: 400000, oro: 60000, items: [{ b: 'abismo', c: 3 }] },
+    'Los Perros de Brasa me dejaron así. Veinte, por cada cicatriz.', 'Ya no me duele tanto. Mentira, me duele igual.'),
+  M('que2', 'quemada', 'El trono caliente', 104, { tipo: 'jefe', mon: 'senorbrasas' }, { exp: 1200000, oro: 200000, equipo: { exc: 1, leg: 0.6, mit: 0.12 } },
+    'El Señor de las Brasas se sentó en el Trono del Foso. Bajalo.', 'Ahora el trono está frío. Me siento ahí un rato.', 'que1'),
+  // ----- Ciudad del Trono Hundido -----
+  M('esc1', 'escudero', 'La guardia eterna', 114, { tipo: 'matar', mon: 'guardiareal', n: 25 }, { exp: 1400000, oro: 250000, items: [{ b: 'abismo', c: 4 }] },
+    'Veinticinco Guardias Reales. Eran mis compañeros de ronda. Liberalos.', 'Que la ronda termine.'),
+  M('esc2', 'escudero', 'Armadura vacía', 136, { tipo: 'matar', mon: 'caballerohueco', n: 15 }, { exp: 2600000, oro: 450000, equipo: { exc: 1, leg: 0.5, mit: 0.1 } },
+    'Los Caballeros Huecos eran los mejores del reino. Ahora son lata. Quince.', 'Lata vacía. Como el reino.', 'esc1'),
+  M('esc3', 'escudero', 'El rey ha muerto', 150, { tipo: 'jefe', mon: 'ultimorey' }, { exp: 6000000, oro: 1000000, equipo: { exc: 1, leg: 1, mit: 0.3 }, items: [{ b: 'guardiana', c: 5 }] },
+    'El Último Rey sigue sentado en la Sala del Trono. Alguien tiene que decirle que se terminó.', 'Se lo dijiste. Por fin. Larga vida a nadie.', 'esc2'),
+  M('buf1', 'bufon', 'Ríanse', 120, { tipo: 'matar', mon: 'espectrocorte', n: 20 }, { exp: 1600000, oro: 280000, items: [{ b: 'abismo', c: 4 }] },
+    'Los Espectros de la Corte no se ríen de mis chistes. Veinte, para que aprendan.', 'Silencio. Mejor público que antes.'),
+  M('buf2', 'bufon', 'La reina no se ríe', 138, { tipo: 'jefe', mon: 'reinahueca' }, { exp: 3400000, oro: 600000, equipo: { exc: 1, leg: 0.8, mit: 0.2 } },
+    'La Reina Hueca nunca se rió. Ni una vez en cien años. Andá a verla.', 'Ahora tampoco se ríe. Pero por otro motivo.', 'buf1'),
 ].map(m => [m.id, m]));
 
 export function misionesDe(npc) { return Object.values(MISIONES).filter(m => m.npc === npc); }
@@ -124,7 +154,8 @@ export function textoObjetivo(m, prog = 0) {
 
 // ---------- Tablón de Encargos (uno por atalaya, sin fin) ----------
 const LOCALES = [['rata', 'sapo', 'arana', 'avispon', 'sierpe'], ['sierpe', 'lobo', 'ciervo', 'avispon', 'arana'], ['huesudo', 'anima', 'degollador', 'ciervo'],
-  ['bruto', 'acechador', 'degollador', 'anima'], ['engendro', 'acechador', 'bruto'], ['ahogado', 'marinero', 'abisal', 'farero', 'pirata', 'brutosal', 'leviatanmenor']];
+  ['bruto', 'acechador', 'degollador', 'anima'], ['engendro', 'acechador', 'bruto'], ['ahogado', 'marinero', 'abisal', 'farero', 'pirata', 'brutosal', 'leviatanmenor'],
+  ['calcinado', 'perrobrasa', 'tejedoraceniza', 'diablo', 'devorador', 'coloso', 'sacerdoteazufre'], ['guardiareal', 'espectrocorte', 'sabueso', 'verdugo', 'gargola', 'caballerohueco', 'arzobispo']];
 export function nuevoEncargo(atalaya, nivelPj, rnd = Math.random) {
   const lista = LOCALES[atalaya] || LOCALES[0];
   const posibles = lista.filter(t => MONSTRUOS[t].nivel <= nivelPj + 6);

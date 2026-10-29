@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
 import * as R from './reglas.js';
+import * as O from './objetos.js';
 import { lib } from './modelos.js';
 
 export const sinBorde = m => { m.userData.outlineParameters = { visible: false }; return m; };
@@ -28,8 +29,9 @@ export function crearEscena(canvas) {
   scene.add(luna, luna.target);
 
   const terreno = crearTerreno(); scene.add(terreno);
-  const costa = crearCosta(scene);
-  const terrenos = [terreno, costa];
+  const islas = R.ISLAS.map(I => crearIsla(scene, I));
+  crearPortales(scene);
+  const terrenos = [terreno, ...islas];
   const agua = new THREE.Mesh(new THREE.CircleGeometry(6.6, 28), sinBorde(new THREE.MeshStandardMaterial({ color: '#16211b', roughness: 0.12, metalness: 0.4, transparent: true, opacity: 0.92 })));
   agua.rotation.x = -Math.PI / 2; agua.position.set(R.CIENAGA.x, -0.18, R.CIENAGA.z); agua.receiveShadow = true; scene.add(agua);
 
@@ -46,7 +48,7 @@ export function crearEscena(canvas) {
   const foso = new THREE.PointLight('#ff2a14', 18, 30, 1.5); foso.position.set(L('Foso del Éter').x, 3, L('Foso del Éter').z); scene.add(foso);
   const hemi = scene.children.find(o => o.isHemisphereLight);
   // Ambiente según el evento: normal, marea (ceniza azul) o noche roja (niebla de sangre).
-  const AMB = { normal: { niebla: NIEBLA, cielo: '#8a97b0', ceniza: '#b8b2a6' }, costa: { niebla: '#17212a', cielo: '#9ab0c4', ceniza: '#d0dade' }, marea: { niebla: '#101a24', cielo: '#7fa2c8', ceniza: '#8fd0ff' }, noche: { niebla: '#2a0c0b', cielo: '#b06a62', ceniza: '#ff6a4a' } };
+  const AMB = { normal: { niebla: NIEBLA, cielo: '#8a97b0', ceniza: '#b8b2a6' }, costa: { niebla: '#17212a', cielo: '#9ab0c4', ceniza: '#d0dade' }, yermo: { niebla: '#2a120c', cielo: '#d08050', ceniza: '#ff8a4a' }, trono: { niebla: '#10141e', cielo: '#a8b8e0', ceniza: '#dfe8ff' }, marea: { niebla: '#101a24', cielo: '#7fa2c8', ceniza: '#8fd0ff' }, noche: { niebla: '#2a0c0b', cielo: '#b06a62', ceniza: '#ff6a4a' } };
   let amb = 'normal'; const cN = new THREE.Color(NIEBLA), cC = new THREE.Color('#8a97b0'), cA = new THREE.Color('#b8b2a6');
   function ambiente(modo) { amb = AMB[modo] ? modo : 'normal'; }
 
@@ -66,7 +68,7 @@ export function crearEscena(canvas) {
     for (const a of atalayas) a.llama.scale.setScalar(1 + Math.sin(t * 13 + a.x) * 0.08);
     osario.fuego.intensity = 10 + Math.sin(t * 7 + 1) * 2;
     ceniza.update(dt, foco, t);
-    const a = AMB[foco.x > 400 && amb === 'normal' ? 'costa' : amb], k = Math.min(1, dt * 0.8);
+    const isla = R.islaDe(foco.x, foco.z), a = AMB[isla && amb === 'normal' ? isla.id : amb], k = Math.min(1, dt * 0.8);
     cN.lerp(new THREE.Color(a.niebla), k); cC.lerp(new THREE.Color(a.cielo), k); cA.lerp(new THREE.Color(a.ceniza), k);
     scene.fog.color.copy(cN); scene.background.copy(cN); hemi.color.copy(cC); ceniza.mat.color.copy(cA);
     cripta.fuego.intensity = 9 + Math.sin(t * 6) * 2; foso.intensity = 16 + Math.sin(t * 3) * 4;
@@ -177,47 +179,80 @@ function poblar(scene) {
   }
 }
 
-// ---------- La Costa de la Sal Negra: isla, mar, faro caído y la Senda ----------
-function crearCosta(scene) {
-  const T = 240, N = 120, C = R.COSTA;
+// ---------- Islas: la Costa (mar muerto), el Yermo (lava) y el Trono (lago helado) ----------
+const ESTILO_ISLA = {
+  costa: { suelo: ['#6b665c', '#736d61', '#5f5b52', '#7a7468'], orilla: '#3a3d3a', fondo: { color: '#0e1a20', rough: 0.15, metal: 0.5 } },
+  yermo: { suelo: ['#3a2a22', '#45302a', '#2e221c', '#4a3428'], orilla: '#1a100c', fondo: { color: '#ff4a10', emisivo: '#c02a08', rough: 0.9, metal: 0 } },
+  trono: { suelo: ['#4a4e58', '#52565f', '#3e4249', '#585c66'], orilla: '#2a2e36', fondo: { color: '#9fb4c8', rough: 0.08, metal: 0.6 } },
+};
+function crearIsla(scene, C) {
+  const E = ESTILO_ISLA[C.id], T = C.r * 2.6, N = 120;
   const geo = new THREE.PlaneGeometry(T, T, N, N); geo.rotateX(-Math.PI / 2); geo.translate(C.x, 0, C.z);
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) pos.setY(i, R.altura(pos.getX(i), pos.getZ(i)));
-  const g = geo.toNonIndexed(), p = g.attributes.position, cols = [], rnd = R.azar(91), c = new THREE.Color();
-  const arena = ['#6b665c', '#736d61', '#5f5b52', '#7a7468'];
+  const g = geo.toNonIndexed(), p = g.attributes.position, cols = [], rnd = R.azar(91 + C.atalaya), c = new THREE.Color();
   for (let i = 0; i < p.count; i += 3) {
     const x = (p.getX(i) + p.getX(i + 1) + p.getX(i + 2)) / 3, z = (p.getZ(i) + p.getZ(i + 1) + p.getZ(i + 2)) / 3, d = Math.hypot(x - C.x, z - C.z);
-    c.set(arena[Math.floor(rnd() * arena.length)]);
-    if (d > C.r - 10) c.lerp(new THREE.Color('#3a3d3a'), Math.min(1, (d - C.r + 10) / 10));
+    c.set(E.suelo[Math.floor(rnd() * E.suelo.length)]);
+    if (d > C.r - 10) c.lerp(new THREE.Color(E.orilla), Math.min(1, (d - C.r + 10) / 10));
     if (R.PUEBLOS.some(q => Math.hypot(x - q.x, z - q.z) < q.r + 1)) c.set(rnd() < 0.5 ? '#4b4740' : '#55504a');
-    const sal = Math.hypot(x - 600, z + 72); if (sal < 18) c.lerp(new THREE.Color('#b8b4aa'), (1 - sal / 18) * 0.7);
-    const fosa = Math.hypot(x - 676, z + 18); if (fosa < 18) c.lerp(new THREE.Color('#141c22'), (1 - fosa / 18) * 0.8);
+    if (C.id === 'costa') {
+      const sal = Math.hypot(x - 600, z + 72); if (sal < 18) c.lerp(new THREE.Color('#b8b4aa'), (1 - sal / 18) * 0.7);
+      const fosa = Math.hypot(x - 676, z + 18); if (fosa < 18) c.lerp(new THREE.Color('#141c22'), (1 - fosa / 18) * 0.8);
+    }
+    if (C.id === 'yermo' && (Math.sin(x * 0.3 + z * 0.11) * Math.cos(z * 0.27 - x * 0.07)) > 0.82) c.set('#ff5a14');   // grietas de brasa
+    if (C.id === 'trono' && (Math.abs(((x - C.x) % 8 + 8) % 8 - 4) < 0.25 || Math.abs(((z - C.z) % 8 + 8) % 8 - 4) < 0.25)) c.lerp(new THREE.Color('#25282e'), 0.6);   // adoquines
     c.multiplyScalar(0.85 + rnd() * 0.2);
     for (let k = 0; k < 3; k++) cols.push(c.r, c.g, c.b);
   }
   g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)); g.computeVertexNormals();
-  const m = new THREE.Mesh(g, sinBorde(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 })));
+  const m = new THREE.Mesh(g, sinBorde(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, emissive: C.id === 'yermo' ? '#2a0800' : '#000000' })));
   m.receiveShadow = true; scene.add(m);
-  // Mar muerto alrededor.
-  const mar = new THREE.Mesh(new THREE.CircleGeometry(170, 48), sinBorde(new THREE.MeshStandardMaterial({ color: '#0e1a20', roughness: 0.15, metalness: 0.5, transparent: true, opacity: 0.94 })));
-  mar.rotation.x = -Math.PI / 2; mar.position.set(C.x, -0.9, C.z); scene.add(mar);
-  // Faro caído.
-  const piedra = sinBorde(new THREE.MeshStandardMaterial({ color: '#8a857a', roughness: 1, flatShading: true }));
-  const torre = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 2.4, 9, 8), piedra); torre.position.set(634, 4.3, 64); torre.castShadow = true; scene.add(torre);
-  const caida = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.8, 7, 8), piedra); caida.position.set(640, 1.4, 58); caida.rotation.set(0.2, 0.6, Math.PI / 2.2); caida.castShadow = true; scene.add(caida);
-  // La Senda Negra: un portal en cada punta.
-  for (const n of [{ x: 63.5, z: 66.5 }, { x: 596.5, z: 3.5 }]) {
-    const y = R.altura(n.x, n.z);
-    const aro = new THREE.Mesh(new THREE.TorusGeometry(1.4, 0.18, 8, 24), sinBorde(new THREE.MeshBasicMaterial({ color: '#7a3aff' })));
-    aro.position.set(n.x, y + 1.6, n.z); scene.add(aro);
-    const velo = new THREE.Mesh(new THREE.CircleGeometry(1.3, 24), sinBorde(new THREE.MeshBasicMaterial({ color: '#12081e', side: THREE.DoubleSide, transparent: true, opacity: 0.9 })));
-    velo.position.copy(aro.position); scene.add(velo);
+  const F = E.fondo;
+  const fondo = new THREE.Mesh(new THREE.CircleGeometry(C.r * 1.85, 48), sinBorde(new THREE.MeshStandardMaterial({ color: F.color, emissive: F.emisivo || '#000000', emissiveIntensity: F.emisivo ? 0.9 : 0, roughness: F.rough, metalness: F.metal, transparent: true, opacity: 0.95 })));
+  fondo.rotation.x = -Math.PI / 2; fondo.position.set(C.x, -0.9, C.z); scene.add(fondo);
+  const piedra = sinBorde(new THREE.MeshStandardMaterial({ color: C.id === 'yermo' ? '#2a2220' : '#8a857a', roughness: 1, flatShading: true }));
+  if (C.id === 'costa') {   // faro caído
+    const torre = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 2.4, 9, 8), piedra); torre.position.set(634, 4.3, 64); torre.castShadow = true; scene.add(torre);
+    const caida = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.8, 7, 8), piedra); caida.position.set(640, 1.4, 58); caida.rotation.set(0.2, 0.6, Math.PI / 2.2); caida.castShadow = true; scene.add(caida);
+  }
+  if (C.id === 'yermo') {   // volcán con boca encendida y columnas de escoria
+    const v = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 11, 12, 10, 1, true), piedra); v.position.set(32, 5, 688); v.castShadow = true; scene.add(v);
+    const boca = new THREE.Mesh(new THREE.CircleGeometry(4, 16), sinBorde(new THREE.MeshBasicMaterial({ color: '#ff6a1a' }))); boca.rotation.x = -Math.PI / 2; boca.position.set(32, 10.8, 688); scene.add(boca);
+    const luz = new THREE.PointLight('#ff4a10', 40, 50, 1.3); luz.position.set(32, 14, 688); scene.add(luz);
+    const rv = R.azar(606);
+    for (let k = 0; k < 26; k++) { const a = rv() * 6.3, d = 20 + rv() * 70, x = C.x + Math.cos(a) * d, z = C.z + Math.sin(a) * d; if (R.PUEBLOS.some(q => Math.hypot(x - q.x, z - q.z) < q.r + 4) || R.MAPA.lugares.some(l => Math.hypot(x - l.x, z - l.z) < 6)) continue; const h = 2 + rv() * 5; const col = new THREE.Mesh(new THREE.CylinderGeometry(0.4 + rv() * 0.5, 0.9 + rv() * 0.6, h, 6), piedra); col.position.set(x, R.altura(x, z) + h / 2 - 0.3, z); col.rotation.z = (rv() - 0.5) * 0.3; col.castShadow = true; scene.add(col); }
+  }
+  if (C.id === 'trono') {   // la ciudad: columnas en hilera, muros rotos y el trono del rey
+    const marmol = sinBorde(new THREE.MeshStandardMaterial({ color: '#9aa0ac', roughness: 0.8, flatShading: true }));
+    for (let k = 0; k < 12; k++) for (const lado of [-1, 1]) {
+      const z = C.z - 50 + k * 10, x = C.x + lado * 9, h = k % 3 === 1 ? 2.5 : 7;
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.8, h, 8), marmol); col.position.set(x, h / 2, z); col.castShadow = true; scene.add(col);
+    }
+    const rw = R.azar(707);
+    for (let k = 0; k < 18; k++) { const a = rw() * 6.3, d = 25 + rw() * 65, x = C.x + Math.cos(a) * d, z = C.z + Math.sin(a) * d; if (R.PUEBLOS.some(q => Math.hypot(x - q.x, z - q.z) < q.r + 4) || R.MAPA.lugares.some(l => Math.hypot(x - l.x, z - l.z) < 7)) continue; const muro = new THREE.Mesh(new THREE.BoxGeometry(4 + rw() * 6, 1.5 + rw() * 3, 0.9), piedra); muro.position.set(x, muro.geometry.parameters.height / 2, z); muro.rotation.y = rw() * 3; muro.castShadow = true; scene.add(muro); }
+    const oro = sinBorde(new THREE.MeshStandardMaterial({ color: '#b8902a', metalness: 0.8, roughness: 0.35 }));
+    const tz = C.z + 96;
+    for (let i = 0; i < 3; i++) { const e = new THREE.Mesh(new THREE.BoxGeometry(10 - i * 2.5, 0.5, 6 - i * 1.5), marmol); e.position.set(C.x - 6, 0.25 + i * 0.5, tz - i * 0.6); scene.add(e); }
+    const respaldo = new THREE.Mesh(new THREE.BoxGeometry(3.2, 6, 0.6), oro); respaldo.position.set(C.x - 6, 4.2, tz + 1.4); scene.add(respaldo);
+    const luz = new THREE.PointLight('#c8d8ff', 30, 40, 1.3); luz.position.set(C.x - 6, 9, tz); scene.add(luz);
   }
   return m;
 }
+// Sendas: un portal por cada una (violeta la Negra, roja la de Brasa, celeste la del Rey).
+function crearPortales(scene) {
+  const COLOR = { 'Senda Negra': ['#7a3aff', '#12081e'], 'Senda de Brasa': ['#ff5a1a', '#1e0804'], 'Senda del Rey': ['#9fc0ff', '#0a1020'] };
+  for (const n of O.NPCS.filter(x => x.rol === 'senda')) {
+    const [c1, c2] = COLOR[n.nombre] || COLOR['Senda Negra'], y = R.altura(n.x, n.z);
+    const aro = new THREE.Mesh(new THREE.TorusGeometry(1.4, 0.18, 8, 24), sinBorde(new THREE.MeshBasicMaterial({ color: c1 })));
+    aro.position.set(n.x, y + 1.6, n.z); scene.add(aro);
+    const velo = new THREE.Mesh(new THREE.CircleGeometry(1.3, 24), sinBorde(new THREE.MeshBasicMaterial({ color: c2, side: THREE.DoubleSide, transparent: true, opacity: 0.9 })));
+    velo.position.copy(aro.position); scene.add(velo);
+  }
+}
 
 // ---------- Atalayas (zonas seguras) ----------
-const COLOR_FAROL = ['#ff8a3d', '#7fb0c8', '#d8cfa8', '#9fbf7a', '#ff3b1f', '#7fd8ff'];
+const COLOR_FAROL = ['#ff8a3d', '#7fb0c8', '#d8cfa8', '#9fbf7a', '#ff3b1f', '#7fd8ff', '#ff5a1a', '#c8d8ff'];
 function crearAtalaya(scene, P, i) {
   const g = new THREE.Group(), y0 = R.altura(P.x, P.z); g.position.set(P.x, y0, P.z); scene.add(g);
   const piedra = sinBorde(new THREE.MeshStandardMaterial({ color: '#4a4741', roughness: 0.95, flatShading: true }));

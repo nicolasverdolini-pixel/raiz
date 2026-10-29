@@ -476,7 +476,7 @@ function moverme(dt) {
     lx += mx * vel * dt; lz += mz * vel * dt;
     if (R.enBastion(lx, lz)) { const dx = lx - R.BASTION.x, dz = lz - R.BASTION.z, d = Math.hypot(dx, dz); if (d > R.BASTION.r) { lx = R.BASTION.x + dx / d * R.BASTION.r; lz = R.BASTION.z + dz / d * R.BASTION.r; } }
     else if (R.enPozo(lx, lz)) { const dx = lx - R.POZO.x, dz = lz - R.POZO.z, d = Math.hypot(dx, dz); if (d > R.POZO.r) { lx = R.POZO.x + dx / d * R.POZO.r; lz = R.POZO.z + dz / d * R.POZO.r; } }
-    else if (R.enCosta(lx, lz)) { const dx = lx - R.COSTA.x, d = Math.hypot(dx, lz); if (d > R.COSTA.r) { lx = R.COSTA.x + dx / d * R.COSTA.r; lz = lz / d * R.COSTA.r; } }
+    else if (R.islaDe(lx, lz)) { const I = R.islaDe(lx, lz), dx = lx - I.x, dz = lz - I.z, d = Math.hypot(dx, dz); if (d > I.r) { lx = I.x + dx / d * I.r; lz = I.z + dz / d * I.r; } }
     else { lx = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, lx)); lz = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, lz)); }
     ldir = Math.atan2(mx, mz);
   }
@@ -616,7 +616,8 @@ function datosHud() {
   const o = objetivo && entes.get(objetivo);
   let jefe = null;
   for (const e of entes.values()) if (e.def?.jefe && !e.muerto && Math.hypot(pos(e).x - lx, pos(e).z - lz) < 26) jefe = { nombre: e.def.nombre + (e.furioso ? ' · en furia' : ''), hp: e.hp };
-  let lugar = R.enCosta(lx, lz) ? { nombre: 'Costa de la Sal Negra', frase: 'El mar también está muerto.' } : { nombre: R.MAPA.nombre, frase: 'La noche no se termina.' };
+  const isla = R.islaDe(lx, lz);
+  let lugar = isla ? { nombre: isla.nombre, frase: isla.frase } : { nombre: R.MAPA.nombre, frase: 'La noche no se termina.' };
   if (R.enPozo(lx, lz)) lugar = { nombre: 'Pozo de las Almas', frase: estado?.pozo > 0 ? `Oleada ${estado.pozo} de ${R.POZO.oleadas}` : 'Esperá a que se cierre la entrada.' };
   if (R.enBastion(lx, lz)) lugar = { nombre: 'Bastión Caído', frase: estado?.asedio ? 'Quien tenga el altar, tiene el Bastión.' : 'Piedra vieja. Sangre nueva.' };
   if (!R.enPozo(lx, lz) && !R.enBastion(lx, lz)) for (const l of R.MAPA.lugares) if (Math.hypot(l.x - lx, l.z - lz) < (l.x || l.z ? 14 : R.PUEBLO.r)) lugar = l;

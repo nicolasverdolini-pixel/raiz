@@ -399,13 +399,20 @@ export class Paneles {
 
   senda(n) {
     const d = this.ctx.mio(); if (!d) return;
-    const puede = d.nivel >= R.COSTA.nivel || d.resets > 0;
-    const cuerpo = `<p class="frase">«${n.frase}»</p><div class="mision"><b>${n.destino === 5 ? 'Costa de la Sal Negra' : 'Páramo del Luto'}</b>
-      <span class="m-texto">${n.destino === 5 ? 'Una isla al otro lado de la Senda. Ahogados, piratas sin cuello y algo enorme en la Fosa. Monstruos de nivel 48 a 75 y el equipo del Velo.' : 'De vuelta a la Atalaya Roja.'}</span>
-      ${n.destino === 5 && !puede ? `<span class="peligro">Hace falta nivel ${R.COSTA.nivel}.</span>` : ''}
-      <div class="acciones"><button class="btn" id="p-senda" ${puede || n.destino !== 5 ? '' : 'disabled'}>Cruzar</button></div></div>`;
-    this.marco('Senda Negra', null, null, null, cuerpo, 'senda', [n]);
-    const b = $('#p-senda', this.el); if (b) b.onclick = () => { this.ctx.mandar({ t: 'senda' }); this.cerrar(); };
+    const destino = R.ISLAS.find(i => i.atalaya === n.destino), origen = R.ISLAS.find(i => i.atalaya === n.atalaya);
+    const adelante = destino && (!origen || destino.nivel > origen.nivel), puede = !adelante || d.nivel >= destino.nivel || d.resets > 0;
+    const TXT = {
+      costa: 'Una isla rodeada de mar muerto. Ahogados, piratas sin cuello y algo enorme en la Fosa.',
+      yermo: 'Tierra quemada que todavía arde. Calcinados, perros de brasa, colosos de escoria y un volcán que respira.',
+      trono: 'La ciudad del último rey del Sol. Su guardia sigue de ronda, los espectros siguen bailando y el rey sigue en el trono.',
+    };
+    const titulo = destino ? destino.nombre : R.PUEBLOS[n.destino]?.nombre || 'Páramo del Luto';
+    const cuerpo = `<p class="frase">«${n.frase}»</p><div class="mision"><b>${titulo}</b>
+      <span class="m-texto">${destino && adelante ? `${TXT[destino.id]} Monstruos de nivel ${destino.niveles}.` : `De vuelta a ${R.PUEBLOS[n.destino]?.nombre || 'la Atalaya'}.`}</span>
+      ${!puede ? `<span class="peligro">Hace falta nivel ${destino.nivel}.</span>` : ''}
+      <div class="acciones"><button class="btn" id="p-senda" ${puede ? '' : 'disabled'}>Cruzar</button></div></div>`;
+    this.marco(n.nombre, null, null, null, cuerpo, 'senda', [n]);
+    const b = $('#p-senda', this.el); if (b) b.onclick = () => { this.ctx.mandar({ t: 'senda', id: n.id }); this.cerrar(); };
   }
 
   // ---------- farol: viajar entre atalayas ----------

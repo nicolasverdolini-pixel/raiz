@@ -11,25 +11,25 @@ import { crearAlas } from './alas.js';
 const cargador = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 // Qué modelo usa cada arma según su nivel (1 a 4).
 const MODELO = {
-  espada: ['sword_1handed', 'sword_1handed', 'sword_2handed', 'sword_2handed', 'sword_2handed'],
-  ballesta: ['crossbow_1handed', 'crossbow_1handed', 'crossbow_2handed', 'crossbow_2handed', 'crossbow_2handed'],
-  baculo: ['staff', 'staff', 'staff', 'staff', 'staff'],
-  hacha: ['axe_1handed', 'axe_1handed', 'axe_2handed', 'axe_2handed', 'axe_2handed'],
-  dagas: ['dagger', 'dagger', 'dagger', 'dagger', 'dagger'],
-  cetro: ['wand', 'wand', '../baculo_hueso', '../baculo_hueso', '../baculo_hueso'],
-  escudo: ['shield_round', 'shield_badge', 'shield_square', 'shield_spikes', 'shield_spikes'],
-  garras: ['dagger', 'dagger', '../hoja_hueso', '../hoja_hueso', '../hoja_hueso'],
+  espada: ['sword_1handed', 'sword_1handed', 'sword_2handed', 'sword_2handed', 'sword_2handed', '../hoja_hueso', 'sword_2handed'],
+  ballesta: ['crossbow_1handed', 'crossbow_1handed', 'crossbow_2handed', 'crossbow_2handed', 'crossbow_2handed', 'crossbow_2handed', 'crossbow_2handed'],
+  baculo: ['staff', 'staff', 'staff', 'staff', 'staff', '../baculo_hueso', 'staff'],
+  hacha: ['axe_1handed', 'axe_1handed', 'axe_2handed', 'axe_2handed', 'axe_2handed', '../hacha_hueso', 'axe_2handed'],
+  dagas: ['dagger', 'dagger', 'dagger', 'dagger', 'dagger', '../hoja_hueso', 'dagger'],
+  cetro: ['wand', 'wand', '../baculo_hueso', '../baculo_hueso', '../baculo_hueso', '../baculo_hueso', 'wand'],
+  escudo: ['shield_round', 'shield_badge', 'shield_square', 'shield_spikes', 'shield_spikes', 'shield_spikes', 'shield_badge'],
+  garras: ['dagger', 'dagger', '../hoja_hueso', '../hoja_hueso', '../hoja_hueso', '../hacha_hueso', '../hoja_hueso'],
 };
 // Armaduras: se sacan las piezas de los personajes y esqueletos (KayKit, CC0). Cada nivel usa otra pieza.
 const L = n => [n + 'Left', n + 'Right'];
 const PIEZA = {
-  casco: [['degollador.glb', ['Skeleton_Rogue_Hood']], ['guardian.glb', ['Knight_Helmet']], ['barbaro.glb', ['Barbarian_Hat']], ['centinela.glb', ['Skeleton_Warrior_Helmet']], ['guardian.glb', ['Knight_Helmet']]],
-  armadura: [['cazadora.glb', ['Rogue_Body']], ['guardian.glb', ['Knight_Body']], ['degollador.glb', ['Skeleton_Rogue_Body', 'Skeleton_Rogue_Cape']], ['barbaro.glb', ['Barbarian_Body']], ['centinela.glb', ['Skeleton_Warrior_Body', 'Skeleton_Warrior_Cloak']]],
-  guantes: [['cazadora.glb', ['Rogue_ArmRight']], ['guardian.glb', ['Knight_ArmRight']], ['arcanista.glb', ['Mage_ArmRight']], ['barbaro.glb', ['Barbarian_ArmRight']], ['centinela.glb', ['Skeleton_Warrior_ArmRight']]],
-  botas: [['cazadora.glb', L('Rogue_Leg')], ['guardian.glb', L('Knight_Leg')], ['degollador.glb', L('Skeleton_Rogue_Leg')], ['barbaro.glb', L('Barbarian_Leg')], ['centinela.glb', L('Skeleton_Warrior_Leg')]],
+  casco: [['degollador.glb', ['Skeleton_Rogue_Hood']], ['guardian.glb', ['Knight_Helmet']], ['barbaro.glb', ['Barbarian_Hat']], ['centinela.glb', ['Skeleton_Warrior_Helmet']], ['guardian.glb', ['Knight_Helmet']], ['centinela.glb', ['Skeleton_Warrior_Helmet']], ['guardian.glb', ['Knight_Helmet']]],
+  armadura: [['cazadora.glb', ['Rogue_Body']], ['guardian.glb', ['Knight_Body']], ['degollador.glb', ['Skeleton_Rogue_Body', 'Skeleton_Rogue_Cape']], ['barbaro.glb', ['Barbarian_Body']], ['centinela.glb', ['Skeleton_Warrior_Body', 'Skeleton_Warrior_Cloak']], ['barbaro.glb', ['Barbarian_Body']], ['guardian.glb', ['Knight_Body', 'Knight_Cape']]],
+  guantes: [['cazadora.glb', ['Rogue_ArmRight']], ['guardian.glb', ['Knight_ArmRight']], ['arcanista.glb', ['Mage_ArmRight']], ['barbaro.glb', ['Barbarian_ArmRight']], ['centinela.glb', ['Skeleton_Warrior_ArmRight']], ['barbaro.glb', ['Barbarian_ArmRight']], ['guardian.glb', ['Knight_ArmRight']]],
+  botas: [['cazadora.glb', L('Rogue_Leg')], ['guardian.glb', L('Knight_Leg')], ['degollador.glb', L('Skeleton_Rogue_Leg')], ['barbaro.glb', L('Barbarian_Leg')], ['centinela.glb', L('Skeleton_Warrior_Leg')], ['barbaro.glb', L('Barbarian_Leg')], ['guardian.glb', L('Knight_Leg')]],
 };
-const SETS = ['cuero', 'vigia', 'osario', 'foso', 'velo'];
-const TINTE_TIER = [null, '#8fa8c8', '#5a4a52', '#7a2420', '#3a6a8a'];
+const SETS = ['cuero', 'vigia', 'osario', 'foso', 'velo', 'escoria', 'rey'];
+const TINTE_TIER = [null, '#8fa8c8', '#5a4a52', '#7a2420', '#3a6a8a', '#8a2a0a', '#d8b050'];
 
 let renderer, scene, camara;
 const modelos = {}, fotos = {}, pedidos = {};

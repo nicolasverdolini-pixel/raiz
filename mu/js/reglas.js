@@ -13,10 +13,19 @@ export const PUEBLOS = [
   { nombre: 'Atalaya Hundida', x: -60, z: -74, r: 8, tier: 3, frase: 'La torre se va tragando a sí misma, piedra por piedra.' },
   { nombre: 'Atalaya Roja', x: 60, z: 70, r: 8, tier: 4, frase: 'El farol arde rojo. Dicen que lo alimentan con Éter del Foso.' },
   { nombre: 'Atalaya de Sal', x: 600, z: 0, r: 8, tier: 5, frase: 'Al otro lado de la Senda Negra. Acá el mar también está muerto.' },
+  { nombre: 'Atalaya Calcinada', x: 0, z: 600, r: 8, tier: 6, frase: 'Arde sin leña. Nadie sabe qué la alimenta.' },
+  { nombre: 'Atalaya del Último Rey', x: -600, z: 0, r: 8, tier: 7, frase: 'El rey murió de pie. Su guardia todavía lo espera.' },
 ];
 // La Costa de la Sal Negra: una isla aparte, al otro lado de la Senda Negra.
 export const COSTA = { x: 600, z: 0, r: 92, nivel: 45 };
-export const enCosta = (x, z) => x > 400 && Math.hypot(x - COSTA.x, z - COSTA.z) < COSTA.r + 20;
+// Regiones aparte (islas), cada una al otro lado de una Senda Negra y con su atalaya.
+export const ISLAS = [
+  { id: 'costa', nombre: 'Costa de la Sal Negra', ...COSTA, atalaya: 5, frase: 'El mar también está muerto.', niveles: '48 a 75' },
+  { id: 'yermo', nombre: 'Yermo Calcinado', x: 0, z: 600, r: 100, nivel: 75, atalaya: 6, frase: 'La tierra todavía arde debajo de la ceniza.', niveles: '78 a 112' },
+  { id: 'trono', nombre: 'Ciudad del Trono Hundido', x: -600, z: 0, r: 104, nivel: 110, atalaya: 7, frase: 'Acá reinó el último rey del Sol. Todavía reina.', niveles: '114 a 155' },
+];
+export const islaDe = (x, z) => (Math.abs(x) > 400 || Math.abs(z) > 400 ? ISLAS.find(i => Math.hypot(x - i.x, z - i.z) < i.r + 20) || null : null);
+export const enCosta = (x, z) => !!islaDe(x, z);
 export const PUEBLO = PUEBLOS[0];
 export const enAtalaya = (x, z) => PUEBLOS.findIndex(p => Math.hypot(x - p.x, z - p.z) < p.r);
 export const atalayaCercana = (x, z, visitadas) => {
@@ -168,6 +177,51 @@ Object.assign(MONSTRUOS, {
                desc: 'Lo que dormía en la Fosa. Ya no duerme.' }),
 });
 TIPOS.push(...['ahogado', 'marinero', 'abisal', 'farero', 'pirata', 'brutosal', 'leviatanmenor', 'reinaahogada', 'capitan', 'leviatan']);
+// ----- Yermo Calcinado (75 a 110) y Ciudad del Trono Hundido (110 a 150) -----
+Object.assign(MONSTRUOS, {
+  calcinado: M({ nombre: 'Calcinado', nivel: 78, hp: 10800, dano: [168, 216], def: 52, exp: 6210, zona: { x: -40, z: 570, r: 18 }, cantidad: 14, reaparece: 18, vel: 2.8,
+               desc: 'Ardió hasta el hueso y siguió caminando.' }),
+  perrobrasa: M({ nombre: 'Perro de Brasa', nivel: 82, hp: 9700, dano: [164, 211], def: 55, exp: 5640, zona: { x: 35, z: 562, r: 17 }, cantidad: 14, reaparece: 18, vel: 4.6, cadencia: 1.0, radio: 0.6, vista: 10,
+               desc: 'Corre en jauría. Donde muerde, quema.' }),
+  tejedoraceniza: M({ nombre: 'Tejedora de Ceniza', nivel: 86, hp: 12000, dano: [187, 241], def: 57, exp: 7050, zona: { x: -55, z: 620, r: 17 }, cantidad: 12, reaparece: 18, radio: 0.7, veneno: { prob: 0.35, dps: 60, dura: 5 },
+               desc: 'Su tela es de ceniza caliente. Se pega y arde.' }),
+  diablo: M({ nombre: 'Diablo Menor', nivel: 90, hp: 12700, dano: [197, 253], def: 60, exp: 7480, zona: { x: 50, z: 610, r: 16 }, cantidad: 12, reaparece: 18, vel: 3.4, alcance: 1.7,
+               desc: 'Lo echaron del Foso por ser chico. Se vengó con todos.' }),
+  devorador: M({ nombre: 'Devorador de Escoria', nivel: 95, hp: 14800, dano: [219, 282], def: 63, exp: 8830, zona: { x: 10, z: 655, r: 17 }, cantidad: 10, reaparece: 18, vel: 4.2, vista: 12, radio: 0.8, habs: [{ t: 'carga', cada: 7, alcance: 13, dano: [380, 470] }],
+               desc: 'Come piedra caliente. También come gente.' }),
+  coloso: M({ nombre: 'Coloso de Escoria', nivel: 100, hp: 19900, dano: [262, 336], def: 67, exp: 12010, zona: { x: -30, z: 660, r: 16 }, cantidad: 9, reaparece: 20, vel: 2.4, alcance: 2.0, cadencia: 2.1, radio: 1.0, habs: [{ t: 'pisoton', cada: 9, radio: 4.5, dano: [360, 440] }],
+               desc: 'Una montaña de metal fundido que aprendió a odiar.' }),
+  sacerdoteazufre: M({ nombre: 'Sacerdote de Azufre', nivel: 104, hp: 14800, dano: [231, 297], def: 69, exp: 9030, zona: { x: 62, z: 648, r: 15 }, cantidad: 10, reaparece: 20, vel: 2.4, alcance: 9, cadencia: 2.1, distancia: 'rojo', vista: 11,
+               desc: 'Reza al fuego. El fuego le contesta.' }),
+  senorbrasas: M({ nombre: 'Señor de las Brasas', nivel: 106, hp: 447000, dano: [354, 454], def: 82, exp: 417000, jefe: true, vista: 13, radio: 1.6, alcance: 3, cadencia: 1.9, vel: 2.8,
+               zona: { x: -62, z: 545, r: 1 }, cantidad: 1, reaparece: 600, furia: 0.3, habs: [{ t: 'invocar', cada: 15, cual: 'diablo', n: 3, max: 6 }, { t: 'pisoton', cada: 8, radio: 6, dano: [520, 640] }],
+               desc: 'Se sentó en el trono del Foso. Ahora quiere el mundo.' }),
+  grandevorador: M({ nombre: 'Gran Devorador', nivel: 112, hp: 580000, dano: [375, 483], def: 86, exp: 447000, jefe: true, vista: 13, radio: 1.6, alcance: 3, cadencia: 1.9, vel: 2.8,
+               zona: { x: 18, z: 668, r: 1 }, cantidad: 1, reaparece: 660, furia: 0.3, habs: [{ t: 'carga', cada: 9, alcance: 16, dano: [640, 780] }, { t: 'pisoton', cada: 8, radio: 7, dano: [560, 680] }, { t: 'rayo', cada: 6, alcance: 14, dano: [480, 560], color: 'rojo', radio: 3.5 }],
+               desc: 'Se comió un volcán entero. Todavía tiene hambre.' }),
+  guardiareal: M({ nombre: 'Guardia Real', nivel: 114, hp: 16400, dano: [255, 328], def: 76, exp: 10180, zona: { x: -560, z: -35, r: 18 }, cantidad: 14, reaparece: 18, alcance: 1.8,
+               desc: 'Juró cuidar al rey. La muerte no le pareció excusa.' }),
+  espectrocorte: M({ nombre: 'Espectro de la Corte', nivel: 118, hp: 14500, dano: [245, 314], def: 79, exp: 9050, zona: { x: -635, z: -40, r: 17 }, cantidad: 12, reaparece: 18, vel: 2.6, alcance: 9, cadencia: 2.0, distancia: 'azul', vista: 11,
+               desc: 'Bailaba en el salón. Sigue bailando, sin cuerpo.' }),
+  sabueso: M({ nombre: 'Sabueso del Rey', nivel: 122, hp: 15000, dano: [254, 326], def: 81, exp: 9450, zona: { x: -545, z: 20, r: 17 }, cantidad: 14, reaparece: 18, vel: 4.8, cadencia: 1.0, radio: 0.6, vista: 10,
+               desc: 'Lo dejaron atado en la puerta. Se soltó.' }),
+  verdugo: M({ nombre: 'Verdugo', nivel: 127, hp: 18500, dano: [288, 370], def: 85, exp: 11710, zona: { x: -655, z: 15, r: 16 }, cantidad: 12, reaparece: 18, vel: 3.6, cadencia: 1.2,
+               desc: 'Cortó mil cabezas por orden del rey. Le faltan algunas.' }),
+  gargola: M({ nombre: 'Gárgola', nivel: 132, hp: 19300, dano: [300, 386], def: 88, exp: 12310, zona: { x: -585, z: 58, r: 17 }, cantidad: 12, reaparece: 18, vel: 3.8, vista: 11,
+               desc: 'Era de piedra. Ya no.' }),
+  caballerohueco: M({ nombre: 'Caballero Hueco', nivel: 138, hp: 26300, dano: [359, 462], def: 92, exp: 16960, zona: { x: -620, z: 62, r: 15 }, cantidad: 10, reaparece: 20, vel: 3.0, alcance: 2.0, radio: 0.9, habs: [{ t: 'carga', cada: 8, alcance: 13, dano: [600, 740] }],
+               desc: 'La armadura está vacía. Pega igual.' }),
+  arzobispo: M({ nombre: 'Arzobispo Muerto', nivel: 144, hp: 25500, dano: [362, 465], def: 96, exp: 16540, zona: { x: -540, z: -60, r: 15 }, cantidad: 9, reaparece: 22, vel: 2.4, alcance: 10, cadencia: 2.2, distancia: 'violeta', vista: 12, habs: [{ t: 'invocar', cada: 18, cual: 'guardiareal', n: 2, max: 4 }],
+               desc: 'Coronó al último rey. Ahora lo sirve de otra forma.' }),
+  reinahueca: M({ nombre: 'La Reina Hueca', nivel: 140, hp: 660000, dano: [480, 618], def: 107, exp: 598000, jefe: true, vista: 13, radio: 1.6, alcance: 3, cadencia: 1.9, vel: 2.8,
+               zona: { x: -662, z: -62, r: 1 }, cantidad: 1, reaparece: 660, furia: 0.3, habs: [{ t: 'invocar', cada: 15, cual: 'espectrocorte', n: 3, max: 6 }, { t: 'rayo', cada: 6, alcance: 14, dano: [700, 820], color: 'violeta', radio: 3.5 }],
+               desc: 'Sobrevivió al rey cien años. Sola, en el salón vacío.' }),
+  ultimorey: M({ nombre: 'El Último Rey', nivel: 155, hp: 1012000, dano: [537, 690], def: 118, exp: 683000, jefe: true, vista: 13, radio: 1.6, alcance: 3, cadencia: 1.9, vel: 2.8,
+               zona: { x: -606, z: 86, r: 1 }, cantidad: 1, reaparece: 720, furia: 0.3, habs: [{ t: 'invocar', cada: 14, cual: 'caballerohueco', n: 2, max: 4 }, { t: 'carga', cada: 9, alcance: 16, dano: [900, 1080] }, { t: 'pisoton', cada: 7, radio: 7, dano: [800, 960] }],
+               desc: 'El rey del Sol Hondo. Murió cuando se apagó. No se enteró.' }),
+});
+TIPOS.push('calcinado', 'perrobrasa', 'tejedoraceniza', 'diablo', 'devorador', 'coloso', 'sacerdoteazufre', 'senorbrasas', 'grandevorador',
+  'guardiareal', 'espectrocorte', 'sabueso', 'verdugo', 'gargola', 'caballerohueco', 'arzobispo', 'reinahueca', 'ultimorey');
 export const CAMPEON = { prob: 0.06, probNoche: 0.25, hp: 3, dano: 1.4, exp: 3.5, escala: 1.3 };
 
 // ---------- Eventos con horario (hora del servidor) ----------
@@ -236,6 +290,22 @@ MAPA.lugares.push(
   { nombre: 'Faro Caído', x: 630, z: 58, frase: 'Su luz se apagó la misma noche que el Sol Hondo.' },
   { nombre: 'Fosa de la Sal', x: 676, z: -18, frase: 'El mar se abre hacia abajo. Algo respira ahí.' },
   { nombre: 'Salinas', x: 600, z: -72, frase: 'Sal blanca, cuerpos blancos. Nadie viene a buscarla.' });
+MAPA.lugares.push(
+  { nombre: 'Campo de los Calcinados', x: -40, z: 570, frase: 'Quedaron parados donde los alcanzó el fuego.' },
+  { nombre: 'Grieta de Brasa', x: 35, z: 562, frase: 'La tierra se abrió y nunca se volvió a cerrar.' },
+  { nombre: 'Nido de Ceniza', x: -55, z: 620, frase: 'Las telas cuelgan como humo quieto.' },
+  { nombre: 'Trono del Foso', x: -62, z: 545, frase: 'Alguien se sentó acá. Todavía está caliente.' },
+  { nombre: 'Fundición Muerta', x: -30, z: 660, frase: 'El metal se fundió solo. Después se levantó.' },
+  { nombre: 'Boca del Volcán', x: 18, z: 668, frase: 'Respira. Despacio, pero respira.' },
+  { nombre: 'Templo del Azufre', x: 62, z: 648, frase: 'Rezan con los ojos cerrados para no ver lo que rezan.' },
+  { nombre: 'Puerta de la Ciudad', x: -560, z: -35, frase: 'Las puertas están abiertas. Nadie entra igual.' },
+  { nombre: 'Salón de Baile', x: -635, z: -40, frase: 'La música terminó hace cien años. Ellos no.' },
+  { nombre: 'Perreras Reales', x: -545, z: 20, frase: 'Las cadenas están rotas desde adentro.' },
+  { nombre: 'Patíbulo', x: -655, z: 15, frase: 'La soga todavía se mueve sin viento.' },
+  { nombre: 'Tejados de Piedra', x: -585, z: 58, frase: 'Las estatuas miran para abajo. Esperan.' },
+  { nombre: 'Aposentos de la Reina', x: -662, z: -62, frase: 'Un espejo roto en cada pared.' },
+  { nombre: 'Catedral Hundida', x: -540, z: -60, frase: 'La campana suena sola a medianoche.' },
+  { nombre: 'Sala del Trono', x: -606, z: 86, frase: 'El rey sigue sentado. Te está mirando.' });
 MAPA.lugares.push(...PUEBLOS.slice(1).map(p => ({ nombre: p.nombre, x: p.x, z: p.z, frase: p.frase, atalaya: true })));
 // Campamentos: llenan los huecos del Páramo. Cada uno tiene su manada y un santuario que da fuerzas por un rato.
 export const SANTUARIOS = {
@@ -262,11 +332,14 @@ export const CIENAGA = { x: MONSTRUOS.sapo.zona.x, z: MONSTRUOS.sapo.zona.z };
 
 // Altura del piso: suave, plana en la atalaya y en la ciénaga. La usan los dos lados.
 export function altura(x, z) {
-  if (x > 400) {   // la isla de la Costa: dunas bajas y orilla que baja al mar
-    const lx = x - COSTA.x, d = Math.hypot(lx, z);
-    let h = Math.sin(lx * 0.07) * 0.6 + Math.cos(z * 0.06 + lx * 0.03) * 0.5 + Math.sin((lx - z) * 0.17) * 0.12;
-    for (const p of PUEBLOS) { if (p.x < 400) continue; const dp = Math.hypot(x - p.x, z - p.z); if (dp < p.r + 5) h *= Math.max(0, (dp - p.r) / 5); }
-    if (d > COSTA.r - 8) h -= (d - (COSTA.r - 8)) * 0.35;
+  const isla = (Math.abs(x) > 400 || Math.abs(z) > 400) && ISLAS.find(i => Math.hypot(x - i.x, z - i.z) < i.r + 80);
+  if (isla) {   // islas: la Costa con dunas, el Yermo con lomas quebradas, el Trono casi plano (era una ciudad)
+    const lx = x - isla.x, lz = z - isla.z, d = Math.hypot(lx, lz);
+    let h = isla.id === 'costa' ? Math.sin(lx * 0.07) * 0.6 + Math.cos(lz * 0.06 + lx * 0.03) * 0.5 + Math.sin((lx - lz) * 0.17) * 0.12
+      : isla.id === 'yermo' ? Math.abs(Math.sin(lx * 0.06) + Math.cos(lz * 0.05 + lx * 0.02)) * 0.9 - 0.4 + Math.sin((lx + lz) * 0.21) * 0.15
+      : Math.sin(lx * 0.05) * 0.25 + Math.cos(lz * 0.04) * 0.2;
+    for (const p of PUEBLOS) { const dp = Math.hypot(x - p.x, z - p.z); if (dp < p.r + 5) h *= Math.max(0, (dp - p.r) / 5); }
+    if (d > isla.r - 8) h -= (d - (isla.r - 8)) * 0.35;
     return h;
   }
   if (Math.abs(x) > 200) return 0;
