@@ -212,6 +212,7 @@ function alMensaje(m) {
   if (m.t === 'compide') return hud.pedidoComercio(m.de, m.nombre);
   if (m.t === 'com') return paneles.comercio(m);
   if (m.t === 'ranking') return paneles.ranking(m.lista);
+  if (m.t === 'semana') return paneles.semana(m);
   if (m.t === 'chat') {
     chat.recibir(m); SND.sfx.chat();
     const e = entes.get(m.de);

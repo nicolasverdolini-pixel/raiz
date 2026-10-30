@@ -342,10 +342,11 @@ export class Paneles {
     if (tab === 'renacer') cuerpo += this.htmlRenacer(d);
     if (tab === 'alas') cuerpo += this.htmlAlas(d);
     if (tab === 'asedio') cuerpo += this.htmlAsedio(d);
-    if (tab === 'ranking') { cuerpo += this.htmlRanking(d); if (!this.pedidoRanking || Date.now() - this.pedidoRanking > 10000) { this.pedidoRanking = Date.now(); this.ctx.mandar({ t: 'ranking' }); } }
+    if (tab === 'ranking') { cuerpo += this.htmlRanking(d); if (!this.pedidoRanking || Date.now() - this.pedidoRanking > 10000) { this.pedidoRanking = Date.now(); this.ctx.mandar({ t: this.vistaRanking === 'historico' ? 'ranking' : 'semana' }); } }
     this.marco(n.nombre, R.PUEBLOS[n.atalaya]?.nombre, tabs, tab, cuerpo, 'npc', [id, tab]);
     const m = this.ctx.mandar;
     this.el.querySelectorAll('[data-tsel]').forEach(b => b.onclick = () => { this.sel = 't:' + b.dataset.tsel; this.npc(id, tab); });
+    this.el.querySelectorAll('[data-rk]').forEach(b => b.onclick = () => { this.vistaRanking = b.dataset.rk; this.pedidoRanking = 0; this.npc(id, 'ranking'); });
     this.el.querySelectorAll('[data-alas]').forEach(b => b.onclick = () => { const a = O.BASES[O.ALAS[+b.dataset.alas].b]; if (confirm(`¿Pedirle a Oria ${a.nombre}? Si falla, perdés lo que entregás.`)) this.ctx.mandar({ t: 'alas', n: +b.dataset.alas }); });
     this.el.querySelectorAll('[data-comprar]').forEach(b => b.onclick = () => m({ t: 'comprar', npc: id, b: b.dataset.comprar, c: +b.dataset.c }));
     this.el.querySelectorAll('[data-vsel]').forEach(b => b.onclick = () => { this.sel = 'v:' + b.dataset.vsel; this.npc(id, tab); });
@@ -492,10 +493,25 @@ export class Paneles {
       <div class="acciones"><button class="btn" id="p-renacer" ${puede ? '' : 'disabled'}>Renacer</button></div></div>`;
   }
   ranking(lista) { this.listaRanking = lista; if (this.abierto?.f === 'npc' && this.abierto.args[1] === 'ranking') this.refrescar(); }
+  semana(m) { this.datosSemana = m; if (this.abierto?.f === 'npc' && this.abierto.args[1] === 'ranking') this.refrescar(); }
   htmlRanking(d) {
+    const vista = this.vistaRanking || 'semana';
+    const pest = `<div class="titulos"><button class="btn chico ${vista === 'semana' ? '' : 'sec'}" data-rk="semana">Esta semana</button><button class="btn chico ${vista === 'historico' ? '' : 'sec'}" data-rk="historico">De siempre</button></div>`;
+    if (vista === 'semana') {
+      const S = this.datosSemana; if (!S) return pest + '<p class="nota">Buscando…</p>';
+      const falta = Math.max(0, S.fin - Date.now()), dias = Math.floor(falta / 86400000), horas = Math.floor(falta % 86400000 / 3600000);
+      const camp = S.campeones?.campeones ? Object.entries(S.campeones.campeones).map(([n, c]) => `${esc(n)} (${c.puesto}° · ${R.SEMANAL.find(x => x.id === c.tabla).nombre.toLowerCase()})`).join(', ') : '';
+      return pest + `<p class="nota">Cierra en <b>${dias ? dias + ' días y ' : ''}${horas} horas</b> (el lunes a las 0, hora argentina). Los tres primeros de cada tabla cobran por correo y llevan su título toda la semana siguiente.</p>
+        <p class="nota premios">Premios: 1° ${R.PREMIO_SEMANAL[0].oro.toLocaleString('es-AR')} de oro, 3 Gemas del Abismo y una Piedra Guardiana · 2° ${R.PREMIO_SEMANAL[1].oro.toLocaleString('es-AR')} y 2 Abismo · 3° ${R.PREMIO_SEMANAL[2].oro.toLocaleString('es-AR')} y 1 Abismo.</p>
+        ${camp ? `<p class="nota">Campeones de la semana pasada: ${camp}.</p>` : ''}
+        <div class="semana">${R.SEMANAL.map(T => { const l = S.tablas?.[T.id] || [], yo = l.findIndex(f => f.nombre === d.nombre);
+          return `<div class="ranking"><h3>${T.nombre}</h3><small class="nota">Título: «${T.titulo}»</small>
+            ${l.length ? l.slice(0, 10).map((f, i) => `<div class="rk ${f.nombre === d.nombre ? 'yo' : ''}"><span>${i + 1}${i < 3 ? ' ★' : ''}</span><span>${esc(f.nombre)}</span><span>${f.v.toLocaleString('es-AR')}</span></div>`).join('') : '<p class="nota">Nadie todavía. Puede ser tuyo.</p>'}
+            ${yo >= 10 ? `<div class="rk yo"><span>${yo + 1}</span><span>${esc(d.nombre)}</span><span>${l[yo].v.toLocaleString('es-AR')}</span></div>` : ''}</div>`; }).join('')}</div>`;
+    }
     const l = this.listaRanking;
-    if (!l) return '<p class="nota">Buscando…</p>';
-    return `<div class="ranking"><div class="rk cab"><span>#</span><span>Nombre</span><span>Clase</span><span>Renac.</span><span>Nivel</span></div>
+    if (!l) return pest + '<p class="nota">Buscando…</p>';
+    return pest + `<div class="ranking"><div class="rk cab"><span>#</span><span>Nombre</span><span>Clase</span><span>Renac.</span><span>Nivel</span></div>
       ${l.map((f, i) => `<div class="rk ${f.nombre === d.nombre ? 'yo' : ''}"><span>${i + 1}</span><span>${esc(f.nombre)}</span><span>${C.CLASES[f.clase]?.nombre || ''}</span><span>${f.resets}</span><span>${f.nivel}</span></div>`).join('')}</div>`;
   }
 

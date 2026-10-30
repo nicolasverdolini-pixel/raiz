@@ -106,6 +106,26 @@ export class Personaje extends DurableObject {
     await this.ctx.storage.put('lista', lista.slice(0, 100));
   }
   async rankingVer() { return (await this.ctx.storage.get('lista')) || []; }
+  // Ranking semanal (este objeto es "#semana"): suma puntos por semana y cierra la anterior una sola vez.
+  async semanaSumar(semana, nombre, clase, sumas) {
+    const t = (await this.ctx.storage.get('s:' + semana)) || {};
+    const f = t[nombre] || (t[nombre] = { nombre, clase, exp: 0, muertes: 0, jefes: 0 });
+    for (const k of ['exp', 'muertes', 'jefes']) f[k] += sumas[k] || 0; f.clase = clase;
+    await this.ctx.storage.put('s:' + semana, t);
+  }
+  async semanaVer(semana) {
+    const t = Object.values((await this.ctx.storage.get('s:' + semana)) || {});
+    return Object.fromEntries(['exp', 'muertes', 'jefes'].map(k => [k, t.filter(f => f[k] > 0).sort((a, b) => b[k] - a[k]).slice(0, 20).map(f => ({ nombre: f.nombre, clase: f.clase, v: f[k] }))]));
+  }
+  async semanaCerrar(semana) {
+    if (await this.ctx.storage.get('cerrada:' + semana)) return null;
+    await this.ctx.storage.put('cerrada:' + semana, true);
+    const tablas = await this.semanaVer(semana), campeones = {};
+    for (const [k, l] of Object.entries(tablas)) l.slice(0, 3).forEach((f, i) => { if (!campeones[f.nombre]) campeones[f.nombre] = { tabla: k, puesto: i + 1 }; });
+    await this.ctx.storage.put('campeones', { semana, campeones, tablas });
+    return { tablas, campeones };
+  }
+  async campeonesVer() { return (await this.ctx.storage.get('campeones')) || null; }
 
   // Hermandad (este objeto es "h:<nombre>"): nombre, emblema, líder y miembros.
   async hCrear(h) { if (await this.ctx.storage.get('herm')) return false; await this.ctx.storage.put('herm', h); return true; }
@@ -213,6 +233,7 @@ export class Mapa extends DurableObject {
       case 'renacer': return this.renacer(p);
       case 'alas': return this.forjarAlas(p, m.n | 0);
       case 'ranking': return this.enviar(s, { t: 'ranking', lista: (await this.cuenta('#ranking').rankingVer()).slice(0, 50) });
+      case 'semana': { const sem = R.semanaAR(); await this.volcarSemana(p); return this.enviar(s, { t: 'semana', tablas: await this.cuenta('#semana').semanaVer(sem), fin: R.finSemanaAR(), campeones: this.campeones || null }); }
       case 'pozo': return this.entrarPozo(p);
       case 'bastion': return m.a === 'salir' ? this.salirBastion(p) : this.entrarBastion(p);
       case 'senda': return this.cruzarSenda(p, String(m.id || ''));
@@ -375,8 +396,40 @@ export class Mapa extends DurableObject {
     if (!this.jug.size && this.reloj) { clearInterval(this.reloj); this.reloj = null; }
   }
 
+  // Los puntos de la semana se juntan en memoria y se mandan de a tandas (con cada guardado).
+  volcarSemana(p) {
+    const w = p.semana; if (!w || !(w.exp || w.muertes || w.jefes)) return Promise.resolve();
+    p.semana = {};
+    return this.cuenta('#semana').semanaSumar(R.semanaAR(), p.nombre, p.d.clase, w).catch(() => {});
+  }
+  // Una vez por semana: se cierra la anterior, se paga a los tres primeros de cada tabla (por correo) y quedan los campeones.
+  async revisarSemana() {
+    const sem = R.semanaAR();
+    if (this.semanaVista === sem) return; this.semanaVista = sem;
+    const anterior = R.semanaAR(Date.parse(sem + 'T12:00:00Z') - 2 * 86400000);
+    const r = await this.cuenta('#semana').semanaCerrar(anterior).catch(() => null);
+    if (r) for (const [k, l] of Object.entries(r.tablas)) for (const [i, f] of l.slice(0, 3).entries()) {
+      const pr = R.PREMIO_SEMANAL[i], T = R.SEMANAL.find(x => x.id === k);
+      const dueno = await this.cuenta('pj:' + f.nombre).duenoDe().catch(() => null); if (!dueno) continue;
+      const cartas = [{ de: `Ranking semanal · ${i + 1}° en ${T.nombre}`, it: null, oro: pr.oro, t: Date.now() }, ...pr.items.map(it => ({ de: `Ranking semanal · ${T.nombre}`, it: { ...it }, oro: 0, t: Date.now() }))];
+      for (const c of cartas) {
+        const q = [...this.jug.values()].find(x => x.nombre === f.nombre);
+        if (q) { q.d.correo = q.d.correo || []; q.d.correo.push(c); q.cambioInv = true; } else await this.cuenta(dueno).correoPoner(f.nombre, c).catch(() => {});
+      }
+      const q = [...this.jug.values()].find(x => x.nombre === f.nombre); if (q) { this.aviso(q, `¡Quedaste ${i + 1}° en «${T.nombre}» de la semana! El premio está en el correo del baúl.`); this.guardar(q); }
+    }
+    const c = await this.cuenta('#semana').campeonesVer().catch(() => null);
+    this.campeones = c && c.semana === anterior ? c : null;
+    if (r && Object.values(r.tablas).some(l => l.length)) this.msgTodos(`Cerró el ranking de la semana. ${Object.entries(r.tablas).map(([k, l]) => l[0] ? `${R.SEMANAL.find(x => x.id === k).nombre}: ${l[0].nombre}` : '').filter(Boolean).join(' · ')}.`, true);
+  }
+  tituloSemanal(q) {
+    const c = this.campeones?.campeones?.[q.nombre]; if (!c) return null;
+    return R.SEMANAL.find(x => x.id === c.tabla).titulo;
+  }
+
   guardar(p) {
     p.guardadoT = 0;
+    this.volcarSemana(p);
     if (!p.enPozo && !p.muerto) p.d.pos = { x: r2(p.x), z: r2(p.z) };
     this.cuenta(p.cuenta).guardar(p.nombre, p.d, p.baul).catch(() => {});
     this.cuenta('#ranking').rankingPoner({ nombre: p.nombre, clase: p.d.clase, nivel: p.d.nivel, resets: p.d.resets || 0, exp: p.d.exp }).catch(() => {});
@@ -1360,9 +1413,9 @@ export class Mapa extends DurableObject {
         if (this.senor?.nombre === p.d.hermandad) cant *= 1 + R.BASTION.bonusExp;
       }
     }
-    if (m) { this.contar(p, 'muertes', 1); if (m.def.jefe) this.contar(p, 'jefes', 1); }
+    if (m) { this.contar(p, 'muertes', 1); if (m.def.jefe) this.contar(p, 'jefes', 1); const w = p.semana || (p.semana = {}); w.muertes = (w.muertes || 0) + 1; if (m.def.jefe) w.jefes = (w.jefes || 0) + 1; }
     cant = Math.max(1, Math.round(cant));
-    p.d.exp += cant; p.priv.push(['x', cant]);
+    p.d.exp += cant; p.priv.push(['x', cant]); (p.semana || (p.semana = {})).exp = (p.semana.exp || 0) + cant;
     let subio = false;
     while (p.d.nivel < R.NIVEL_MAX && p.d.exp >= R.expParaSubir(p.d.nivel)) {
       p.d.exp -= R.expParaSubir(p.d.nivel); p.d.nivel++; p.d.puntos += R.PUNTOS_POR_NIVEL; subio = true;
@@ -1581,7 +1634,7 @@ export class Mapa extends DurableObject {
   // ----- reloj del mapa -----
   tick() {
     const dt = R.TICK; this.t += dt;
-    if (!this.evT || this.t - this.evT > 1) { this.evT = this.t; this.revisarEventos(); }
+    if (!this.evT || this.t - this.evT > 1) { this.evT = this.t; this.revisarEventos(); this.revisarSemana().catch(() => {}); }
     this.tickPozo();
     this.tickAsedio(dt);
     for (let i = 0; i < this.santuarios.length; i++) if (this.santuarios[i] > 0) this.santuarios[i] -= dt;
@@ -1710,7 +1763,7 @@ export class Mapa extends DurableObject {
 
   enviarFotos() {
     const ev = this.ev; this.ev = [];
-    const filaJ = q => [q.id, q.nombre, r2(q.x), r2(q.z), r2(q.dir), Math.round(q.hp / q.der.maxHp * 100), q.d.nivel, q.muerto ? 4 : q.mueve ? 1 : 0, q.grupo || 0, (q.buffs.some(b => b.ef.menos) ? 1 : 0) | (q.veneno ? 2 : 0) | (q.buffs.some(b => b.ef.dmgPct || b.ef.vel) ? 4 : 0), q.d.clase, brillo(q), this.etiquetaHerm(q), q.d.equipo?.mascota?.b || 0, q.d.equipo?.montura?.b || 0, O.BASES[q.d.equipo?.alas?.b]?.ala || 0, O.vistaEquipo(q.d.equipo), q.puesto?.titulo || 0, (q.d.titulo && R.LOGROS.find(l => l.id === q.d.titulo)?.titulo) || 0];
+    const filaJ = q => [q.id, q.nombre, r2(q.x), r2(q.z), r2(q.dir), Math.round(q.hp / q.der.maxHp * 100), q.d.nivel, q.muerto ? 4 : q.mueve ? 1 : 0, q.grupo || 0, (q.buffs.some(b => b.ef.menos) ? 1 : 0) | (q.veneno ? 2 : 0) | (q.buffs.some(b => b.ef.dmgPct || b.ef.vel) ? 4 : 0), q.d.clase, brillo(q), this.etiquetaHerm(q), q.d.equipo?.mascota?.b || 0, q.d.equipo?.montura?.b || 0, O.BASES[q.d.equipo?.alas?.b]?.ala || 0, O.vistaEquipo(q.d.equipo), q.puesto?.titulo || 0, this.tituloSemanal(q) || (q.d.titulo && R.LOGROS.find(l => l.id === q.d.titulo)?.titulo) || 0];
     const filaM = m => [m.id, m.ti, r2(m.x), r2(m.z), r2(m.dir), Math.round(Math.max(0, m.hp) / m.maxHp * 100), m.muerto ? 4 : m.mueve ? 1 : 0, (m.campeon ? 1 : 0) | (m.furioso ? 2 : 0) | (m.temporal ? 4 : 0)];
     const evt = this.evento ? [this.evento.id, Math.round(this.evento.resta)] : this.proximo ? ['-' + this.proximo.id, Math.round(this.proximo.en)] : null;
     for (const p of this.jug.values()) {

@@ -79,6 +79,22 @@ export function objetivosDelDia(nivel, rnd) {
 }
 export const textoObjetivo = o => OBJETIVOS.find(x => x.cont === o.cont)?.texto(o.meta) || '';
 
+// ---------- Ranking semanal ----------
+// La semana va de lunes a domingo (hora argentina). Tres tablas; los tres primeros de cada una cobran al cerrar
+// (por correo) y llevan su título durante toda la semana siguiente.
+export const semanaAR = (ms = Date.now()) => { const d = new Date(ms - 3 * 3600000); d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7); return d.toISOString().slice(0, 10); };
+export const finSemanaAR = (ms = Date.now()) => Date.parse(semanaAR(ms) + 'T00:00:00Z') + 7 * 86400000 + 3 * 3600000;
+export const SEMANAL = [
+  { id: 'exp', nombre: 'Más experiencia', titulo: 'Incansable de la Semana' },
+  { id: 'muertes', nombre: 'Más monstruos', titulo: 'Cazador de la Semana' },
+  { id: 'jefes', nombre: 'Más jefes', titulo: 'Matajefes de la Semana' },
+];
+export const PREMIO_SEMANAL = [
+  { oro: 200000, items: [{ b: 'abismo', c: 3 }, { b: 'guardiana', c: 1 }] },
+  { oro: 100000, items: [{ b: 'abismo', c: 2 }] },
+  { oro: 50000, items: [{ b: 'abismo', c: 1 }] },
+];
+
 export const VEL_JUGADOR = 5.2;
 export const MAX_GRUPO = 5;
 export const BONUS_GRUPO = 0.1;          // +10% de experiencia por cada compañero
