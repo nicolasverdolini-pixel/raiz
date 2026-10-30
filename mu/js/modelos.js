@@ -12,6 +12,9 @@ const AVISPA = { idle: 'Wasp_Flying', run: 'Wasp_Flying', atk: 'Wasp_Attack', mu
 const MAGO = { ...SK, atk: 'Spellcast_Shoot', lanza: 'Spellcast_Shoot', invoca: 'Spellcast_Summon' };
 const CENT = { idle: 'Idle_Combat', run: 'Running_C', atk: '1H_Melee_Attack_Chop', pisoton: '1H_Melee_Attack_Jump_Chop', invoca: 'Taunt', hit: 'Hit_B', muere: 'Death_C_Skeletons', nace: 'Spawn_Ground_Skeletons' };
 const DEMONIO = { idle: 'Idle', run: 'Run', atk: 'Punch', lanza: 'Weapon', pisoton: 'Weapon', invoca: 'Wave', hit: 'HitReact', muere: 'Death' };
+const ANIMAL = { idle: 'Idle', run: 'Gallop', atk: 'Attack', carga: 'Gallop', muere: 'Death', hit: 'Idle_HitReact_Left' };
+const DINO = n => ({ idle: n + '_Idle', run: n + '_Run', atk: n + '_Attack', lanza: n + '_Attack', carga: n + '_Run', pisoton: n + '_Jump', invoca: n + '_Jump', muere: n + '_Death' });
+const BLOB = { idle: 'Idle', run: 'Walk', atk: 'Bite_Front', lanza: 'Bite_Front', invoca: 'Dance', hit: 'HitRecieve', muere: 'Death' };
 const VUELO = { idle: 'Flying_Idle', run: 'Fast_Flying', atk: 'Headbutt', lanza: 'Punch', pisoton: 'Headbutt', invoca: 'Punch', hit: 'HitReact', muere: 'Death' };
 export const VISUAL = {
   guardian:  { archivo: 'guardian.glb', tam: 1.85, anims: { idle: 'Idle', run: 'Running_A', atk: ['1H_Melee_Attack_Chop', '1H_Melee_Attack_Slice_Diagonal', '1H_Melee_Attack_Slice_Horizontal'],
@@ -52,15 +55,15 @@ export const VISUAL = {
   archimago: { archivo: 'anima.glb', tam: 3.6, arma: 'baculo_hueso.glb', tinte: '#6a4a9a', anims: MAGO },
   bestia:    { archivo: 'trex.glb', tam: 6.2, tinte: '#2a1a16', anims: { idle: 'TRex_Idle', run: 'TRex_Run', atk: 'TRex_Attack', pisoton: 'TRex_Jump', carga: 'TRex_Run', muere: 'TRex_Death' } },
   ahogado: { archivo: 'm/g_bluedemon.glb', tam: 2.4, tinte: '#3a6a72', tinteK: 0.5, ojos: '#7fd8ff', anims: DEMONIO },
-  marinero:  { archivo: 'huesudo.glb', tam: 1.9, arma: 'hoja_hueso.glb', tinte: '#5a8a7a', anims: SK },
+  marinero: { archivo: 'm/g_fish.glb', tam: 2.3, tinte: '#2a5a5a', tinteK: 0.45, ojos: '#b6ff5a', anims: DEMONIO },
   abisal: { archivo: 'm/v_squidle.glb', tam: 2.3, vuela: 0.7, tinte: '#1a4a4a', tinteK: 0.5, ojos: '#b6ff5a', anims: VUELO },
   farero: { archivo: 'm/v_ghost.glb', tam: 2.4, vuela: 0.8, tinte: '#4a6a9a', tinteK: 0.4, ojos: '#7fd8ff', anims: VUELO },
   pirata: { archivo: 'm/g_ninja.glb', tam: 2.1, tinte: '#5a3a2a', tinteK: 0.3, ojos: '#ffb030', anims: DEMONIO },
-  brutosal:  { archivo: 'bruto.glb', tam: 3.0, tinte: '#d8d4c8', tinteK: 0.7, anims: { ...DEMONIO, pisoton: 'Weapon' } },
-  leviatanmenor: { archivo: 'raptor.glb', tam: 2.8, bajo: 1, tinte: '#1a3050', tinteK: 0.8, anims: { idle: 'Velociraptor_Idle', run: 'Velociraptor_Run', atk: 'Velociraptor_Attack', carga: 'Velociraptor_Run', lanza: 'Velociraptor_Attack', muere: 'Velociraptor_Death' } },
+  brutosal: { archivo: 'toro.glb', tam: 3.4, bajo: 1, tinte: '#d8d4c8', tinteK: 0.7, anims: { ...ANIMAL, atk: 'Attack_Headbutt', pisoton: 'Attack_Kick' } },
+  leviatanmenor: { archivo: 'm/v_glub.glb', tam: 2.9, vuela: 1, tinte: '#1a3050', tinteK: 0.55, ojos: '#7fd8ff', anims: VUELO },
   reinaahogada: { archivo: 'm/v_hywirl.glb', tam: 5.2, vuela: 1.5, tinte: '#a8b8b0', tinteK: 0.4, ojos: '#7fd8ff', anims: VUELO },
   capitan:   { archivo: 'centinela.glb', tam: 4.4, arma: 'hacha_hueso.glb', tinte: '#3a6a6a', anims: { idle: 'Idle_Combat', run: 'Running_C', atk: '1H_Melee_Attack_Chop', pisoton: '1H_Melee_Attack_Jump_Chop', invoca: 'Taunt', hit: 'Hit_B', muere: 'Death_C_Skeletons', nace: 'Spawn_Ground_Skeletons' } },
-  leviatan:  { archivo: 'trex.glb', tam: 7.5, tinte: '#10202e', tinteK: 0.8, anims: { idle: 'TRex_Idle', run: 'TRex_Run', atk: 'TRex_Attack', pisoton: 'TRex_Jump', carga: 'TRex_Run', lanza: 'TRex_Attack', muere: 'TRex_Death' } },
+  leviatan: { archivo: 'apatosaurio.glb', tam: 10, tinte: '#10202e', tinteK: 0.8, anims: { ...DINO('Apatosaurus'), muere: 'Stegosaurus_Death' } },
   // Mascotas y monturas (mismos modelos que algunos monstruos, más chicos o más grandes y con otro color).
   pet_tabano:    { archivo: 'wasp.glb', tam: 0.55, vuela: 1.7, tinte: '#1c1a18', tinteK: 0.7, anims: AVISPA },
   pet_anima_g:   { archivo: 'anima.glb', tam: 0.95, vuela: 0.9, tinte: '#9ab8e0', tinteK: 0.6, anims: MAGO },
@@ -70,22 +73,22 @@ export const VISUAL = {
   mon_acechador_m: { archivo: 'raptor.glb', tam: 3.0, bajo: 1, tinte: '#4a1a12', tinteK: 0.7, anims: { idle: 'Velociraptor_Idle', run: 'Velociraptor_Run' }, silla: 0.14 },
   // ----- Yermo Calcinado -----
   calcinado: { archivo: 'huesudo.glb', tam: 1.9, arma: 'hoja_hueso.glb', tinte: '#2a1e1a', tinteK: 0.8, anims: SK },
-  perrobrasa: { archivo: 'lobo.glb', tam: 2.0, bajo: 1, tinte: '#6a1a0e', tinteK: 0.75, anims: { idle: 'Idle', run: 'Gallop', atk: 'Attack', muere: 'Death', hit: 'Idle_HitReact_Left' } },
+  perrobrasa: { archivo: 'zorro.glb', tam: 2.1, bajo: 1, tinte: '#a02a0e', tinteK: 0.7, anims: ANIMAL },
   tejedoraceniza: { archivo: 'spider.glb', tam: 2.4, bajo: 1, tinte: '#3a3532', tinteK: 0.8, anims: ARANA },
   diablo: { archivo: 'm/g_demon.glb', tam: 2.4, ojos: '#ffb030', anims: DEMONIO },
-  devorador: { archivo: 'raptor.glb', tam: 3.0, bajo: 1, tinte: '#4a1a0a', tinteK: 0.75, anims: { idle: 'Velociraptor_Idle', run: 'Velociraptor_Run', atk: 'Velociraptor_Attack', carga: 'Velociraptor_Run', muere: 'Velociraptor_Death' } },
+  devorador: { archivo: 'triceratops.glb', tam: 3.6, bajo: 1, tinte: '#4a1a0a', tinteK: 0.75, anims: DINO('Triceratops') },
   coloso: { archivo: 'm/g_orc_skull.glb', tam: 3.5, tinte: '#3a3230', tinteK: 0.5, ojos: '#ff3a20', anims: { ...DEMONIO, pisoton: 'Weapon' } },
   sacerdoteazufre: { archivo: 'm/g_tribal.glb', tam: 2.3, ojos: '#ffb030', anims: DEMONIO },
   senorbrasas: { archivo: 'm/g_demon.glb', tam: 5, tinte: '#c03010', tinteK: 0.5, ojos: '#ffdc60', anims: { ...DEMONIO, pisoton: 'Weapon' } },
-  grandevorador: { archivo: 'trex.glb', tam: 8.2, tinte: '#3a0a04', tinteK: 0.8, anims: { idle: 'TRex_Idle', run: 'TRex_Run', atk: 'TRex_Attack', pisoton: 'TRex_Jump', carga: 'TRex_Run', lanza: 'TRex_Attack', muere: 'TRex_Death' } },
+  grandevorador: { archivo: 'estegosaurio.glb', tam: 9, tinte: '#3a0a04', tinteK: 0.8, anims: DINO('Stegosaurus') },
   // ----- Ciudad del Trono Hundido -----
   guardiareal: { archivo: 'centinela.glb', tam: 2.3, arma: 'hacha_hueso.glb', tinte: '#5a6a8a', tinteK: 0.6, anims: CENT },
   espectrocorte: { archivo: 'm/v_ghost_skull.glb', tam: 2.5, vuela: 0.7, tinte: '#b8c8e0', tinteK: 0.25, ojos: '#c98aff', anims: VUELO },
-  sabueso:   { archivo: 'lobo.glb', tam: 2.0, bajo: 1, tinte: '#d8dce4', tinteK: 0.7, anims: { idle: 'Idle', run: 'Gallop', atk: 'Attack', muere: 'Death', hit: 'Idle_HitReact_Left' } },
-  verdugo:   { archivo: 'degollador.glb', tam: 2.2, arma: 'hacha_hueso.glb', tinte: '#141218', tinteK: 0.85, anims: { ...SK, idle: 'Idle_Combat', run: 'Running_C', atk: ['Dualwield_Melee_Attack_Slice', 'Dualwield_Melee_Attack_Chop'] } },
+  sabueso: { archivo: 'husky.glb', tam: 2.1, bajo: 1, tinte: '#b8c4d8', tinteK: 0.7, anims: ANIMAL },
+  verdugo: { archivo: 'm/g_orc.glb', tam: 2.5, tinte: '#3a3440', tinteK: 0.5, ojos: '#ff3a20', anims: DEMONIO },
   gargola: { archivo: 'm/v_goleling_evolved.glb', tam: 2.3, vuela: 1.2, tinte: '#5a5a5e', tinteK: 0.7, ojos: '#ff3a20', anims: VUELO },
   caballerohueco: { archivo: 'centinela.glb', tam: 2.8, arma: 'hacha_hueso.glb', tinte: '#6a5a30', tinteK: 0.6, anims: { ...CENT, carga: 'Running_C' } },
-  arzobispo: { archivo: 'anima.glb', tam: 2.5, arma: 'baculo_hueso.glb', tinte: '#6a3a8a', tinteK: 0.65, anims: MAGO },
+  arzobispo: { archivo: 'm/b_wizard.glb', tam: 2.6, tinte: '#6a3a8a', tinteK: 0.4, ojos: '#c98aff', anims: BLOB },
   reinahueca: { archivo: 'anima.glb', tam: 4.3, arma: 'baculo_hueso.glb', tinte: '#e0e8ff', tinteK: 0.6, anims: MAGO },
   ultimorey: { archivo: 'centinela.glb', tam: 5.4, arma: 'hacha_hueso.glb', tinte: '#c8a040', tinteK: 0.55, anims: { ...CENT, carga: 'Running_C' } },
   heraldo:   { archivo: 'heraldo.glb', tam: 4.3, tinte: '#8a1a14', anims: DEMONIO },

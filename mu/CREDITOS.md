@@ -20,3 +20,4 @@ Monstruos agregados después (también CC0):
 
 Monstruos nuevos (Glaciar del Silencio, Cráter del Dragón y varias islas):
 - **Ultimate Monsters Pack**, de **Quaternius** (licencia CC0, dominio público) — https://quaternius.com/packs/ultimatemonsters.html. Se les apagaron los colores y se les hicieron brillar los ojos para que encajen con el juego.
+- Saurios (Apatosaurio, Estegosaurio, Triceratops), toro, zorro y husky: Dinosaurs Pack y Animals Pack de **Quaternius** (CC0).

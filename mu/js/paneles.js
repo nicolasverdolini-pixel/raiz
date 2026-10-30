@@ -364,7 +364,7 @@ export class Paneles {
   npc(id, tab, elegido) {
     const n = O.NPCS.find(x => x.id === id), d = this.ctx.mio(); if (!n || !d) return;
     if (elegido) { this.forjaSel = elegido; this.sel = null; }
-    const tabs = n.rol === 'joyera' ? [['gemas', 'Combinar'], ['engarces', 'Engarzar']] : n.rol === 'herrero' ? [['tienda', 'Comprar'], ['forja', 'Forja'], ['engarces', 'Engarces'], ['caldero', 'Caldero'], ['vender', 'Vender']]
+    const tabs = n.rol === 'joyera' ? [['gemas', 'Combinar'], ['engarces', 'Engarzar']] : n.rol === 'herrero' ? [['tienda', 'Comprar'], ['forja', 'Forja'], ['caldero', 'Caldero'], ['vender', 'Vender']]
       : n.rol === 'vidente' ? [['eventos', 'Eventos'], ['pozo', 'Pozo'], ['tienda', 'Comprar'], ['asedio', 'Asedio'], ['alas', 'Alas'], ['renacer', 'Renacer'], ['ranking', 'Ranking'], ['viajes', 'Velas']] : [['tienda', 'Comprar'], ['vender', 'Vender']];
     tab = tab || tabs[0][0];
     let cuerpo = `<p class="frase">«${n.frase}»</p>`;
@@ -372,7 +372,7 @@ export class Paneles {
     if (tab === 'vender') cuerpo += this.htmlVender(d);
     if (tab === 'forja') cuerpo += this.htmlForja(d);
     const lugares = l => l.map(i => R.PUEBLOS[i].nombre).join(' y ');
-    if (tab === 'engarces') cuerpo += n.rol === 'joyera' ? this.htmlEngarces(d) : `<p class="nota">Yo no toco gemas. Eso lo hace la Joyera, y solo la vas a encontrar en ${lugares(O.JOYERAS)}.</p>`;
+    if (tab === 'engarces') cuerpo += this.htmlEngarces(d);
     if (tab === 'gemas') cuerpo += this.htmlGemas(d);
     if (tab === 'caldero') cuerpo += O.CALDEROS.includes(n.atalaya) ? this.htmlCaldero(d) : `<p class="nota">Acá no hay caldero. Quedan dos: ${lugares(O.CALDEROS)}.</p>`;
     if (tab === 'eventos') cuerpo += this.htmlEventos();
