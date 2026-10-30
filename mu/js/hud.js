@@ -38,7 +38,7 @@ export class Hud {
         <div class="orbe mana"><i id="h-mana"></i><span id="h-mana-n"></span></div>
       </div>
       <button id="b-atk" class="hb grande" aria-label="Atacar al más cercano"><span class="ic"></span></button>
-      ${[0, 1, 2, 3].map(i => `<button id="b-h${i}" class="hb hab h${i} vacia"><span class="ic"></span><em></em><b class="cd"></b><i class="mp"></i></button>`).join('')}
+      ${[0, 1, 2, 3, 4, 5].map(i => `<button id="b-h${i}" class="hb hab h${i} vacia"><span class="ic"></span><em></em><b class="cd"></b><i class="mp"></i></button>`).join('')}
       <button id="b-pot" class="hb pot" aria-label="Poción de Sangre"><span class="ic3">${iconoObjeto('pocion')}</span><small id="h-pot" class="cuenta">0</small></button>
       <button id="b-eter" class="hb eter" aria-label="Poción de Éter"><span class="ic3">${iconoObjeto('eter')}</span><small id="h-eter" class="cuenta">0</small></button>
       <button id="b-puntos" class="boton-puntos" hidden>Puntos <b id="h-puntos">0</b></button>
@@ -53,7 +53,7 @@ export class Hud {
     this.el = h;
     const tocar = (id, f) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); f(); });
     tocar('#b-atk', () => cb.atacar());
-    [0, 1, 2, 3].forEach(i => tocar('#b-h' + i, () => {
+    [0, 1, 2, 3, 4, 5].forEach(i => tocar('#b-h' + i, () => {
       const h = this.habs[i], b = $('#b-h' + i);
       if (!h) return cb.personaje('habilidades');
       if ((this.yo?.cds?.[h.id] || 0) > 0) return;
@@ -88,8 +88,8 @@ export class Hud {
   // Pone las habilidades aprendidas en los 4 botones.
   ponerHabilidades(d) {
     const ids = C.botones(d);
-    this.habs = ids.map(id => C.buscarHab(d.clase, id));
-    [0, 1, 2, 3].forEach(i => {
+    this.habs = ids.map(id => (id ? C.buscarHab(d.clase, id) : null));
+    [0, 1, 2, 3, 4, 5].forEach(i => {
       const b = $('#b-h' + i), h = this.habs[i];
       b.classList.toggle('vacia', !h);
       if (!h) { b.dataset.h = ''; b.querySelector('.ic').innerHTML = '<span class="mas">+</span>'; b.querySelector('.mp').textContent = ''; b.setAttribute('aria-label', 'Lugar libre: aprendé una habilidad'); return; }
@@ -106,6 +106,7 @@ export class Hud {
     $('#h-mana').style.height = (yo.mp / yo.maxMp * 100) + '%'; $('#h-mana-n').textContent = yo.mp;
     const pe = yo.exp / yo.sig * 100; $('#h-exp').style.width = pe + '%'; $('#h-exp-n').textContent = `${pe.toFixed(1)}%`;
     this.habs.forEach((x, i) => {
+      if (!x) return;
       const b = $('#b-h' + i), cd = yo.cds[x.id] || 0;
       b.querySelector('em').style.setProperty('--k', cd > 0 ? cd / x.cd : 0);
       b.querySelector('.cd').textContent = cd > 0 ? (cd < 1 ? cd.toFixed(1) : Math.ceil(cd)) : '';

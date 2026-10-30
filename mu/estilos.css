@@ -549,3 +549,20 @@ input:focus { outline: 1px solid var(--sangre-2); }
 .semana { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
 .semana .rk { grid-template-columns: 34px 1fr auto; }
 .premios { color: #e9c37a; }
+
+/* Seis botones de habilidad: dos más en un arco de afuera */
+#hud .hb.hab.h4, #hud .hb.hab.h5 { --S2: calc(var(--S) * .86); width: var(--S2); height: var(--S2); }
+#b-h4 { right: calc(var(--m) + env(safe-area-inset-right) + var(--A) / 2 + var(--R2) * .5 - var(--S) * .43); bottom: calc(var(--m) + env(safe-area-inset-bottom) + var(--A) / 2 + var(--R2) * .866 - var(--S) * .43); }
+#b-h5 { right: calc(var(--m) + env(safe-area-inset-right) + var(--A) / 2 - var(--S) * .43); bottom: calc(var(--m) + env(safe-area-inset-bottom) + var(--A) / 2 + var(--R2) - var(--S) * .43); }
+#hud .hb.hab.h4.vacia, #hud .hb.hab.h5.vacia { display: none; }
+/* Elegir botones en el árbol */
+.barra-hab { display: flex; flex-direction: column; gap: 5px; padding: 8px; border: 1px solid #2c2725; background: #0d0c0e; font-size: .88em; color: var(--hueso-2); }
+.fila-bot { display: flex; gap: 6px; flex-wrap: wrap; }
+.bot-hab { position: relative; width: 46px; height: 46px; padding: 0; border-radius: 50%; background: #141315; border: 1px dashed rgba(216,207,189,.25); cursor: pointer; color: var(--hueso-2); }
+.bot-hab.sel { outline: 2px solid #e9c37a; outline-offset: 2px; }
+.bot-hab small { position: absolute; right: -3px; bottom: -3px; width: 16px; height: 16px; border-radius: 50%; background: #120e0d; border: 1px solid #6a5a48; font-size: 10px; line-height: 14px; color: var(--hueso); }
+.elige-hab { display: flex; flex-wrap: wrap; gap: 4px; }
+.maestria { color: #e9c37a; }
+/* Arco más abierto: que ningún botón pise al de al lado */
+#hud { --R: calc(var(--S) * 1.95 + 2px); --R2: calc(var(--R) + var(--S) * .5 + var(--P) * .55 + 8px); }
+@media (max-aspect-ratio: 1/1) { #hud { --R: calc(var(--S) * 1.95 + 2px); } }

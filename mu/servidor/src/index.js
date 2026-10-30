@@ -242,6 +242,7 @@ export class Mapa extends DurableObject {
       case 'punto': return this.repartir(p, m.s, m.n | 0);
       case 'redistribuir': return this.redistribuir(p);
       case 'titulo': return this.elegirTitulo(p, String(m.id || ''));
+      case 'barra': return this.ponerEnBarra(p, m.k | 0, String(m.id || ''));
       case 'inv': return this.invitar(p, m.id);
       case 'acepta': return this.aceptar(p, m.de);
       case 'rechaza': { const q = this.jug.get(m.de); if (q) this.aviso(q, `${p.nombre} no aceptó el grupo.`); return; }
@@ -360,6 +361,15 @@ export class Mapa extends DurableObject {
     if (Math.random() < 0.35) cosas.push(O.equipoAlAzar(p.d.nivel, Math.random, 0.7, p.d.clase, 0.12, 0.02));
     for (const it of cosas) this.darOGuardar(p, it, 'Cofre del día');
     p.priv.push(['cofre', oro, cosas.map(it => O.nombreObjeto(it)).join(' · ')]); p.cambioInv = true; this.guardar(p);
+  }
+  // Elegir qué habilidad va en cada botón. Si ya estaba en otro botón, se cambian de lugar.
+  ponerEnBarra(p, k, id) {
+    if (k < 0 || k >= C.BOTONES) return;
+    if (id && !C.activasAprendidas(p.d).includes(id)) return;
+    const b = C.botones(p.d), antes = b.indexOf(id);
+    if (id && antes >= 0) b[antes] = b[k];
+    b[k] = id || null;
+    p.d.barra = b; p.cambioInv = true; this.guardar(p);
   }
   elegirTitulo(p, id) {
     if (id && !p.d.logros?.hechos.includes(id)) return;
@@ -667,7 +677,10 @@ export class Mapa extends DurableObject {
   aprender(p, id) {
     const motivo = C.puedeAprender(p.d, id);
     if (motivo) return this.aviso(p, motivo);
+    const nueva = !p.d.arbol[id];
     p.d.arbol[id] = (p.d.arbol[id] || 0) + 1;
+    // Si ya armó sus botones, la habilidad nueva va al primero libre.
+    if (nueva && p.d.barra && C.activasAprendidas(p.d).includes(id)) { const i = p.d.barra.indexOf(null); if (i >= 0) p.d.barra[i] = id; }
     this.recalcular(p);
   }
 
@@ -1784,7 +1797,7 @@ export class Mapa extends DurableObject {
       for (const x of this.siervos.values()) if (dist(x, p) < VISTA) sv.push([x.id, r2(x.x), r2(x.z), r2(x.dir), x.mueve ? 1 : 0, x.dueno]);
       const foto = { t: 's', j, m, d: dr, sv, sa: this.santuarios.map(t => (t > 0 ? 0 : 1)), ev: p.priv.length ? ev.concat(p.priv) : ev, yo };
       if (p.cambioMis || p.cambioInv) { p.cambioMis = false; foto.mis = p.d.misiones; foto.logros = { ...(p.d.logros || { c: {}, hechos: [] }), titulo: p.d.titulo || null, objetivos: p.d.objetivos || null }; }
-      if (p.cambioInv) { p.cambioInv = false; foto.inv = { oro: p.d.oro, inv: p.d.inv, equipo: p.d.equipo, arbol: p.d.arbol, lugares: p.d.lugares, atalayas: p.d.atalayas, der: p.der, baul: p.baul, correo: p.d.correo || [] }; }
+      if (p.cambioInv) { p.cambioInv = false; foto.inv = { oro: p.d.oro, inv: p.d.inv, equipo: p.d.equipo, arbol: p.d.arbol, lugares: p.d.lugares, atalayas: p.d.atalayas, der: p.der, baul: p.baul, correo: p.d.correo || [], barra: p.d.barra || null }; }
       this.enviar(p.s, foto);
       p.priv = [];
     }

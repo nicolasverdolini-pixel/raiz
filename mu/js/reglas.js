@@ -475,7 +475,7 @@ export const GOLPE = { NORMAL: 0, CRITICO: 1, EXCELENTE: 2, HABILIDAD: 3 };
 {
   const REQS = [1, 10, 24, 38, 55, 80, 115], SET = ['cuero', 'vigia', 'osario', 'foso', 'velo', 'escoria', 'rey'];
   const ref = (clase, L) => {
-    const c = CLASES[clase], d = { clase, nivel: L, ...c.base, puntos: 0 }, pts = (L - 1) * PUNTOS_POR_NIVEL;
+    const c = CLASES[clase], d = { clase, nivel: L, ...c.base, puntos: 0, sinMaestria: true }, pts = (L - 1) * PUNTOS_POR_NIVEL;
     d[c.atributo] += Math.round(pts * 0.55); d.vit += Math.round(pts * 0.3); d.sue += Math.round(pts * 0.1); d.tem += Math.round(pts * 0.05);
     let t = 0; REQS.forEach((r, i) => { if (L >= r) t = i; });
     const arma = BASES[c.arma + (t + 1)];

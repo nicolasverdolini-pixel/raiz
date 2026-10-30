@@ -189,6 +189,11 @@ export function buscarHab(clase, id) {
 }
 export const puntosArbol = d => d.nivel + (d.resets || 0) * 10; // 1 por nivel (el primero, de regalo) + 10 por renacer
 export const gastados = d => Object.values(d.arbol || {}).reduce((a, b) => a + b, 0);
+// Lo máximo que se puede gastar en el árbol. Lo que sobre de ahí en adelante es Maestría: se aplica sola.
+export const capArbol = clase => (ARBOL[clase] || []).flatMap(r => r.hab).reduce((a, h) => a + h.max, 0);
+export const maestria = d => Math.max(0, puntosArbol(d) - capArbol(d.clase));
+export const MAESTRIA = 0.3;   // % de daño y de vida por cada punto
+export const puntosLibres = d => Math.max(0, Math.min(puntosArbol(d), capArbol(d.clase)) - gastados(d));
 export function enRama(d, rama) { return rama.hab.reduce((a, h) => a + (d.arbol?.[h.id] || 0), 0); }
 
 // ¿Se puede subir esta habilidad? Devuelve el motivo si no.
@@ -206,10 +211,15 @@ export function puedeAprender(d, id) {
 }
 
 // Los 4 botones: la activa de cada rama (si la aprendiste) y la primera definitiva.
+export const BOTONES = 6;
+// Las que se pueden usar: activas y definitivas ya aprendidas.
+export const activasAprendidas = d => (ARBOL[d.clase] || []).flatMap(r => r.hab).filter(h => h.tipo !== 'pasiva' && d.arbol?.[h.id]).map(h => h.id);
+// Qué habilidad va en cada botón (posición por posición; null = libre). Si el jugador no eligió, van en orden.
 export function botones(d) {
-  const out = [];
-  for (const rama of ARBOL[d.clase] || []) { const a = rama.hab[0]; if (a.tipo !== 'pasiva' && d.arbol?.[a.id]) out.push(a.id); }
-  for (const rama of ARBOL[d.clase] || []) { const u = rama.hab[2]; if (d.arbol?.[u.id]) { out.push(u.id); break; } }
+  const ya = activasAprendidas(d), out = Array(BOTONES).fill(null);
+  if (d.barra) { d.barra.slice(0, BOTONES).forEach((id, i) => { if (id && ya.includes(id)) out[i] = id; }); return out; }
+  const orden = [...ya.filter(id => !buscarHab(d.clase, id).def), ...ya.filter(id => buscarHab(d.clase, id).def)];
+  orden.slice(0, BOTONES).forEach((id, i) => { out[i] = id; });
   return out;
 }
 
@@ -229,9 +239,10 @@ export function calcular(d) {
   const eq = bonusEquipo(d.equipo), pa = pasivas(d);
   const pct = k => 1 + ((eq[k] || 0) + (pa[k] || 0)) / 100;
   const at = d[c.atributo] + (eq.atr || 0), vitT = d.vit + (eq.vit || 0);
-  const maxHp = Math.round((c.vida[0] + vitT * c.vida[1] + (n - 1) * c.vida[2]) * pct('hpPct'));
+  const mae = 1 + (d.sinMaestria ? 0 : maestria(d) * MAESTRIA / 100);
+  const maxHp = Math.round((c.vida[0] + vitT * c.vida[1] + (n - 1) * c.vida[2]) * pct('hpPct') * mae);
   const maxMp = Math.round((c.energia[0] + d.ene * c.energia[1] + (n - 1) * c.energia[2]) * pct('mpPct'));
-  const dm = pct('dmgPct');
+  const dm = pct('dmgPct') * mae;
   return {
     maxHp, maxMp,
     dmin: Math.round((at / c.dano[0] + 3 + n * 0.5 + eq.dmg[0]) * dm),

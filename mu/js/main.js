@@ -690,7 +690,7 @@ function datosHud() {
     const p = pos(e);
     puntos.push(e.esJ ? { x: p.x, z: p.z, r: 3, c: estado?.grupo?.some(g => g[0] === e.id) ? '#8fd16e' : '#8fb2d8' } : { x: p.x, z: p.z, r: e.def.jefe ? 5 : e.campeon ? 3 : 1.8, c: e.def.jefe ? '#ff4a2a' : e.campeon ? '#f0a050' : '#a8382c' });
   }
-  const puntosHab = mio ? C.puntosArbol(mio) - C.gastados(mio) : 0;
+  const puntosHab = mio ? C.puntosLibres(mio) : 0;
   for (const n of MI.NPC_MISION) { const est = mio && MI.estadoNpc(mio, n.id); if (est === 'nueva' || est === 'lista') puntos.push({ x: n.x, z: n.z, r: 3.5, c: est === 'lista' ? '#7fe07a' : '#f0c040' }); }
   return { puntosHab, objetivo: o && !o.muerto ? (o.esJ ? { nombre: o.nombre, nivel: o.nivel, hp: o.hp, desc: 'Enemigo del Bastión' } : { nombre: o.nombre, nivel: o.def.nivel, hp: o.hp, desc: o.def.desc, debil: o.def.debil, resiste: o.def.resiste }) : null, jefe, lugar, ping: red.ping, mini: { yo: { x: lx, z: lz }, puntos } };
 }

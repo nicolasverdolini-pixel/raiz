@@ -96,7 +96,7 @@ export class Paneles {
   // ---------- personaje ----------
   personaje(tab = 'equipo') {
     const d = this.ctx.mio(); if (!d) return;
-    const libres = C.puntosArbol(d) - C.gastados(d);
+    const libres = C.puntosLibres(d);
     const tabs = [['equipo', 'Equipo'], ['habilidades', `Habilidades${libres ? ' ●' : ''}`], ['atributos', `Atributos${d.puntos ? ' ●' : ''}`], ['misiones', 'Misiones'], ['logros', 'Logros'], ['puesto', `Puesto${this.miPuesto?.abierto ? ' ●' : ''}`], ['hermandad', 'Hermandad']];
     let cuerpo = '';
     if (tab === 'equipo') cuerpo = this.htmlEquipo(d);
@@ -109,6 +109,8 @@ export class Paneles {
     this.marco(esc(d.nombre), `${C.CLASES[d.clase].nombre} · Nivel ${d.nivel}`, tabs, tab, cuerpo, 'personaje', [tab]);
     if (tab === 'equipo') this.conectarMochila(d);
     this.el.querySelectorAll('[data-h]').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'aprender', h: b.dataset.h }));
+    this.el.querySelectorAll('[data-bot]').forEach(b => b.onclick = () => { const i = +b.dataset.bot; this.botonSel = this.botonSel === i ? null : i; this.personaje('habilidades'); });
+    this.el.querySelectorAll('[data-elige]').forEach(b => b.onclick = () => { this.ctx.mandar({ t: 'barra', k: this.botonSel, id: b.dataset.elige }); this.botonSel = null; this.personaje('habilidades'); });
     this.el.querySelectorAll('.mas').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'punto', s: b.dataset.s, n: +b.dataset.n }));
     const cp = $('#p-cambiar', this.el); if (cp) cp.onclick = () => { this.cerrar(); this.ctx.cambiarPj(); };
     if (tab === 'hermandad') this.conectarHermandad();
@@ -253,8 +255,11 @@ export class Paneles {
   }
 
   htmlArbol(d) {
-    const libres = C.puntosArbol(d) - C.gastados(d);
+    const libres = C.puntosLibres(d), mae = C.maestria(d), bot = C.botones(d), act = C.activasAprendidas(d);
     return `<p class="nota">Puntos de habilidad: <b>${libres}</b> (uno por nivel). Las definitivas se abren en el nivel 30 con 10 puntos en su rama.</p>
+      ${mae ? `<p class="nota maestria">Maestría: <b>${mae}</b> puntos de más · <b>+${(mae * C.MAESTRIA).toFixed(1)}%</b> de daño y de vida. Los puntos que no entran en el árbol se suman acá solos.</p>` : ''}
+      ${act.length ? `<div class="barra-hab"><span>Tus botones: tocá uno y elegí qué habilidad va ahí.</span><div class="fila-bot">${bot.map((id, i) => `<button class="bot-hab ${this.botonSel === i ? 'sel' : ''}" data-bot="${i}">${id ? iconoHab(d.clase, id) : '<span class="mas">+</span>'}<small>${i + 1}</small></button>`).join('')}</div>
+        ${this.botonSel != null ? `<div class="elige-hab">${act.map(id => `<button class="btn chico ${bot[this.botonSel] === id ? '' : 'sec'}" data-elige="${id}">${C.buscarHab(d.clase, id).nombre}</button>`).join('')}<button class="btn chico sec" data-elige="">Dejar vacío</button></div>` : ''}</div>` : ''}
       <div class="arbol">${C.ARBOL[d.clase].map(rama => `<div class="rama"><h3>${rama.rama}</h3>${rama.hab.map(h => {
         const r = d.arbol[h.id] || 0, motivo = C.puedeAprender(d, h.id);
         return `<div class="nodo ${r ? 'tiene' : ''} ${h.def ? 'def' : ''}"><span class="nodo-ic">${iconoHab(d.clase, h.id)}</span>
