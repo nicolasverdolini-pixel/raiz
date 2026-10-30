@@ -58,7 +58,7 @@ const hud = new Hud({
 const npcCerca = id => { const n = O.NPCS.find(x => x.id === id) || MI.NPC_MISION.find(x => x.id === id); return n && Math.hypot(lx - n.x, lz - n.z) < O.DIST_NPC + 1; };
 const rolCerca = rol => yo && O.NPCS.find(n => n.rol === rol && Math.hypot(lx - n.x, lz - n.z) < O.DIST_NPC + 1);
 const paneles = new Paneles({
-  mio: () => mio, mandar: o => red.mandar(o), npcCerca, rolCerca, senor: () => estado?.senor, enAtalaya: () => R.enAtalaya(lx, lz) >= 0, toast: t => hud.toast(t), cambiarPj: () => red.salirPj(),
+  mio: () => mio, mandar: o => red.mandar(o), npcCerca, rolCerca, tutorial: () => hud.tutorial(mio.clase), senor: () => estado?.senor, enAtalaya: () => R.enAtalaya(lx, lz) >= 0, toast: t => hud.toast(t), cambiarPj: () => red.salirPj(),
   comerciando: () => !!paneles.com, ofrecido: i => !!paneles.com?.mio.items.some(o => o.i === i),
 });
 const chat = new Chat(o => red.mandar(o));

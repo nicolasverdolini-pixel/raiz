@@ -97,7 +97,7 @@ export class Paneles {
   personaje(tab = 'equipo') {
     const d = this.ctx.mio(); if (!d) return;
     const libres = C.puntosLibres(d);
-    const tabs = [['equipo', 'Equipo'], ['habilidades', `Habilidades${libres ? ' ●' : ''}`], ['atributos', `Atributos${d.puntos ? ' ●' : ''}`], ['misiones', 'Misiones'], ['logros', 'Logros'], ['puesto', `Puesto${this.miPuesto?.abierto ? ' ●' : ''}`], ['hermandad', 'Hermandad']];
+    const tabs = [['equipo', 'Equipo'], ['habilidades', `Habilidades${libres ? ' ●' : ''}`], ['atributos', `Atributos${d.puntos ? ' ●' : ''}`], ['misiones', 'Misiones'], ['logros', 'Logros'], ['ranking', 'Ranking'], ['puesto', `Puesto${this.miPuesto?.abierto ? ' ●' : ''}`], ['hermandad', 'Hermandad']];
     let cuerpo = '';
     if (tab === 'equipo') cuerpo = this.htmlEquipo(d);
     if (tab === 'habilidades') cuerpo = this.htmlArbol(d);
@@ -106,6 +106,7 @@ export class Paneles {
     if (tab === 'hermandad') cuerpo = this.htmlHermandad(d);
     if (tab === 'puesto') cuerpo = this.htmlMiPuesto(d);
     if (tab === 'logros') cuerpo = this.htmlLogros(d);
+    if (tab === 'ranking') { cuerpo = this.htmlRanking(d); this.pedirRanking(); }
     this.marco(esc(d.nombre), `${C.CLASES[d.clase].nombre} · Nivel ${d.nivel}`, tabs, tab, cuerpo, 'personaje', [tab]);
     if (tab === 'equipo') this.conectarMochila(d);
     this.el.querySelectorAll('[data-h]').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'aprender', h: b.dataset.h }));
@@ -113,8 +114,10 @@ export class Paneles {
     this.el.querySelectorAll('[data-elige]').forEach(b => b.onclick = () => { this.ctx.mandar({ t: 'barra', k: this.botonSel, id: b.dataset.elige }); this.botonSel = null; this.personaje('habilidades'); });
     this.el.querySelectorAll('.mas').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'punto', s: b.dataset.s, n: +b.dataset.n }));
     const cp = $('#p-cambiar', this.el); if (cp) cp.onclick = () => { this.cerrar(); this.ctx.cambiarPj(); };
+    const pt = $('#p-tuto', this.el); if (pt) pt.onclick = () => { this.cerrar(); this.ctx.tutorial(); };
     if (tab === 'hermandad') this.conectarHermandad();
     if (tab === 'puesto') this.conectarMiPuesto(d);
+    this.el.querySelectorAll('[data-rk]').forEach(b => b.onclick = () => { this.vistaRanking = b.dataset.rk; this.pedidoRanking = 0; this.personaje('ranking'); });
     this.el.querySelectorAll('[data-titulo]').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'titulo', id: b.dataset.titulo }));
     const rd = $('#p-redis', this.el); if (rd) rd.onclick = () => { if (confirm('¿Devolver todos los puntos de atributos para repartirlos de nuevo?')) this.ctx.mandar({ t: 'redistribuir' }); };
   }
@@ -215,7 +218,7 @@ export class Paneles {
     const inv = d.inv.map((it, i) => casilla(it, `data-i="${i}"`, this.ctx.ofrecido?.(i) ? '<small class="cant">✓</small>' : '')).join('');
     // Tres columnas que entran en la pantalla: lo puesto, la ficha del objeto elegido (siempre a la vista) y la mochila.
     return `<div class="equipo-grid">
-      <div class="col-eq"><div class="eq">${eq}</div><div class="fila-oro">${this.oro(d)}</div><button class="btn chico sec" id="p-cambiar">Cambiar de personaje</button></div>
+      <div class="col-eq"><div class="eq">${eq}</div><div class="fila-oro">${this.oro(d)}</div><button class="btn chico sec" id="p-cambiar">Cambiar de personaje</button><button class="link" id="p-tuto">¿Cómo se juega?</button></div>
       <div class="col-ficha" id="p-ficha">${this.htmlFicha(d)}</div>
       <div class="col-inv"><div class="inv">${inv}</div></div></div>`;
   }
@@ -347,7 +350,7 @@ export class Paneles {
     if (tab === 'renacer') cuerpo += this.htmlRenacer(d);
     if (tab === 'alas') cuerpo += this.htmlAlas(d);
     if (tab === 'asedio') cuerpo += this.htmlAsedio(d);
-    if (tab === 'ranking') { cuerpo += this.htmlRanking(d); if (!this.pedidoRanking || Date.now() - this.pedidoRanking > 10000) { this.pedidoRanking = Date.now(); this.ctx.mandar({ t: this.vistaRanking === 'historico' ? 'ranking' : 'semana' }); } }
+    if (tab === 'ranking') { cuerpo += this.htmlRanking(d); this.pedirRanking(); }
     this.marco(n.nombre, R.PUEBLOS[n.atalaya]?.nombre, tabs, tab, cuerpo, 'npc', [id, tab]);
     const m = this.ctx.mandar;
     this.el.querySelectorAll('[data-tsel]').forEach(b => b.onclick = () => { this.sel = 't:' + b.dataset.tsel; this.npc(id, tab); });
@@ -497,8 +500,10 @@ export class Paneles {
       <span class="nota">Al renacer: nivel 1, atributos de base + ${R.RENACER.puntos} puntos por cada renacimiento (${(n + 1) * R.RENACER.puntos} en total), y +${R.RENACER.habilidad} puntos de habilidad por renacimiento. El árbol se reinicia. El equipo se queda.</span>
       <div class="acciones"><button class="btn" id="p-renacer" ${puede ? '' : 'disabled'}>Renacer</button></div></div>`;
   }
-  ranking(lista) { this.listaRanking = lista; if (this.abierto?.f === 'npc' && this.abierto.args[1] === 'ranking') this.refrescar(); }
-  semana(m) { this.datosSemana = m; if (this.abierto?.f === 'npc' && this.abierto.args[1] === 'ranking') this.refrescar(); }
+  pedirRanking() { if (!this.pedidoRanking || Date.now() - this.pedidoRanking > 10000) { this.pedidoRanking = Date.now(); this.ctx.mandar({ t: this.vistaRanking === 'historico' ? 'ranking' : 'semana' }); } }
+  enRanking() { return this.abierto && ((this.abierto.f === 'npc' && this.abierto.args[1] === 'ranking') || (this.abierto.f === 'personaje' && this.abierto.args[0] === 'ranking')); }
+  ranking(lista) { this.listaRanking = lista; if (this.enRanking()) this.refrescar(); }
+  semana(m) { this.datosSemana = m; if (this.enRanking()) this.refrescar(); }
   htmlRanking(d) {
     const vista = this.vistaRanking || 'semana';
     const pest = `<div class="titulos"><button class="btn chico ${vista === 'semana' ? '' : 'sec'}" data-rk="semana">Esta semana</button><button class="btn chico ${vista === 'historico' ? '' : 'sec'}" data-rk="historico">De siempre</button></div>`;
