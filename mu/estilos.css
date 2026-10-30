@@ -541,3 +541,8 @@ input:focus { outline: 1px solid var(--sangre-2); }
 }
 .panel .cuerpo > .equipo-grid { flex: 1; min-height: 0; }
 .correo { margin-top: 10px; border-top: 1px solid rgba(216,207,189,.15); padding-top: 6px; display: flex; flex-direction: column; gap: 5px; } .correo .fila input { flex: 1; min-width: 0; }
+/* Logros y objetivos del día */
+.titulos { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; } .titulos span { color: var(--hueso-2); font-size: .85em; }
+.obj { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: .9em; } .obj .barra { grid-column: 1 / 3; } .obj.hecho { color: #7fe07a; }
+.logro.hecho b { color: #e9c37a; } .logro .ic { font-size: 1.2em; width: 28px; text-align: center; }
+#h-dolor.brillo { box-shadow: inset 0 0 120px var(--c); animation: dolor 1.4s ease-out; }

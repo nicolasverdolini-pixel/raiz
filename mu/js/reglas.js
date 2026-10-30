@@ -44,6 +44,41 @@ export const DIARIA = [
   { oro: 2200, items: [{ b: 'sello', c: 1 }, { b: 'eter', c: 15 }] },
   { oro: 3500, items: [{ b: 'abismo', c: 1 }, { b: 'guardiana', c: 1 }], gema: 2 },
 ];
+// ---------- Logros y títulos ----------
+// cont: qué se cuenta · meta: cuánto · titulo: lo que podés mostrar arriba del nombre · premio: oro (se multiplica por el nivel) y cosas.
+const LG = (id, cont, meta, titulo, desc, oro, items = []) => ({ id, cont, meta, titulo, desc, premio: { oro, items } });
+export const LOGROS = [
+  LG('caza1', 'muertes', 100, 'Cazador', 'Matá 100 monstruos.', 50), LG('caza2', 'muertes', 1000, 'Matarife', 'Matá 1.000 monstruos.', 150, [{ b: 'destino', c: 2 }]),
+  LG('caza3', 'muertes', 10000, 'Azote del Páramo', 'Matá 10.000 monstruos.', 600, [{ b: 'abismo', c: 3 }]),
+  LG('jefe1', 'jefes', 1, 'Matajefes', 'Vencé a un jefe.', 100, [{ b: 'forja', c: 3 }]), LG('jefe2', 'jefes', 25, 'Verdugo de Reyes', 'Vencé a 25 jefes.', 500, [{ b: 'guardiana', c: 2 }]),
+  LG('expl1', 'lugares', 15, 'Caminante', 'Descubrí 15 lugares.', 80, [{ b: 'vela', c: 5 }]), LG('expl2', 'lugares', 45, 'Cartógrafo', 'Descubrí 45 lugares.', 300, [{ b: 'vela', c: 10 }]),
+  LG('forja1', 'forja', 7, 'Herrero', 'Forjá un equipo a +7.', 100), LG('forja2', 'forja', 10, 'Maestro Forjador', 'Forjá un equipo a +10.', 300, [{ b: 'guardiana', c: 1 }]),
+  LG('forja3', 'forja', 13, 'Mano del Abismo', 'Forjá un equipo a +13.', 800, [{ b: 'abismo', c: 3 }]),
+  LG('nivel50', 'nivel', 50, 'Veterano', 'Llegá al nivel 50.', 200), LG('nivel100', 'nivel', 100, 'Leyenda', 'Llegá al nivel 100.', 500), LG('nivel150', 'nivel', 150, 'Inmortal', 'Llegá al nivel 150.', 1000, [{ b: 'abismo', c: 2 }]),
+  LG('ren1', 'renaceres', 1, 'Renacido', 'Renacé una vez.', 400), LG('ren5', 'renaceres', 5, 'El que Vuelve', 'Renacé cinco veces.', 1500, [{ b: 'abismo', c: 5 }]),
+  LG('mis10', 'misiones', 10, 'Confiable', 'Terminá 10 misiones.', 150), LG('mis30', 'misiones', 30, 'Héroe del Luto', 'Terminá 30 misiones.', 600, [{ b: 'guardiana', c: 2 }]),
+  LG('enc25', 'encargos', 25, 'Mercenario', 'Cumplí 25 encargos del tablón.', 300, [{ b: 'destino', c: 3 }]),
+  LG('leg1', 'legendarios', 1, 'Afortunado', 'Encontrá un objeto legendario.', 200), LG('mit1', 'miticos', 1, 'Tocado por el Sol', 'Encontrá un objeto mítico.', 600),
+  LG('ase1', 'asedios', 1, 'Señor del Bastión', 'Ganá un Asedio con tu hermandad.', 500), LG('san20', 'santuarios', 20, 'Devoto', 'Usá 20 santuarios.', 120),
+  LG('alas3', 'alas', 3, 'Alado del Sol', 'Conseguí las Alas del Sol Hondo.', 800),
+];
+// Objetivos del día: tres por día y por personaje. Cumplidos los tres, se abre un cofre.
+export const OBJETIVOS = [
+  { cont: 'muertes', meta: [40, 80, 120], texto: n => `Matá ${n} monstruos` },
+  { cont: 'jefes', meta: [1, 1, 2], texto: n => `Vencé ${n === 1 ? 'a un jefe' : `a ${n} jefes`}`, desde: 20 },
+  { cont: 'encargos', meta: [1, 2, 2], texto: n => `Cumplí ${n === 1 ? 'un encargo' : n + ' encargos'} del tablón` },
+  { cont: 'santuarios', meta: [2, 3, 4], texto: n => `Usá ${n} santuarios` },
+  { cont: 'forjas', meta: [1, 2, 3], texto: n => `Forjá ${n === 1 ? 'una vez' : n + ' veces'}` },
+  { cont: 'misionesHoy', meta: [1, 1, 2], texto: n => `Terminá ${n === 1 ? 'una misión' : n + ' misiones'}` },
+  { cont: 'oroJuntado', meta: [800, 3000, 9000], texto: n => `Juntá ${n.toLocaleString('es-AR')} de oro de los monstruos` },
+];
+export function objetivosDelDia(nivel, rnd) {
+  const pool = OBJETIVOS.filter(o => !o.desde || nivel >= o.desde), t = nivel < 30 ? 0 : nivel < 90 ? 1 : 2, lista = [];
+  while (lista.length < 3 && pool.length) { const o = pool.splice(Math.floor(rnd() * pool.length), 1)[0]; lista.push({ cont: o.cont, meta: o.meta[t], prog: 0 }); }
+  return lista;
+}
+export const textoObjetivo = o => OBJETIVOS.find(x => x.cont === o.cont)?.texto(o.meta) || '';
+
 export const VEL_JUGADOR = 5.2;
 export const MAX_GRUPO = 5;
 export const BONUS_GRUPO = 0.1;          // +10% de experiencia por cada compañero

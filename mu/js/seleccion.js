@@ -20,14 +20,15 @@ export class Seleccion {
 
   mostrar(personajes, creado) {
     this.activa = true; this.lista = personajes;
-    for (const f of this.figuras) this.E.scene.remove(f.vis.raiz);
+    for (const f of this.figuras) { this.E.scene.remove(f.vis.raiz); if (f.e) this.cb.quitar?.(f.e); }
     this.figuras = personajes.map((p, i) => {
       const vis = crear(C.CLASES[p.clase] ? p.clase : 'guardian');
       const n = personajes.length, a = n === 1 ? 0 : (i / (n - 1) - 0.5) * Math.min(2.4, n * 0.45);
       const x = Math.sin(a) * 5, z = Math.cos(a) * 5 - 1;
       vis.raiz.position.set(x, R.altura(x, z), z); vis.raiz.rotation.y = a + Math.PI * 0.02;
       this.E.scene.add(vis.raiz);
-      return { p, vis, x, z };
+      const e = this.cb.adornar?.(vis, p);
+      return { p, vis, x, z, e };
     });
     this.E.scene.add(this.anillo);
     const i = creado ? personajes.findIndex(p => p.nombre === creado) : 0;
@@ -37,7 +38,7 @@ export class Seleccion {
 
   ocultar() {
     this.activa = false; this.el.hidden = true;
-    for (const f of this.figuras) this.E.scene.remove(f.vis.raiz);
+    for (const f of this.figuras) { this.E.scene.remove(f.vis.raiz); if (f.e) this.cb.quitar?.(f.e); }
     this.figuras = []; this.E.scene.remove(this.anillo);
   }
 
@@ -52,7 +53,7 @@ export class Seleccion {
   dibujar() {
     const L = this.lista;
     this.el.innerHTML = `<header><h1>Sendas del Éter</h1><span>Elegí con quién bajar al Páramo</span></header>
-      <div class="pjs">${L.map((p, i) => `<button class="pj ${i === this.sel ? 'sel' : ''}" data-i="${i}">${iconoAtaque(p.clase)}<b>${esc(p.nombre)}</b><small>${C.CLASES[p.clase]?.nombre || ''} · Nivel ${p.nivel}</small></button>`).join('')}
+      <div class="pjs">${L.map((p, i) => `<button class="pj ${i === this.sel ? 'sel' : ''}" data-i="${i}">${iconoAtaque(p.clase)}<b>${esc(p.nombre)}</b><small>${C.CLASES[p.clase]?.nombre || ''} · Nivel ${p.nivel}${p.resets ? ` · ${p.resets}° renacido` : ''}</small></button>`).join('')}
         ${L.length < 6 ? `<button class="pj nuevo" id="sel-nuevo"><b>+</b><small>Nuevo personaje</small></button>` : ''}</div>
       <p id="sel-error" class="error"></p>
       <div class="fila"><button class="btn" id="sel-jugar" ${L.length ? '' : 'disabled'}>Jugar</button><button class="btn sec" id="sel-salir">Salir de la cuenta</button></div>
@@ -84,7 +85,7 @@ export class Seleccion {
   // Cámara y animaciones mientras se elige.
   update(dt, camara) {
     this.t += dt;
-    for (const f of this.figuras) f.vis.muneco.update(dt);
+    for (const f of this.figuras) { f.vis.muneco.update(dt); if (f.e) this.cb.animar?.(f.e, dt); }
     this.anillo.rotation.z += dt;
     // Los personajes quedan en la mitad de arriba de la pantalla; abajo va la lista.
     const f = this.figuras[this.sel], mira = f ? new THREE.Vector3(f.x * 0.6, -0.6, f.z * 0.4) : new THREE.Vector3(0, -0.4, 0);

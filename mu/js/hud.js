@@ -242,6 +242,8 @@ export class Hud {
     clearTimeout(this.ganT); this.ganT = setTimeout(() => { this.gan = { exp: 0, oro: 0 }; }, 2500);
   }
   exp(cant) { this.ganancia(cant, 0); }
+  // Un destello del color de la rareza en los bordes de la pantalla.
+  destello(color) { const d = $('#h-dolor'); d.style.setProperty('--c', color); d.classList.remove('ver', 'brillo'); void d.offsetWidth; d.classList.add('brillo'); }
   // Lo que levantás del piso: una lista corta abajo a la izquierda. Lo raro sale además en el medio.
   botin(texto, rareza) {
     const b = $('#h-botin'), d = document.createElement('div');

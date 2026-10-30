@@ -73,6 +73,17 @@ const seleccion = new Seleccion(E, {
   jugar: nombre => red.jugar(nombre),
   crear: (nombre, clase) => red.crearPj(nombre, clase),
   salir: () => { try { red.ws?.close(); } catch (e) {} red.cerrado = true; seleccion.ocultar(); document.getElementById('entrada').hidden = false; document.getElementById('btn-entrar').disabled = false; },
+  // Viste a los personajes de la selección como en el juego: equipo, alas, montura y mascota.
+  adornar: (vis, p) => {
+    const e = { id: 0, tipo: p.clase, vis };
+    if (p.vista) { const [casco, armadura, guantes, botas, arma, escudo] = p.vista.split(',').map(Number); vestir(vis, p.clase, { casco, armadura, guantes, botas, arma, escudo }); }
+    if (p.alas) ponerAlas(e, p.alas);
+    if (p.montura) ponerMontura(e, p.montura);
+    if (p.mascota) ponerMascota(e, p.mascota);
+    return e;
+  },
+  animar: (e, dt) => { if (e.mon || e.pet) animarBestias(e, dt, false); if (e.alas) animarAlas(e.alas, dt, false); },
+  quitar: e => { if (e.pet) E.scene.remove(e.pet.raiz); },
 });
 
 // El sonido arranca con el primer toque (lo pide el navegador).
@@ -224,13 +235,13 @@ function entrarSeleccion(m) {
 function foto(s) {
   if (!mio) return;
   const ahora = performance.now();
-  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl, clase, brillo, herm, mascota, montura, alas, vista, puesto] of s.j) {
+  for (const [id, nombre, x, z, dir, hp, nivel, st, grupo, fl, clase, brillo, herm, mascota, montura, alas, vista, puesto, titulo] of s.j) {
     const muralla = fl & 1, veneno = fl & 2;
     let e = entes.get(id);
     if (e && e.tipo !== clase && VISUAL[clase]) { quitarEnte(id); e = null; }
     if (!e) { e = crearEnte(id, VISUAL[clase] ? clase : 'guardian', true); e.vis.raiz.position.set(x, R.altura(x, z), z); if (id === yoId) yo = e; }
     if (brillo !== e.brillo) { e.brillo = brillo; brillarArma(e); }
-    Object.assign(e, { nombre, hp, nivel, st, grupo, muralla, veneno, herm: herm || null, puesto: puesto || null, visto: ahora });
+    Object.assign(e, { nombre, hp, nivel, st, grupo, muralla, veneno, herm: herm || null, puesto: puesto || null, titulo: titulo || null, visto: ahora });
     if ((mascota || null) !== (e.mascotaB || null)) ponerMascota(e, mascota);
     if ((montura || null) !== (e.monturaB || null)) ponerMontura(e, montura);
     if ((alas || 0) !== (e.alasN || 0)) ponerAlas(e, alas || 0);
@@ -264,6 +275,7 @@ function foto(s) {
   const claveAtr = [s.yo.nivel, s.yo.puntos, ...R.STATS.map(k => s.yo[k])].join();
   estado = s.yo; mio.nivel = s.yo.nivel; mio.puntos = s.yo.puntos; for (const k of R.STATS) if (s.yo[k] != null) mio[k] = s.yo[k];
   if (claveAtr !== ultimaClaveAtr) { ultimaClaveAtr = claveAtr; if (paneles.abierto?.f === 'personaje' && !s.inv) paneles.refrescar(); }
+  if (s.logros) { mio.logros = s.logros; mio.titulo = s.logros.titulo; if (!s.mis) actualizarSeguimiento(); if (paneles.abierto?.f === 'personaje' && ['logros', 'misiones'].includes(paneles.abierto.args[0])) paneles.refrescar(); }
   if (s.mis) { mio.misiones = s.mis; actualizarSeguimiento(); if (['misionNpc', 'tablon'].includes(paneles.abierto?.f) || paneles.abierto?.args[0] === 'misiones') paneles.refrescar(); }
   if (s.inv) { Object.assign(mio, s.inv); mio.der = s.inv.der; hud.ponerHabilidades(mio); paneles.refrescar(); }
   actualizarDrops(s.d || []);
@@ -346,6 +358,8 @@ function evento(ev) {
   else if (tipo === 'tp') { if (a === yoId) { lx = b; lz = c; enviado = { x: b, z: c }; } else { const e = entes.get(a); if (e) e.buf = [{ t: performance.now(), x: b, z: c, dir: e.vis.raiz.rotation.y }]; } }
   else if (tipo === 'rv') { const e = entes.get(a); if (e) revivir(e); if (a === yoId) { lx = b; lz = c; objetivo = null; destino = null; } }
   else if (tipo === 'aviso') hud.toast(a);
+  else if (tipo === 'logro') { SND.sfx.nivel(); hud.toast(`Logro: «${a}». ${b} (+${c.toLocaleString('es-AR')} de oro)`, 'legendario'); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } }
+  else if (tipo === 'cofre') { SND.sfx.nivel(); hud.toast(`¡Cofre del día! +${a.toLocaleString('es-AR')} de oro · ${b}`, 'legendario'); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } }
   else if (tipo === 'mision') { SND.sfx.nivel(); hud.toast(`${a}. «${b}»`, 'grande'); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } }
   else if (tipo === 'oro') { hud.ganancia(0, a); SND.sfx.oro(); }
   else if (tipo === 'recoge') { SND.sfx.recoger(b); hud.botin(a, b); if (b >= 1) hud.toast(`Recogiste ${a}`, ['', 'excelente', 'legendario', 'mitico'][b]); }
@@ -564,10 +578,15 @@ function dibujarTextos(dt) {
         tc.fillStyle = 'rgba(42,26,14,.92)'; tc.fillRect(s[0] - w / 2, y0 - 10, w, 20); tc.strokeStyle = '#c9a24a'; tc.lineWidth = 1.5; tc.strokeRect(s[0] - w / 2, y0 - 10, w, 20);
         tc.fillStyle = '#f0d9a0'; tc.fillText(e.puesto, s[0], y0 + 1); tc.font = '600 14px "Spectral SC", Spectral, Georgia, serif'; tc.lineWidth = 3; tc.strokeStyle = 'rgba(0,0,0,.8)';
       }
+      let arriba = 13;
+      if (e.titulo) {
+        tc.font = 'italic 600 10.5px Spectral, Georgia, serif'; tc.fillStyle = '#e9c37a'; tc.lineWidth = 2.5;
+        tc.strokeText(`«${e.titulo}»`, s[0], s[1] - arriba); tc.fillText(`«${e.titulo}»`, s[0], s[1] - arriba); tc.lineWidth = 3; arriba += 12;
+      }
       if (e.herm) {
         const [hn, hs, hc, senor] = e.herm, ht = `${senor ? '♛\uFE0E ' : ''}${hs}\uFE0E ${hn}`;
         tc.font = 'italic 600 10.5px Spectral, Georgia, serif'; tc.fillStyle = hc;
-        tc.lineWidth = 2.5; tc.strokeText(ht, s[0], s[1] - 13); tc.fillText(ht, s[0], s[1] - 13); tc.lineWidth = 3;
+        tc.lineWidth = 2.5; tc.strokeText(ht, s[0], s[1] - arriba); tc.fillText(ht, s[0], s[1] - arriba); tc.lineWidth = 3;
       }
       if (e !== yo) barra(s[0], s[1] + 11, 46, 4, e.hp, mismo ? '#6fae4f' : '#a33');
       if (e.id === objetivo) { tc.strokeStyle = '#ff5a4a'; tc.lineWidth = 2; tc.strokeRect(s[0] - 26, s[1] + 7, 52, 12); }
@@ -696,6 +715,8 @@ function actualizarSeguimiento() {
       ...(lista ? { x: at.x, z: at.z, donde: `Cobralo en el tablón de ${at.nombre}` } : { x: z.x, z: z.z, donde: `En ${lugarCerca(z.x, z.z)}` }) });
   }
   marcasMision = lineas.filter(l => l.x != null);
+  const O2 = mio.logros?.objetivos;
+  if (O2 && O2.dia === R.hoyAR() && !O2.cobrado) for (const o of O2.lista) lineas.push({ texto: `Hoy · ${R.textoObjetivo(o)}: ${Math.min(o.prog, o.meta).toLocaleString('es-AR')}/${o.meta.toLocaleString('es-AR')}`, lista: o.prog >= o.meta, nombre: 'Objetivo del día' });
   hud.seguimiento(lineas);
 }
 
@@ -763,7 +784,12 @@ function actualizarDrops(lista) {
     }
     E.scene.add(g);
     const nombre = esOro ? `${n} de oro` : O.nombreObjeto({ b, n: base?.r ? n : 0, x: exc ? [0] : null, ra: exc > 1 ? exc : 0 }) + (!base?.r && n > 1 ? ` × ${n}` : '');
-    if (exc >= 2) { FX.nivel(x, R.altura(x, z), z); }
+    // Legendario o mítico en el piso: columna alta, sonido y aviso si está cerca. Que se sienta.
+    if (exc >= 2) {
+      FX.nivel(x, R.altura(x, z), z); FX.chispas(x, R.altura(x, z) + 1, z, COLOR_RAREZA[exc], 40);
+      const rayo = g.children.find(o => o.geometry === geoRayo); if (rayo) { rayo.scale.set(1.6, exc === 3 ? 5 : 3.5, 1.6); rayo.position.y = exc === 3 ? 4 : 3; rayo.material.opacity = 0.55; }
+      if (Math.hypot(x - lx, z - lz) < 25) { SND.sfx.recoger(exc); hud.destello(COLOR_RAREZA[exc]); hud.toast(exc === 3 ? '¡Cayó algo MÍTICO!' : '¡Cayó algo legendario!', exc === 3 ? 'mitico' : 'legendario'); }
+    }
     const dd = { id, x, z, obj: g, nombre, color, esOro, item: base?.r ? { b, n, x: exc ? [0] : null, ra: exc > 1 ? exc : 0 } : null };
     drops.set(id, dd); if (dd.item) ponerFotoDrop(dd);
   }

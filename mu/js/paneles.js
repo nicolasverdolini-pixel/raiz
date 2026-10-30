@@ -97,14 +97,15 @@ export class Paneles {
   personaje(tab = 'equipo') {
     const d = this.ctx.mio(); if (!d) return;
     const libres = C.puntosArbol(d) - C.gastados(d);
-    const tabs = [['equipo', 'Equipo'], ['habilidades', `Habilidades${libres ? ' ●' : ''}`], ['atributos', `Atributos${d.puntos ? ' ●' : ''}`], ['misiones', 'Misiones'], ['puesto', `Puesto${this.miPuesto?.abierto ? ' ●' : ''}`], ['hermandad', 'Hermandad']];
+    const tabs = [['equipo', 'Equipo'], ['habilidades', `Habilidades${libres ? ' ●' : ''}`], ['atributos', `Atributos${d.puntos ? ' ●' : ''}`], ['misiones', 'Misiones'], ['logros', 'Logros'], ['puesto', `Puesto${this.miPuesto?.abierto ? ' ●' : ''}`], ['hermandad', 'Hermandad']];
     let cuerpo = '';
     if (tab === 'equipo') cuerpo = this.htmlEquipo(d);
     if (tab === 'habilidades') cuerpo = this.htmlArbol(d);
     if (tab === 'atributos') cuerpo = this.htmlAtributos(d);
-    if (tab === 'misiones') cuerpo = this.htmlDiario(d);
+    if (tab === 'misiones') cuerpo = this.htmlObjetivos(d) + this.htmlDiario(d);
     if (tab === 'hermandad') cuerpo = this.htmlHermandad(d);
     if (tab === 'puesto') cuerpo = this.htmlMiPuesto(d);
+    if (tab === 'logros') cuerpo = this.htmlLogros(d);
     this.marco(esc(d.nombre), `${C.CLASES[d.clase].nombre} · Nivel ${d.nivel}`, tabs, tab, cuerpo, 'personaje', [tab]);
     if (tab === 'equipo') this.conectarMochila(d);
     this.el.querySelectorAll('[data-h]').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'aprender', h: b.dataset.h }));
@@ -112,7 +113,24 @@ export class Paneles {
     const cp = $('#p-cambiar', this.el); if (cp) cp.onclick = () => { this.cerrar(); this.ctx.cambiarPj(); };
     if (tab === 'hermandad') this.conectarHermandad();
     if (tab === 'puesto') this.conectarMiPuesto(d);
+    this.el.querySelectorAll('[data-titulo]').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'titulo', id: b.dataset.titulo }));
     const rd = $('#p-redis', this.el); if (rd) rd.onclick = () => { if (confirm('¿Devolver todos los puntos de atributos para repartirlos de nuevo?')) this.ctx.mandar({ t: 'redistribuir' }); };
+  }
+
+  // ---------- logros y objetivos del día ----------
+  htmlObjetivos(d) {
+    const O2 = d.logros?.objetivos; if (!O2 || O2.dia !== R.hoyAR()) return '';
+    return `<div class="mision ${O2.cobrado ? 'lista' : ''}"><b>Objetivos del día</b><span class="m-texto">${O2.cobrado ? 'Cumpliste los tres: ya abriste el cofre de hoy. Mañana hay otros.' : 'Cumplí los tres y se abre un cofre con oro, gemas y a veces un equipo raro.'}</span>
+      ${O2.lista.map(o => `<div class="obj ${o.prog >= o.meta ? 'hecho' : ''}"><span>${o.prog >= o.meta ? '✓' : '◦'} ${R.textoObjetivo(o)}</span><span>${Math.min(o.prog, o.meta).toLocaleString('es-AR')}/${o.meta.toLocaleString('es-AR')}</span><div class="barra chica"><i style="width:${Math.min(100, o.prog / o.meta * 100)}%"></i></div></div>`).join('')}</div>`;
+  }
+  htmlLogros(d) {
+    const L = d.logros || { c: {}, hechos: [] }, tit = d.titulo;
+    const hechos = R.LOGROS.filter(l => L.hechos.includes(l.id));
+    return `${this.htmlObjetivos(d)}
+      <p class="nota">Logros: <b>${hechos.length}</b> de ${R.LOGROS.length}. Cada uno te da oro, a veces cosas, y un título para mostrar arriba de tu nombre.</p>
+      <div class="titulos"><span>Título:</span><button class="btn chico ${!tit ? '' : 'sec'}" data-titulo="">Ninguno</button>${hechos.map(l => `<button class="btn chico ${tit === l.id ? '' : 'sec'}" data-titulo="${l.id}">«${l.titulo}»</button>`).join('')}</div>
+      <div class="lista">${R.LOGROS.map(l => { const v = Math.min(L.c[l.cont] || 0, l.meta), ok = L.hechos.includes(l.id);
+        return `<div class="fila-t logro ${ok ? 'hecho' : ''}"><span class="ic">${ok ? '🏆' : '◇'}</span><span><b>«${l.titulo}»</b><small>${l.desc} ${ok ? '· Conseguido' : `· ${v.toLocaleString('es-AR')}/${l.meta.toLocaleString('es-AR')}`}</small>${ok ? '' : `<div class="barra chica"><i style="width:${v / l.meta * 100}%"></i></div>`}</span></div>`; }).join('')}</div>`;
   }
 
   // ---------- puesto de venta ----------
