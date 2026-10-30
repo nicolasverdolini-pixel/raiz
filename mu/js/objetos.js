@@ -261,7 +261,7 @@ export const NPCS = ATALAYAS.flatMap((a, i) => {
     { id: 'herrero' + i, rol: 'herrero', atalaya: i, nombre: a.nombres[1], modelo: 'npc_herrero.glb', x: a.x + 4.4, z: a.z - 2.4, giro: -0.9,
       frase: i ? 'Acá el hierro es mejor. Y más caro. Lo vale.' : 'El hierro no miente. Las gemas sí, a veces.', vende: equipoDeTier(a.tier), forja: true },
   ];
-  if (JOYERAS.includes(i)) lista.push({ id: 'joyera' + i, rol: 'joyera', atalaya: i, nombre: 'La Joyera', modelo: 'npc_vidente.glb', tinte: '#3a2a5a', x: a.x - 5.2, z: a.z + 1.4, giro: 1.4, frase: 'Tres piedras iguales valen más juntas. Dámelas y te muestro.' });
+  if (JOYERAS.includes(i)) lista.push({ id: 'joyera' + i, rol: 'joyera', atalaya: i, nombre: 'La Joyera', modelo: 'npc_vidente.glb', tinte: '#3a2a5a', x: a.x + 0.4, z: a.z - 5, giro: 0, frase: 'Tres piedras iguales valen más juntas. Dámelas y te muestro.' });
   lista.push({ id: 'baul' + i, rol: 'baul', atalaya: i, nombre: 'Baúl de la cuenta', x: a.x + 1.8, z: a.z + 1.6, giro: 0.6, frase: 'Lo que guardes acá lo ven todos tus personajes.' });
   lista.push({ id: 'tablon' + i, rol: 'tablon', atalaya: i, nombre: 'Tablón de Encargos', x: a.x - 2.6, z: a.z + 3.4, giro: 2.4, frase: 'Pedidos clavados con cuchillo. Siempre hay uno nuevo.' });
   lista.push({ id: 'farol' + i, rol: 'farol', atalaya: i, nombre: 'Farol', x: a.x, z: a.z, frase: 'Desde acá se viaja a las atalayas que ya encendiste.' });
