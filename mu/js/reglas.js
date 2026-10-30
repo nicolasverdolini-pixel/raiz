@@ -326,7 +326,7 @@ export const CAMPEON = { prob: 0.06, probNoche: 0.25, hp: 3, dano: 1.4, exp: 3.5
 export const EVENTOS = [
   { id: 'marea', nombre: 'Marea de Éter', cada: 90, desfase: 0, dura: 5, exp: 2,
     desc: 'El Éter desborda: doble experiencia y los monstruos vuelven más rápido.' },
-  { id: 'noche', nombre: 'Noche Roja', cada: 240, desfase: 105, dura: 10, exp: 1.5,
+  { id: 'noche', nombre: 'Noche Roja', cada: 120, desfase: 75, dura: 10, exp: 1.5,
     desc: 'El cielo sangra. Aparecen campeones por todos lados y llega el Heraldo del Éter.' },
   { id: 'pozo', nombre: 'Pozo de las Almas', cada: 120, desfase: 45, dura: 13, entrada: 3,
     desc: 'Se abre la entrada por 3 minutos (hace falta un Sello del Pozo, lo vende Oria). Adentro: oleadas cada vez peores y un jefe al final.' },
@@ -342,6 +342,13 @@ export const POZO = { x: 300, z: 300, r: 17, oleadas: 8, nivelMin: 10 };
 export const enPozo = (x, z) => Math.hypot(x - POZO.x, z - POZO.z) < POZO.r + 4;
 // Renacer: volver a nivel 1 con puntos de regalo que se suman cada vez.
 export const RENACER = { nivel: 150, puntos: 150, habilidad: 10, oro: n => 20000 * (n + 1) };
+// Tiempo que entiende cualquiera: «2 h 15 min», «8 min», «40 seg».
+export function textoTiempo(seg) {
+  seg = Math.max(0, Math.round(seg));
+  if (seg < 60) return `${seg} seg`;
+  const min = Math.ceil(seg / 60), h = Math.floor(min / 60);
+  return h ? `${h} h${min % 60 ? ` ${min % 60} min` : ''}` : `${min} min`;
+}
 export function estadoEventos(ms) {
   const min = ms / 60000;
   let activo = null, proximo = null;

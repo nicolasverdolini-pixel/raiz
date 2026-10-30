@@ -152,8 +152,7 @@ export class Hud {
     if (!ev) he.textContent = '';
     else {
       const prox = ev[0][0] === '-', def = R.EVENTOS.find(x => x.id === ev[0].replace('-', '')), seg = Math.max(0, ev[1]);
-      const mm = Math.floor(seg / 60) + ':' + String(Math.floor(seg % 60)).padStart(2, '0');
-      he.textContent = prox ? `${def.nombre} en ${mm}` : `${def.nombre} · quedan ${mm}`;
+      he.textContent = prox ? `${def.nombre} en ${R.textoTiempo(seg)}` : `${def.nombre} · quedan ${R.textoTiempo(seg)}`;
       he.className = prox ? '' : 'activo ' + def.id;
     }
     $('.orbe.vida').classList.toggle('veneno', yo.veneno > 0);

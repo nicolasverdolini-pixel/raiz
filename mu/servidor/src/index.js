@@ -18,7 +18,9 @@ import * as R from '../../js/reglas.js';
 import * as C from '../../js/clases.js';
 import * as O from '../../js/objetos.js';
 import * as MI from '../../js/misiones.js';
+import { BOTS } from './bots.js';
 
+const CANAL_BOTS = 'prado-1';       // la sala donde juegan los bots
 const CORS = { 'Access-Control-Allow-Origin': '*' };
 const MAX_JUGADORES = 40;
 const VISTA = 45;                    // cada celu recibe lo que está a esta distancia
@@ -32,7 +34,8 @@ export default {
     const m = url.pathname.match(/^\/mapa\/([a-z0-9-]{1,20})$/);
     if (!m) return new Response('No encontrado', { status: 404, headers: CORS });
     if (req.headers.get('Upgrade') !== 'websocket') return new Response('Se espera WebSocket', { status: 426, headers: CORS });
-    return env.MAPAS.get(env.MAPAS.idFromName(m[1])).fetch(req);
+    const sala = env.MAPAS.get(env.MAPAS.idFromName(m[1]));
+    return sala.fetch(req);
   },
 };
 
@@ -183,6 +186,7 @@ export class Mapa extends DurableObject {
 
   // ----- conexiones -----
   async fetch(req) {
+    if (new URL(req.url).pathname === '/mapa/' + CANAL_BOTS) this.conBots = true;
     const [cliente, servidor] = Object.values(new WebSocketPair());
     servidor.accept();
     const s = { ws: servidor, p: null, entrando: false };
@@ -216,6 +220,8 @@ export class Mapa extends DurableObject {
       case 'eter': return this.beber(p, 'eter');
       case 'usar': return this.usar(p, m.i | 0);
       case 'equipar': return this.equipar(p, m.i | 0);
+      case 'ordenar': return this.ordenar(p);
+      case 'mover': return this.moverInv(p, m.de | 0, m.a | 0);
       case 'quitar': return this.quitar(p, String(m.r || ''));
       case 'comprar': return this.comprar(p, String(m.npc || ''), String(m.b || ''), m.c | 0);
       case 'vender': return this.vender(p, m.i | 0);
@@ -282,7 +288,7 @@ export class Mapa extends DurableObject {
   }
 
   async entrar(s, m) {
-    if (this.jug.size >= MAX_JUGADORES) return this.enviar(s, { t: 'error', msg: 'El mapa está lleno. Probá en un rato.' });
+    if (this.humanos() >= MAX_JUGADORES) return this.enviar(s, { t: 'error', msg: 'El mapa está lleno. Probá en un rato.' });
     const r = await this.cuenta(s.cuenta).cargar(String(m.nombre || ''));
     if (r.error) return this.enviar(s, { t: 'error', msg: r.error });
     // Una cuenta juega con un personaje a la vez: si ya estaba adentro (otro celu o se le cortó), se cierra lo viejo.
@@ -301,7 +307,7 @@ export class Mapa extends DurableObject {
     if (!p.d.visto) p.d.visto = true;
     if (!this.reloj) { this.reloj = setInterval(() => this.tick(), R.TICK * 1000); }
     if (p.d.hermandad) await this.cargarHerm(p);
-    this.recompensaDiaria(p); this.objetivosHoy(p);
+    this.recompensaDiaria(p); this.objetivosHoy(p); this.compensarPozo(p);
     this.progresoAnterior(p);
     // Logros que ya estaban cumplidos de antes (nivel, lugares, misiones, renaceres).
     this.contar(p, 'nivel', p.d.nivel, true); this.contar(p, 'lugares', p.d.lugares.length, true);
@@ -330,7 +336,7 @@ export class Mapa extends DurableObject {
       const oro = Math.round(lg.premio.oro * (5 + p.d.nivel)); p.d.oro += oro;
       for (const it of lg.premio.items) this.darOGuardar(p, { ...it }, 'Logro');
       p.priv.push(['logro', lg.titulo, lg.desc, oro]); p.cambioInv = true; p.cambioMis = true;
-      this.msgTodos(`${p.nombre} consiguió el logro «${lg.titulo}».`);
+      if (!p.bot) this.msgTodos(`${p.nombre} consiguió el logro «${lg.titulo}».`);
     }
   }
   // Los logros se agregaron con el juego andando: a los personajes de antes se les reconoce lo que ya hicieron.
@@ -377,6 +383,13 @@ export class Mapa extends DurableObject {
     p.d.titulo = id || null; p.cambioMis = true; this.guardar(p);
   }
 
+  // Una sola vez: los que llegaron antes del arreglo del Pozo, cuando el premio se podía perder, reciben tres premios.
+  compensarPozo(p) {
+    if (p.d.comp1 || p.d.nivel < R.POZO.nivelMin) return;
+    p.d.comp1 = true;
+    setTimeout(() => { if (this.jug.has(p.id)) this.darPremioPozo(p, this.jefeDeNivel(p.d.nivel), 3, 'Premios del Pozo que te debíamos'); }, 3000);
+  }
+
   // Un regalo por día, por personaje. El oro crece con el nivel.
   recompensaDiaria(p) {
     const hoy = R.hoyAR(), ayer = R.hoyAR(Date.now() - 86400000), D = p.d.diaria || {};
@@ -394,7 +407,7 @@ export class Mapa extends DurableObject {
     const p = s.p; if (!p || !this.jug.has(p.id)) return;
     this.cancelarComercio(p, `${p.nombre} se fue.`);
     p.puesto = null;
-    if (p.enPozo) { p.enPozo = false; this.pozo?.dentro.delete(p.id); p.x = 0; p.z = 0; }
+    if (p.enPozo) { this.juntarPozo(p); p.enPozo = false; this.pozo?.dentro.delete(p.id); p.x = 0; p.z = 0; }
     if (p.enBastion) { p.enBastion = false; p.x = 0; p.z = 0; }
     this.dejarGrupo(p, true);
     for (const q of this.jug.values()) if (q.objetivoJ === p.id) q.objetivoJ = null;
@@ -404,7 +417,10 @@ export class Mapa extends DurableObject {
     for (const m of this.mons.values()) if (m.obj === p.id) m.obj = null;
     this.ev.push(['bye', p.id]);
     s.p = null;
-    if (!this.jug.size && this.reloj) { clearInterval(this.reloj); this.reloj = null; }
+    if (!this.humanos() && this.reloj) {
+      for (const q of this.botsOnline()) this.botIrse(q);
+      clearInterval(this.reloj); this.reloj = null;
+    }
   }
 
   // Los puntos de la semana se juntan en memoria y se mandan de a tandas (con cada guardado).
@@ -584,6 +600,25 @@ export class Mapa extends DurableObject {
     this.recalcular(p);
   }
 
+  // Junta las pilas, saca los huecos y deja todo por tipo: pociones, gemas, otros, y después el equipo.
+  ordenar(p) {
+    if (p.com || p.puesto) return this.aviso(p, 'Cerrá el comercio o el puesto para ordenar.');
+    const juntos = new Map(), resto = [];
+    for (const it of p.d.inv.filter(Boolean)) { if (O.BASES[it.b]?.pila) juntos.set(it.b, (juntos.get(it.b) || 0) + (it.c || 1)); else resto.push(it); }
+    const lista = [...resto];
+    for (const [b, total] of juntos) for (let n = total; n > 0; n -= O.PILA) lista.push({ b, c: Math.min(n, O.PILA) });
+    lista.sort(O.ordenMochila);
+    p.d.inv = [...lista, ...Array(O.MOCHILA).fill(null)].slice(0, Math.max(O.MOCHILA, p.d.inv.length, lista.length));
+    p.cambioInv = true; this.guardar(p);
+  }
+  // Mover con el dedo: si el lugar está ocupado, los dos cambian de casillero.
+  moverInv(p, de, a) {
+    const inv = p.d.inv;
+    if (de === a || de < 0 || a < 0 || de >= inv.length || a >= inv.length || !inv[de]) return;
+    if (p.com || p.puesto) return this.aviso(p, 'Cerrá el comercio o el puesto para mover cosas.');
+    [inv[de], inv[a]] = [inv[a], inv[de]]; p.cambioInv = true;
+  }
+
   quitar(p, r) {
     const it = p.d.equipo[r]; if (!it) return;
     const i = p.d.inv.indexOf(null); if (i < 0) return this.aviso(p, 'La mochila está llena.');
@@ -725,6 +760,7 @@ export class Mapa extends DurableObject {
     const ahora = Date.now();
     if (ahora - (p.ultChat || 0) < 900) return this.aviso(p, 'Más despacio.');
     p.ultChat = ahora;
+    if (!p.bot) this.botsOyen(p, txt);
     if (txt.startsWith('/g ')) {
       const g = p.grupo && this.grupos.get(p.grupo); if (!g) return this.aviso(p, 'No estás en un grupo.');
       for (const id of g.miembros) { const q = this.jug.get(id); if (q) this.enviar(q.s, { t: 'chat', de: p.id, nombre: p.nombre, txt: txt.slice(3), grupo: 1 }); }
@@ -1052,8 +1088,30 @@ export class Mapa extends DurableObject {
     this.aviso(p, 'Bajaste al Pozo. Cuando se cierre la entrada empiezan las oleadas.');
   }
 
+  // Premio del Pozo: lo que soltaría su jefe, una vez por cada "veces", directo al personaje.
+  darPremioPozo(p, jefe, veces, de) {
+    let oro = 0; const cosas = [];
+    for (let i = 0; i < veces; i++) for (const c of O.tirada(jefe, Math.random, 1.5, p.d.clase)) { if (c.oro) oro += c.oro; else if (c.item) cosas.push(c.item); }
+    p.d.oro += oro;
+    for (const it of cosas) { this.darOGuardar(p, it, de); const ra = O.rareza(it); if (ra === 2) this.contar(p, 'legendarios', 1); if (ra === 3) { this.contar(p, 'miticos', 1); this.msgTodos(`¡${p.nombre} recibió un objeto MÍTICO: ${O.nombreObjeto(it)}!`, !p.bot); } }
+    p.priv.push(['premio', de, oro, cosas.map(it => O.nombreObjeto(it)).join(' · ')]); p.cambioInv = true; this.guardar(p);
+  }
+  // Jefe que corresponde a un nivel: el mismo criterio que la última oleada del Pozo.
+  jefeDeNivel(nv) {
+    const t = R.TIPOS.filter(x => R.MONSTRUOS[x].jefe && !R.MONSTRUOS[x].soloEvento && R.MONSTRUOS[x].nivel <= nv + 5).sort((a, b) => R.MONSTRUOS[b].nivel - R.MONSTRUOS[a].nivel)[0];
+    return R.MONSTRUOS[t] || R.MONSTRUOS.ratareina;
+  }
+  // Lo que quedó tirado en el Pozo y era tuyo no se pierde al salir.
+  juntarPozo(p) {
+    for (const d of [...this.drops.values()]) {
+      if (Math.hypot(d.x - R.POZO.x, d.z - R.POZO.z) > R.POZO.r + 4 || (d.dueno !== 'p' + p.id && d.dueno !== 'g' + p.grupo)) continue;
+      if (d.oro) p.d.oro += d.oro; else this.darOGuardar(p, d.item, 'Pozo de las Almas');
+      this.drops.delete(d.id); p.cambioInv = true;
+    }
+  }
   sacarDelPozo(p) {
     if (!p.enPozo) return;
+    this.juntarPozo(p);
     p.enPozo = false; this.pozo?.dentro.delete(p.id);
     const a = Math.random() * 6.3; p.x = Math.cos(a) * 3; p.z = Math.sin(a) * 3; p.ultPos = Date.now();
     this.ev.push(['tp', p.id, r2(p.x), r2(p.z)]);
@@ -1061,6 +1119,11 @@ export class Mapa extends DurableObject {
 
   tickPozo() {
     const P = this.pozo; if (!P) return;
+    if (P.fase === 'fin') {
+      P.salida -= R.TICK;
+      if (P.salida <= 0) { for (const id of [...P.dentro]) { const p = this.jug.get(id); if (p) this.sacarDelPozo(p); } P.fase = 'vacio'; }
+      return;
+    }
     const dentro = [...P.dentro].map(id => this.jug.get(id)).filter(p => p && p.enPozo);
     if (P.fase === 'entrada' && Date.now() - P.inicio > R.EVENTOS.find(e => e.id === 'pozo').entrada * 60000) {
       if (!dentro.length) { P.fase = 'vacio'; return; }
@@ -1075,10 +1138,11 @@ export class Mapa extends DurableObject {
       P.pagada = true;
       for (const p of dentro) if (!p.muerto) this.darExp(p, Math.round(R.expParaSubir(p.d.nivel) * 0.02 * P.oleada), null);
       if (P.oleada >= R.POZO.oleadas) {
-        this.msgPozo('¡El Pozo quedó vacío! El premio cae al centro.');
+        // El premio va directo a cada uno: si no entra en la mochila queda en el correo del baúl.
+        this.msgPozo('¡El Pozo quedó vacío! En 20 segundos volvés a la Atalaya.', true);
         const jefe = R.MONSTRUOS[P.jefe] || R.MONSTRUOS.ratareina;
-        for (const p of dentro) this.soltar({ x: R.POZO.x, z: R.POZO.z }, O.tirada(jefe, Math.random, 1.5), 'p' + p.id);
-        P.fase = 'fin'; return;
+        for (const p of dentro) this.darPremioPozo(p, jefe, 1, 'Pozo de las Almas');
+        P.fase = 'fin'; P.salida = 20; return;
       }
       this.msgPozo(`Oleada ${P.oleada} superada.`);
       P.espera = 4;
@@ -1109,7 +1173,7 @@ export class Mapa extends DurableObject {
     } else this.msgPozo(`Oleada ${k} de ${R.POZO.oleadas}.`);
   }
 
-  msgPozo(t) { for (const id of this.pozo?.dentro || []) { const p = this.jug.get(id); if (p) p.priv.push(['msg', t]); } }
+  msgPozo(t, importante) { for (const id of this.pozo?.dentro || []) { const p = this.jug.get(id); if (p) p.priv.push(['msg', t, importante ? 1 : 0]); } }
   limpiarPozo() { for (const m of [...this.mons.values()]) if (m.pozo) { this.mons.delete(m.id); this.ev.push(['bye', m.id]); } }
 
   // ----- misiones -----
@@ -1243,6 +1307,7 @@ export class Mapa extends DurableObject {
     if (m.a === 'pedir') {
       const q = this.jug.get(m.id); if (!q || q === p) return;
       if (dist(p, q) > 10) return this.aviso(p, 'Acercate para comerciar.');
+      if (q.bot) return this.botDecir(q, q.bot.f.forma === 'tienda' ? 'ahora no puedo, mirá lo que tengo cuando abra el puesto' : 'ahora no comercio, estoy cazando');
       if (q.com || p.com) return this.aviso(p, 'Ya hay un comercio abierto.');
       if (p.puesto || q.puesto) return this.aviso(p, 'No se puede comerciar con un puesto abierto.');
       q.pedidoCom = { de: p.id, t: Date.now() };
@@ -1324,7 +1389,7 @@ export class Mapa extends DurableObject {
         this.drops.delete(d.id); p.priv.push(['recoge', O.nombreObjeto(d.item), O.rareza(d.item)]);
         const ra = O.rareza(d.item);
         if (ra === 2) this.contar(p, 'legendarios', 1); if (ra === 3) this.contar(p, 'miticos', 1);
-        if (ra === 3) this.msgTodos(`¡${p.nombre} encontró un objeto MÍTICO: ${O.nombreObjeto(d.item)}!`, true);
+        if (ra === 3) this.msgTodos(`¡${p.nombre} encontró un objeto MÍTICO: ${O.nombreObjeto(d.item)}!`, !p.bot);
         else if (ra === 2) this.msgTodos(`${p.nombre} encontró ${O.nombreObjeto(d.item)}.`);
         else if (ra === 1) this.msgCerca(p, `${p.nombre} encontró ${O.nombreObjeto(d.item)}.`);
       } else if (!p.avisoLleno || this.t - p.avisoLleno > 5) { p.avisoLleno = this.t; this.aviso(p, 'La mochila está llena.'); }
@@ -1418,12 +1483,13 @@ export class Mapa extends DurableObject {
 
   matar(m, bandoFinal) {
     let mayor = bandoFinal, md = -1; for (const [b, v] of m.danos) if (v > md) { md = v; mayor = b; }
-    if (!m.temporal) this.soltar(m, O.tirada(m.def, Math.random, m.campeon ? 2.2 : 1), mayor);
+    // Los bichos invocados no sueltan nada; los del Pozo sí, un poco menos. El equipo sale pensado para quien lo ganó.
+    if (!m.temporal || m.pozo) this.soltar(m, O.tirada(m.def, Math.random, m.pozo ? (m.def.jefe ? 1.5 : 0.6) : m.campeon ? 2.2 : 1, this.claseDe(mayor)), mayor);
     m.muerto = true; m.hp = 0; m.obj = null; m.muertoT = 0; m.carga = null;
     const marea = this.evento?.id === 'marea';
     m.reaparece = m.def.reaparece * (marea ? 0.4 : 1);
     this.ev.push(['m', m.id]);
-    if (m.def.jefe) this.msgTodos(m.def.soloEvento ? `¡Cayó el ${m.def.nombre}! La Noche Roja pierde fuerza.` : `¡Cayó ${m.def.nombre}! Vuelve en ${Math.round(m.def.reaparece / 60)} minutos.`);
+    if (m.def.jefe && !m.pozo) this.msgTodos(m.def.soloEvento ? `¡Cayó el ${m.def.nombre}! La Noche Roja pierde fuerza.` : `¡Cayó ${m.def.nombre}! Vuelve en ${Math.round(m.def.reaparece / 60)} minutos.`);
     else if (m.campeon) this.msgCerca(m, `Cayó un campeón: ${m.def.nombre}.`);
     let total = 0; for (const v of m.danos.values()) total += v;
     const base = m.def.exp * (m.campeon ? R.CAMPEON.exp : 1) * (m.temporal && !m.pozo ? 0.3 : 1) * (m.pozo ? 1.5 : 1) * (this.evento?.exp || 1);
@@ -1439,6 +1505,12 @@ export class Mapa extends DurableObject {
     m.danos.clear();
   }
 
+  claseDe(bando) {
+    if (bando[0] === 'p') return this.jug.get(+bando.slice(1))?.d.clase || null;
+    const l = this.grupos.get(+bando.slice(1))?.miembros || [];
+    return this.jug.get(l[Math.floor(Math.random() * l.length)])?.d.clase || null;
+  }
+
   darExp(p, cant, m) {
     if (m) {
       this.progreso(p, m);
@@ -1451,6 +1523,7 @@ export class Mapa extends DurableObject {
       }
     }
     if (m) { this.contar(p, 'muertes', 1); if (m.def.jefe) this.contar(p, 'jefes', 1); const w = p.semana || (p.semana = {}); w.muertes = (w.muertes || 0) + 1; if (m.def.jefe) w.jefes = (w.jefes || 0) + 1; }
+    if (p.bot) cant *= p.bot.ritmo;
     cant = Math.max(1, Math.round(cant));
     p.d.exp += cant; p.priv.push(['x', cant]); (p.semana || (p.semana = {})).exp = (p.semana.exp || 0) + cant;
     let subio = false;
@@ -1674,13 +1747,14 @@ export class Mapa extends DurableObject {
     if (!this.evT || this.t - this.evT > 1) { this.evT = this.t; this.revisarEventos(); this.revisarSemana().catch(() => {}); }
     this.tickPozo();
     this.tickAsedio(dt);
+    if (this.conBots) this.botsTick(dt);
     for (let i = 0; i < this.santuarios.length; i++) if (this.santuarios[i] > 0) this.santuarios[i] -= dt;
     for (const p of this.jug.values()) {
       if (p.muerto) {
         p.muerto -= dt;
         if (p.muerto <= 0) {
           p.muerto = 0; p.hp = p.der.maxHp; p.mp = p.der.maxMp;
-          if (p.enPozo) { p.enPozo = false; this.pozo?.dentro.delete(p.id); p.x = 0; p.z = 0; }
+          if (p.enPozo) { this.juntarPozo(p); p.enPozo = false; this.pozo?.dentro.delete(p.id); p.x = 0; p.z = 0; }
           if (p.enBastion && this.asedio) {
             const a = Math.random() * 6.3; p.x = R.BASTION.x + Math.cos(a) * (R.BASTION.r - 2); p.z = R.BASTION.z + Math.sin(a) * (R.BASTION.r - 2); p.ultPos = Date.now();
             this.ev.push(['rv', p.id, r2(p.x), r2(p.z)]); continue;
@@ -1745,7 +1819,7 @@ export class Mapa extends DurableObject {
           this.elemHab = null; this.golpear(p, m, 1, false);
         }
       }
-      p.guardadoT += dt; if (p.guardadoT > GUARDAR_CADA) this.guardar(p);
+      p.guardadoT += dt; if (p.guardadoT > (p.bot ? 180 : GUARDAR_CADA)) this.guardar(p);
     }
     for (const d of this.drops.values()) { d.t += dt; if (d.t > 90) this.drops.delete(d.id); }
     for (const s of this.siervos.values()) this.tickSiervo(s, dt);
@@ -1804,6 +1878,7 @@ export class Mapa extends DurableObject {
     const filaM = m => [m.id, m.ti, r2(m.x), r2(m.z), r2(m.dir), Math.round(Math.max(0, m.hp) / m.maxHp * 100), m.muerto ? 4 : m.mueve ? 1 : 0, (m.campeon ? 1 : 0) | (m.furioso ? 2 : 0) | (m.temporal ? 4 : 0)];
     const evt = this.evento ? [this.evento.id, Math.round(this.evento.resta)] : this.proximo ? ['-' + this.proximo.id, Math.round(this.proximo.en)] : null;
     for (const p of this.jug.values()) {
+      if (p.bot) { p.priv = []; p.cambioMis = p.cambioInv = false; continue; }
       const j = [], m = [], dr = [];
       for (const d of this.drops.values()) if (Math.hypot(d.x - p.x, d.z - p.z) < VISTA) dr.push([d.id, r2(d.x), r2(d.z), d.oro ? 'oro' : d.item.b, d.oro || d.item.n || d.item.c || 0, d.item ? O.rareza(d.item) : 0]);
       for (const q of this.jug.values()) if (q === p || dist(q, p) < VISTA) j.push(filaJ(q));
@@ -1827,3 +1902,4 @@ export class Mapa extends DurableObject {
     }
   }
 }
+Object.assign(Mapa.prototype, BOTS);

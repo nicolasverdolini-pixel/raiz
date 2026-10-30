@@ -252,24 +252,25 @@ export const DIST_NPC = 4.5;
 
 // ---------- lo que tiran los monstruos ----------
 // Devuelve una lista de cosas para tirar al piso: { oro } o { item }.
-export function tirada(def, rnd, extra = 1) {
+// clase: la de quien lo ganó; el equipo que cae sale casi siempre para esa clase.
+export function tirada(def, rnd, extra = 1, clase = null) {
   const sale = [], nv = def.nivel;
   const rolls = def.jefe ? 7 : 1;
   for (let i = 0; i < rolls; i++) {
     if (!def.jefe && rnd() > 0.45 * extra) continue;
     const r = rnd();
-    if (r < 0.42) sale.push({ oro: Math.round(nv * (3 + rnd() * 6) * (def.jefe ? 5 : 1)) });
-    else if (r < 0.58) sale.push({ item: { b: rnd() < 0.7 ? 'pocion' : 'eter', c: 1 + Math.floor(rnd() * 2) } });
-    else if (r < 0.72) sale.push({ item: { b: 'forja', c: 1 } });
-    else if (r < 0.78 && nv >= 8) sale.push({ item: { b: 'destino', c: 1 } });
-    else if (r < 0.805 && nv >= 18) sale.push({ item: { b: 'abismo', c: 1 } });
-    else if (r < 0.82 && nv >= 12) sale.push({ item: { b: 'guardiana', c: 1 } });
-    else if (r < 0.86) sale.push({ item: rnd() < 0.5 && nv >= 15 ? { b: GEMAS[Math.floor(rnd() * GEMAS.length)], c: 1 } : { b: 'vela', c: 1 } });
-    else sale.push({ item: equipoAlAzar(nv, rnd, def.jefe ? 0.25 : 0.03 * extra, null, def.jefe ? 0.06 : 0.002 * extra * extra, def.jefe ? 0.008 : 0) });
+    if (r < 0.36) sale.push({ oro: Math.round(nv * (3 + rnd() * 6) * (def.jefe ? 5 : 1)) });
+    else if (r < 0.5) sale.push({ item: { b: rnd() < 0.7 ? 'pocion' : 'eter', c: 1 + Math.floor(rnd() * 2) } });
+    else if (r < 0.62) sale.push({ item: { b: 'forja', c: 1 } });
+    else if (r < 0.68 && nv >= 8) sale.push({ item: { b: 'destino', c: 1 } });
+    else if (r < 0.705 && nv >= 18) sale.push({ item: { b: 'abismo', c: 1 } });
+    else if (r < 0.72 && nv >= 12) sale.push({ item: { b: 'guardiana', c: 1 } });
+    else if (r < 0.76) sale.push({ item: rnd() < 0.5 && nv >= 15 ? { b: GEMAS[Math.floor(rnd() * GEMAS.length)], c: 1 } : { b: 'vela', c: 1 } });
+    else sale.push({ item: equipoAlAzar(nv, rnd, def.jefe ? 0.25 : 0.03 * extra, clase, def.jefe ? 0.06 : 0.002 * extra * extra, def.jefe ? 0.008 : 0) });
   }
   if (def.jefe && nv >= 40 && rnd() < 0.05) sale.push({ item: { b: 'acechador_m', n: 0 } });
   if (def.jefe && nv >= 15) sale.push({ item: { b: GEMAS[Math.floor(rnd() * GEMAS.length)], c: 1 + Math.floor(rnd() * 2) } });
-  if (def.jefe) sale.push({ item: equipoAlAzar(nv + 4, rnd, 0.35, null, def.soloEvento ? 0.25 : 0.1, def.soloEvento ? 0.06 : 0.015) }, { item: { b: nv >= 18 ? 'abismo' : 'destino', c: 1 } });
+  if (def.jefe) sale.push({ item: equipoAlAzar(nv + 4, rnd, 0.35, clase, def.soloEvento ? 0.25 : 0.1, def.soloEvento ? 0.06 : 0.015) }, { item: { b: nv >= 18 ? 'abismo' : 'destino', c: 1 } });
   return sale;
 }
 
@@ -304,6 +305,14 @@ export function fundir(ra, nivel, clase, rnd) {
   for (let i = 0; i < 50; i++) { const it = equipoAlAzar(nivel, rnd, pedida === 1 ? 1 : 0, clase, pedida === 2 ? 1 : 0, pedida === 3 ? 1 : 0); if (puedeUsar(it.b, clase)) return it; }
   return { b: `armadura_${SETS_VIS[Math.max(0, SETS.findIndex(x => x[2] > nivel) - 1)] || 'cuero'}`, n: 0 };
 }
+
+// Orden de la mochila: pociones, gemas, lo demás que se apila y el equipo, de lo mejor a lo peor en cada tipo.
+const PESO_RANURA = Object.fromEntries(RANURAS.map((r, i) => [r, 10 + i]));
+const pesoObjeto = b => (b?.r ? PESO_RANURA[b.r] : b?.uso === 'cura' ? 0 : b?.uso === 'mana' ? 1 : b?.gema ? 2 : b?.engarce ? 3 : 4);
+export const ordenMochila = (x, y) => {
+  const a = BASES[x.b], b = BASES[y.b];
+  return pesoObjeto(a) - pesoObjeto(b) || rareza(y) - rareza(x) || (b?.req || 0) - (a?.req || 0) || (y.n || 0) - (x.n || 0) || x.b.localeCompare(y.b);
+};
 
 export function precioVenta(it) {
   const b = BASES[it.b]; if (!b) return 0;

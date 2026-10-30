@@ -566,3 +566,9 @@ input:focus { outline: 1px solid var(--sangre-2); }
 /* Arco más abierto: que ningún botón pise al de al lado */
 #hud { --R: calc(var(--S) * 1.95 + 2px); --R2: calc(var(--R) + var(--S) * .5 + var(--P) * .55 + 8px); }
 @media (max-aspect-ratio: 1/1) { #hud { --R: calc(var(--S) * 1.95 + 2px); } }
+
+/* Mochila: arrastrar con el dedo */
+.col-inv .inv .slot { touch-action: none; }
+.col-inv #p-ordenar { width: 100%; margin-top: 6px; }
+.slot.origen { opacity: .3; }
+.slot.arrastrando { position: fixed; z-index: 9999; transform: translate(-50%, -60%) scale(1.15); pointer-events: none; opacity: .92; box-shadow: 0 8px 18px rgba(0,0,0,.7); }

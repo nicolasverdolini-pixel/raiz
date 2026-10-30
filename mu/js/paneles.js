@@ -220,7 +220,7 @@ export class Paneles {
     return `<div class="equipo-grid">
       <div class="col-eq"><div class="eq">${eq}</div><div class="fila-oro">${this.oro(d)}</div><button class="btn chico sec" id="p-cambiar">Cambiar de personaje</button><button class="link" id="p-tuto">¿Cómo se juega?</button></div>
       <div class="col-ficha" id="p-ficha">${this.htmlFicha(d)}</div>
-      <div class="col-inv"><div class="inv">${inv}</div></div></div>`;
+      <div class="col-inv"><div class="inv">${inv}</div><button class="btn chico sec" id="p-ordenar">Ordenar</button></div></div>`;
   }
 
   htmlFicha(d) {
@@ -239,12 +239,40 @@ export class Paneles {
     return ficha(it, d, acc.map(([a, n, off]) => `<button class="btn chico" data-a="${a}" ${off ? 'disabled' : ''}>${n}</button>`).join(''));
   }
 
+  // Arrastrar un objeto de la mochila a otro casillero, o a la columna del equipo para ponérselo.
+  arrastrable(b, d) {
+    const de = +b.dataset.i; if (!d.inv[de]) return;
+    b.onpointerdown = e => {
+      const x0 = e.clientX, y0 = e.clientY; let copia = null;
+      const mover = ev => {
+        if (!copia) {
+          if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 8) return;
+          copia = b.cloneNode(true); copia.classList.add('arrastrando'); copia.style.width = b.offsetWidth + 'px'; document.body.appendChild(copia); b.classList.add('origen');
+        }
+        ev.preventDefault();
+        copia.style.left = ev.clientX + 'px'; copia.style.top = ev.clientY + 'px';
+      };
+      const soltar = ev => {
+        removeEventListener('pointermove', mover); removeEventListener('pointerup', soltar); removeEventListener('pointercancel', soltar);
+        if (!copia) return;
+        copia.remove(); b.classList.remove('origen'); this.ignorarToque = true; setTimeout(() => { this.ignorarToque = false; }, 50);
+        if (ev.type !== 'pointerup') return;
+        const dest = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.slot');
+        if (dest?.dataset.i != null) { this.sel = null; this.ctx.mandar({ t: 'mover', de, a: +dest.dataset.i }); }
+        else if (dest?.dataset.e) { this.sel = null; this.ctx.mandar({ t: 'equipar', i: de }); }
+      };
+      addEventListener('pointermove', mover, { passive: false }); addEventListener('pointerup', soltar); addEventListener('pointercancel', soltar);
+    };
+  }
+
   conectarMochila(d) {
     this.el.querySelectorAll('.slot[data-e], .slot[data-i]').forEach(b => {
       const k = b.dataset.e ? 'e:' + b.dataset.e : 'i:' + b.dataset.i;
       if (this.sel === k) b.classList.add('sel');
-      b.onclick = () => { this.sel = (b.dataset.e ? d.equipo[b.dataset.e] : d.inv[+b.dataset.i]) ? k : null; this.personaje('equipo'); };
+      b.onclick = () => { if (this.ignorarToque) return; this.sel = (b.dataset.e ? d.equipo[b.dataset.e] : d.inv[+b.dataset.i]) ? k : null; this.personaje('equipo'); };
+      if (b.dataset.i != null) this.arrastrable(b, d);
     });
+    const ord = $('#p-ordenar', this.el); if (ord) ord.onclick = () => { this.sel = null; this.ctx.mandar({ t: 'ordenar' }); };
     this.el.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
       const [tipo, k] = this.sel.split(':'), a = b.dataset.a, m = this.ctx.mandar;
       if (a === 'quitar') m({ t: 'quitar', r: k });
@@ -475,11 +503,11 @@ export class Paneles {
   }
   htmlAsedio(d) {
     const e = R.EVENTOS.find(x => x.id === 'asedio'), B = R.BASTION, fase = ((Date.now() / 60000 - e.desfase) % e.cada + e.cada) % e.cada;
-    const abierto = fase < e.dura, min = abierto ? e.dura - fase : e.cada - fase, mm = `${Math.floor(min)}:${String(Math.floor(min % 1 * 60)).padStart(2, '0')}`;
+    const abierto = fase < e.dura, min = abierto ? e.dura - fase : e.cada - fase, mm = R.textoTiempo(min * 60);
     const s = this.ctx.senor?.(), h = this.herm, puede = abierto && h && (d.nivel >= B.nivelMin || d.resets);
     return `${s ? `<div class="h-cabeza"><span class="h-emblema" style="color:${s.color};border-color:${s.color}">${s.simbolo}&#xFE0E;</span><div><small>Mandan en el Bastión</small><b style="color:${s.color}">♛&#xFE0E; ${esc(s.nombre)}</b><small>Ganaron con ${s.puntos} puntos</small></div></div>` : '<p class="nota">El Bastión no tiene dueño todavía.</p>'}
       <div class="mision"><b>Asedio del Bastión Caído</b><span class="m-texto">${e.desc}</span>
-      <span class="m-obj">${abierto ? `En curso · termina en ${mm}` : `Empieza en ${mm} (cada 4 horas, dura ${e.dura} minutos)`}</span>
+      <span class="m-obj">${abierto ? `En curso · termina en ${mm}` : `Empieza en ${mm} (dura ${e.dura} minutos)`}</span>
       <span class="nota">· Solo entran hermandades (nivel ${B.nivelMin} o renacidos). Adentro, los de otra hermandad son enemigos: tocalos para atacar.<br>
       · Cada segundo que tu hermandad esté sola en el círculo del altar suma ${B.porSegundo} punto; cada enemigo que caiga, ${B.porMuerte}. Si caés, volvés al borde.<br>
       · Gana la que más puntos tenga (mínimo ${B.minimo}). Premio: ${B.premio.ganador.toLocaleString('es-AR')} de oro y una Gema del Abismo para cada miembro adentro (${B.premio.otros.toLocaleString('es-AR')} de oro para los demás), y +${Math.round(B.bonusExp * 100)}% de experiencia para toda la hermandad hasta el próximo asedio.</span>

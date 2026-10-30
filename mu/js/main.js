@@ -146,7 +146,7 @@ function ponerMontura(e, b) {
 }
 // Alas: cuelgan del cuerpo (que ya viene escalado), así suben con la montura y caen con el personaje.
 function ponerAlas(e, n) {
-  if (e.alas) { e.alas.parent?.remove(e.alas); e.alas = null; }
+  if (e.alas) { e.alas.parent?.remove(e.alas); e.alas = null; if (!e.mon) e.vis.cuerpo.position.y = 0; }
   e.alasN = n; if (!n) return;
   const v = VISUAL[e.tipo], k = 1 / e.vis.cuerpo.scale.x;
   e.alas = crearAlas(n); if (!e.alas) return;
@@ -158,7 +158,7 @@ function animarBestias(e, dt, corre) {
   if (e.mon) {
     const montado = !e.muerto;
     e.mon.raiz.visible = montado;
-    e.vis.cuerpo.position.y = montado ? e.mon.silla : 0;
+    if (montado || !e.alas) e.vis.cuerpo.position.y = montado ? e.mon.silla : 0;
     e.mon.muneco.ponerBase(corre ? 'run' : 'idle'); e.mon.muneco.update(dt);
     if (montado && e.piernas) {
       const [ul, ur, ll, lr] = e.piernas;
@@ -360,6 +360,7 @@ function evento(ev) {
   else if (tipo === 'rv') { const e = entes.get(a); if (e) revivir(e); if (a === yoId) { lx = b; lz = c; objetivo = null; destino = null; } }
   else if (tipo === 'aviso') hud.toast(a);
   else if (tipo === 'logro') { SND.sfx.nivel(); hud.toast(`Logro: «${a}». ${b} (+${c.toLocaleString('es-AR')} de oro)`, 'legendario'); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } }
+  else if (tipo === 'premio') { SND.sfx.nivel(); hud.toast(`${a}: +${b.toLocaleString('es-AR')} de oro${c ? ' · ' + c : ''}`, 'legendario'); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } }
   else if (tipo === 'cofre') { SND.sfx.nivel(); hud.toast(`¡Cofre del día! +${a.toLocaleString('es-AR')} de oro · ${b}`, 'legendario'); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } }
   else if (tipo === 'mision') { SND.sfx.nivel(); hud.toast(`${a}. «${b}»`, 'grande'); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } }
   else if (tipo === 'oro') { hud.ganancia(0, a); SND.sfx.oro(); }
@@ -514,7 +515,7 @@ function moverme(dt) {
     else { lx = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, lx)); lz = Math.max(-R.MUNDO + 2, Math.min(R.MUNDO - 2, lz)); }
     ldir = Math.atan2(mx, mz);
   }
-  yo.vis.muneco.ponerBase((mx || mz) && !yo.mon ? 'run' : 'idle'); yoCorre = !!(mx || mz);
+  yo.vis.muneco.ponerBase((mx || mz) && !yo.mon && !yo.alas ? 'run' : 'idle'); yoCorre = !!(mx || mz);
   const ahora = performance.now();
   if (ahora - ultEnvio > 100 && (Math.hypot(lx - enviado.x, lz - enviado.z) > 0.02)) {
     red.mandar({ t: 'pos', x: +lx.toFixed(2), z: +lz.toFixed(2), dir: +ldir.toFixed(2) });
@@ -538,7 +539,7 @@ function actualizarEntes(dt) {
       r.position.set(x, R.altura(x, z), z);
       r.rotation.y = angulo(r.rotation.y, b.dir, Math.min(1, dt * 12));
       const corre = e.st === 1 || Math.hypot(x - antes.x, z - antes.z) > 0.5 * dt;
-      e.vis.muneco.ponerBase(corre && !e.mon ? 'run' : 'idle'); e.corre = corre;
+      e.vis.muneco.ponerBase(corre && !e.mon && !e.alas ? 'run' : 'idle'); e.corre = corre;
     }
     if (e.aura) e.aura.visible = !!e.muralla && !e.muerto;
     if (e.flash > 0) e.flash -= dt;
@@ -551,7 +552,12 @@ function actualizarEntes(dt) {
     }
     e.vis.muneco.update(dt);
     if (e.esJ && (e.mon || e.pet)) animarBestias(e, dt, e === yo ? yoCorre : e.corre);
-    if (e.alas) animarAlas(e.alas, dt, e === yo ? yoCorre : e.corre);
+    if (e.alas) {
+      const corre = e === yo ? yoCorre : e.corre;
+      animarAlas(e.alas, dt, corre);
+      // Con alas no se camina: va flotando, más alto cuando avanza. Arriba de una montura sigue sentado.
+      if (!e.mon && (!e.muerto || e.esJ)) { e.vuelo = (e.vuelo || 0) + dt * 2.2; const alto = e.muerto ? 0 : (corre ? 0.95 : 0.55) + Math.sin(e.vuelo) * 0.1, c = e.vis.cuerpo.position; c.y += (alto - c.y) * Math.min(1, dt * 4); }
+    }
   }
 }
 
