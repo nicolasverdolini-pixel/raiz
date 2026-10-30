@@ -228,6 +228,7 @@ export class Mapa extends DurableObject {
       case 'forjar': return this.forjar(p, m.i, m.r);
       case 'engarce': return this.engarce(p, m);
       case 'caldero': return this.caldero(p, m);
+      case 'gemas': return this.combinarGemas(p, String(m.g || ''), !!m.todas);
       case 'aprender': return this.aprender(p, String(m.h || ''));
       case 'vela': return this.vela(p, String(m.lugar || ''));
       case 'viajar': return this.viajar(p, m.i | 0);
@@ -659,7 +660,7 @@ export class Mapa extends DurableObject {
 
   // Caldero del Caos: se pierden los tres equipos; si sale, aparece uno de rareza mayor; si no, vuelve algo de su valor.
   caldero(p, m) {
-    if (!this.rolCerca(p, 'herrero')) return this.aviso(p, 'El Caldero del Caos está con el herrero.');
+    if (!O.CALDEROS.includes(this.rolCerca(p, 'herrero')?.atalaya)) return this.aviso(p, `Caldero hay solo en ${O.CALDEROS.map(i => R.PUEBLOS[i].nombre).join(' y ')}.`);
     const is = [...new Set((Array.isArray(m.is) ? m.is : []).map(x => x | 0))];
     if (is.length !== 3 || is.some(i => this.bloqueado(p, i))) return;
     const lista = is.map(i => p.d.inv[i]), C2 = O.calderoListo(lista);
@@ -681,8 +682,24 @@ export class Mapa extends DurableObject {
   }
 
   // Engarces: abrir uno nuevo, poner una gema o sacarla (se recupera pagando). Todo con el herrero.
+  // Joyera: tres gemas iguales dan una de la calidad siguiente. Nunca falla.
+  combinarGemas(p, g, todas) {
+    if (!this.rolCerca(p, 'joyera')) return this.aviso(p, 'Las gemas las combina la Joyera.');
+    if (p.com || p.puesto) return this.aviso(p, 'Cerrá el comercio o el puesto primero.');
+    const sig = O.gemaSiguiente(g); if (!sig) return this.aviso(p, 'Esa gema ya es de la mejor calidad.');
+    const oro = O.CALIDADES[O.BASES[sig].calidad].oro, tiene = this.cuantos(p, g);
+    if (tiene < 3) return this.aviso(p, `Hacen falta 3 × ${O.BASES[g].nombre}.`);
+    const veces = Math.min(todas ? Math.floor(tiene / 3) : 1, Math.floor(p.d.oro / oro));
+    if (veces < 1) return this.aviso(p, `Combinar cuesta ${oro.toLocaleString('es-AR')} de oro.`);
+    this.gastar(p, g, veces * 3); p.d.oro -= oro * veces;
+    this.darOGuardar(p, { b: sig, c: veces }, 'La Joyera');
+    this.ev.push(['fx', 'forja', r2(p.x), r2(p.z), 1]);
+    this.aviso(p, `La Joyera te dio ${veces > 1 ? veces + ' × ' : ''}${O.BASES[sig].nombre}.`);
+    p.cambioInv = true; this.guardar(p);
+  }
+
   engarce(p, m) {
-    if (!this.rolCerca(p, 'herrero')) return this.aviso(p, 'Los engarces los trabaja el herrero.');
+    if (!this.rolCerca(p, 'joyera')) return this.aviso(p, 'Las gemas las engarza la Joyera.');
     const enInv = m.i != null && m.i !== '';
     const it = enInv ? p.d.inv[m.i | 0] : p.d.equipo[String(m.r || '')];
     if (!it || !O.esEquipo(it.b) || (enInv && this.bloqueado(p, m.i | 0))) return;

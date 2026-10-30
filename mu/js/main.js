@@ -428,7 +428,7 @@ addEventListener('pointerup', soltar); addEventListener('pointercancel', soltar)
 
 const ray = new THREE.Raycaster();
 // Qué dice el globito de cada cosa y a qué altura sale.
-const GLOBO = { mercader: '🧪 Pociones', herrero: '⚒ Armas y forja', vidente: '🔮 Eventos y más', domadora: '🐺 Bestias', baul: '📦 Baúl', tablon: '📜 Encargos', farol: '🔥 Viajar', senda: '🌀 Cruzar' };
+const GLOBO = { joyera: '💎 Gemas', mercader: '🧪 Pociones', herrero: '⚒ Armas y forja', vidente: '🔮 Eventos y más', domadora: '🐺 Bestias', baul: '📦 Baúl', tablon: '📜 Encargos', farol: '🔥 Viajar', senda: '🌀 Cruzar' };
 const ALTO_GLOBO = { baul: 1.6, tablon: 2.5, farol: 4.6, senda: 3.4 };
 let globos = [];
 function elegir(sx, sy) {

@@ -30,9 +30,9 @@ function casilla(it, attrs = '', extra = '') {
 // Qué hace una gema según dónde está engarzada.
 export function textoGema(g, enArma) {
   const ef = O.efectoGema(g, enArma), E = R.ELEMENTOS;
-  if (g === 'ojo') return enArma ? '+4% crítico, +20% daño crítico' : '+2% crítico';
+  if (O.BASES[g].de === 'ojo') return enArma ? `+${ef.crit}% crítico, +${ef.critDano}% daño crítico` : `+${ef.crit}% crítico`;
   const e = O.BASES[g].elem, al = { fuego: 'al fuego', hielo: 'al hielo', rayo: 'al rayo', veneno: 'al veneno', sombra: 'a la sombra' }[e];
-  return ef.elem ? `+10% del daño como ${E[e].nombre.toLowerCase()}` : `+12% de resistencia ${al}`;
+  return ef.elem ? `+${ef.elem[e]}% del daño como ${E[e].nombre.toLowerCase()}` : `+${ef.res[e]}% de resistencia ${al}`;
 }
 // Ficha con todo lo que importa del objeto. d = personaje (para requisitos y comparación).
 function ficha(it, d, acciones = '') {
@@ -54,7 +54,7 @@ function ficha(it, d, acciones = '') {
   }
   return `<div class="ficha ${claseObjeto(it)}">
     <div class="ficha-top"><div class="ficha-img ${claseObjeto(it)}">${imagen(it)}</div>
-      <div><b>${esc(O.nombreObjeto(it))}${it.c > 1 ? ' × ' + it.c : ''}</b><span class="rareza">${b.engarce ? 'Gema para engarzar' : b.ala ? `Alas · nivel ${b.ala}` : b.bestia ? O.NOMBRE_RANURA[b.r] : b.r ? O.RAREZAS[ra].nombre + ' · ' + O.NOMBRE_RANURA[b.r] : b.gema ? 'Gema' : 'Consumible'}</span></div></div>
+      <div><b>${esc(O.nombreObjeto(it))}${it.c > 1 ? ' × ' + it.c : ''}</b><span class="rareza">${b.engarce ? `Gema · ${O.CALIDADES[b.calidad].nombre}` : b.ala ? `Alas · nivel ${b.ala}` : b.bestia ? O.NOMBRE_RANURA[b.r] : b.r ? O.RAREZAS[ra].nombre + ' · ' + O.NOMBRE_RANURA[b.r] : b.gema ? 'Gema' : 'Consumible'}</span></div></div>
     ${lineas.join('')}
     ${O.textoExcelente(it).map(t => `<span class="exc-op">◆ ${t}</span>`).join('')}
     ${(() => { const t = ['casco', 'armadura', 'guantes', 'botas'].includes(b.r) ? O.SETS_BONUS.findIndex(x => x.id === it.b.split('_')[1]) : -1; if (t < 0) return '';
@@ -364,15 +364,17 @@ export class Paneles {
   npc(id, tab, elegido) {
     const n = O.NPCS.find(x => x.id === id), d = this.ctx.mio(); if (!n || !d) return;
     if (elegido) { this.forjaSel = elegido; this.sel = null; }
-    const tabs = n.rol === 'herrero' ? [['tienda', 'Comprar'], ['forja', 'Forja'], ['engarces', 'Engarces'], ['caldero', 'Caldero'], ['vender', 'Vender']]
+    const tabs = n.rol === 'joyera' ? [['gemas', 'Combinar'], ['engarces', 'Engarzar']] : n.rol === 'herrero' ? [['tienda', 'Comprar'], ['forja', 'Forja'], ['engarces', 'Engarces'], ['caldero', 'Caldero'], ['vender', 'Vender']]
       : n.rol === 'vidente' ? [['eventos', 'Eventos'], ['pozo', 'Pozo'], ['tienda', 'Comprar'], ['asedio', 'Asedio'], ['alas', 'Alas'], ['renacer', 'Renacer'], ['ranking', 'Ranking'], ['viajes', 'Velas']] : [['tienda', 'Comprar'], ['vender', 'Vender']];
     tab = tab || tabs[0][0];
     let cuerpo = `<p class="frase">«${n.frase}»</p>`;
     if (tab === 'tienda') cuerpo += this.htmlTienda(n, d);
     if (tab === 'vender') cuerpo += this.htmlVender(d);
     if (tab === 'forja') cuerpo += this.htmlForja(d);
-    if (tab === 'engarces') cuerpo += this.htmlEngarces(d);
-    if (tab === 'caldero') cuerpo += this.htmlCaldero(d);
+    const lugares = l => l.map(i => R.PUEBLOS[i].nombre).join(' y ');
+    if (tab === 'engarces') cuerpo += n.rol === 'joyera' ? this.htmlEngarces(d) : `<p class="nota">Yo no toco gemas. Eso lo hace la Joyera, y solo la vas a encontrar en ${lugares(O.JOYERAS)}.</p>`;
+    if (tab === 'gemas') cuerpo += this.htmlGemas(d);
+    if (tab === 'caldero') cuerpo += O.CALDEROS.includes(n.atalaya) ? this.htmlCaldero(d) : `<p class="nota">Acá no hay caldero. Quedan dos: ${lugares(O.CALDEROS)}.</p>`;
     if (tab === 'eventos') cuerpo += this.htmlEventos();
     if (tab === 'viajes') cuerpo += this.htmlVelas(d);
     if (tab === 'pozo') cuerpo += this.htmlPozo(d);
@@ -395,7 +397,11 @@ export class Paneles {
     const bc = $('#p-caldero', this.el); if (bc) bc.onclick = () => { if (confirm('Los tres equipos se pierden, salga bien o mal. ¿Seguís?')) { m({ t: 'caldero', is: this.calSel }); this.calSel = []; } };
     this.el.querySelectorAll('[data-esel]').forEach(b => b.onclick = () => { const [t, k] = b.dataset.esel.split(':'); this.engSel = t === 'e' ? { r: k } : { i: +k }; this.npc(id, 'engarces'); });
     const ab = $('#p-abrir', this.el); if (ab) ab.onclick = () => m({ t: 'engarce', a: 'abrir', ...this.engSel });
-    this.el.querySelectorAll('[data-poner]').forEach(b => b.onclick = () => m({ t: 'engarce', a: 'poner', gema: b.dataset.poner, ...this.engSel }));
+    // Tocar una gema solo la muestra: se engarza recién con el botón.
+    this.el.querySelectorAll('[data-poner]').forEach(b => b.onclick = () => { this.engGema = b.dataset.poner; this.npc(id, 'engarces'); });
+    const ep = $('#p-engarzar', this.el); if (ep) ep.onclick = () => { m({ t: 'engarce', a: 'poner', gema: this.engGema, ...this.engSel }); this.engGema = null; };
+    this.el.querySelectorAll('[data-gsel]').forEach(b => b.onclick = () => { this.gemaSel = b.dataset.gsel; this.npc(id, 'gemas'); });
+    this.el.querySelectorAll('[data-combinar]').forEach(b => b.onclick = () => m({ t: 'gemas', g: this.gemaSel, todas: b.dataset.combinar === 'todas' }));
     this.el.querySelectorAll('[data-sacar]').forEach(b => b.onclick = () => m({ t: 'engarce', a: 'sacar', k: +b.dataset.sacar, ...this.engSel }));
     const bb = $('#p-bastion', this.el); if (bb) bb.onclick = () => { m({ t: 'bastion' }); this.cerrar(); };
     const bp = $('#p-pozo', this.el); if (bp) bp.onclick = () => { m({ t: 'pozo' }); this.cerrar(); };
@@ -448,6 +454,24 @@ export class Paneles {
         <button class="btn" id="p-caldero" ${info && d.oro >= info.oro ? '' : 'disabled'}>Fundir</button></div></div>`;
   }
 
+  // Joyera: elegís una gema, ves lo que da y lo que daría la de la calidad siguiente, y combinás.
+  htmlGemas(d) {
+    const cant = g => d.inv.reduce((a, x) => a + (x?.b === g ? x.c || 1 : 0), 0);
+    const lista = [...new Set(d.inv.filter(x => O.BASES[x?.b]?.engarce).map(x => x.b))].sort((a, c) => O.BASES[a].de.localeCompare(O.BASES[c].de) || O.BASES[c].calidad - O.BASES[a].calidad);
+    if (!lista.length) return '<p class="nota">No tenés gemas. Caen de los monstruos desde el nivel 15 y de los jefes.</p>';
+    const g = lista.includes(this.gemaSel) ? this.gemaSel : lista[0], b = O.BASES[g], sig = O.gemaSiguiente(g), s = sig && O.BASES[sig];
+    const oro = s ? O.CALIDADES[s.calidad].oro : 0, n = cant(g), veces = s ? Math.min(Math.floor(n / 3), Math.floor(d.oro / oro)) : 0;
+    this.gemaSel = g;
+    const efecto = x => `<small><b>En el arma:</b> ${textoGema(x, true)}<br><b>En la armadura:</b> ${textoGema(x, false)}</small>`;
+    return `<div class="tienda-grid"><div><div class="grilla">${lista.map(x => casilla({ b: x, c: cant(x) }, `data-gsel="${x}"`).replace('class="slot ', `class="slot ${x === g ? 'sel ' : ''}`)).join('')}</div></div>
+      <div><div class="fila-t"><span class="ic">${imagen({ b: g })}</span><span><b>${b.nombre}</b>${efecto(g)}</span></div>
+      ${s ? `<p class="nota">Tres de estas dan una mejor. No falla nunca.</p>
+        <div class="fila-t"><span class="ic">${imagen({ b: sig })}</span><span><b>${s.nombre}</b>${efecto(sig)}</span></div>
+        <p>Tenés <b>${n}</b> de 3 · Cuesta <b>${oro.toLocaleString('es-AR')}</b> de oro</p>
+        <div class="acciones"><button class="btn chico" data-combinar="una" ${veces ? '' : 'disabled'}>Combinar 3</button>${veces > 1 ? `<button class="btn chico sec" data-combinar="todas">Combinar todas (${veces})</button>` : ''}</div>`
+      : '<p class="nota">Esta gema ya es de la mejor calidad.</p>'}</div></div>`;
+  }
+
   htmlEngarces(d) {
     const lista = [...O.RANURAS.filter(r => d.equipo[r]).map(r => ['e:' + r, d.equipo[r]]), ...d.inv.map((it, i) => ['i:' + i, it]).filter(([, it]) => it && O.forjable(it.b))].filter(([, it]) => O.forjable(it.b));
     const s = this.engSel, it = s ? (s.r ? d.equipo[s.r] : d.inv[s.i]) : null;
@@ -455,11 +479,14 @@ export class Paneles {
     if (it && O.esEquipo(it.b)) {
       const max = O.maxEngarces(it), n = it.s || 0, gs = it.g || [], arma = O.BASES[it.b].r === 'arma';
       const gemas = d.inv.map((x, i) => [x, i]).filter(([x]) => x && O.BASES[x.b]?.engarce);
+      const elegida = gemas.some(([x]) => x.b === this.engGema) ? this.engGema : null;
       det = ficha(it, d) + `<div class="forja-det">
         <span>Engarces: <b>${n}</b> de ${max} posibles ${n < max ? `· <button class="btn chico" id="p-abrir" ${d.oro >= O.ENGARCES.abrir(n) ? '' : 'disabled'}>Abrir uno (${O.ENGARCES.abrir(n).toLocaleString('es-AR')} de oro)</button>` : ''}</span>
         ${gs.map((g, k) => `<div class="fila-t"><span class="ic">${imagen({ b: g })}</span><span><b>${O.BASES[g].nombre}</b><small>${textoGema(g, arma)}</small></span><button class="btn chico sec" data-sacar="${k}">Sacar (${O.ENGARCES.sacar.toLocaleString('es-AR')})</button></div>`).join('')}
-        ${n > gs.length ? `<span class="nota">Engarces libres: ${n - gs.length}. Tocá una gema para ponerla:</span>
-          <div class="grilla">${gemas.length ? gemas.map(([x]) => casilla(x, `data-poner="${x.b}" title="${O.BASES[x.b].nombre}"`)).join('') : '<span class="nota">No tenés gemas. Caen de los monstruos desde el nivel 15 y de los jefes.</span>'}</div>` : n ? '' : '<span class="nota">No tiene engarces. Abrí uno para poner gemas.</span>'}
+        ${!n ? '<span class="nota">No tiene engarces. Abrí uno para poner gemas.</span>' : ''}
+        ${n ? `<span class="nota">${n > gs.length ? `Engarces libres: ${n - gs.length}.` : 'No le quedan engarces libres.'} Tocá una gema para ver qué suma:</span>
+          <div class="grilla">${gemas.length ? gemas.map(([x]) => casilla(x, `data-poner="${x.b}" title="${O.BASES[x.b].nombre}"`).replace('class="slot ', `class="slot ${x.b === this.engGema ? 'sel ' : ''}`)).join('') : '<span class="nota">No tenés gemas. Caen de los monstruos desde el nivel 15 y de los jefes.</span>'}</div>
+          ${elegida ? `<div class="fila-t"><span class="ic">${imagen({ b: elegida })}</span><span><b>${O.BASES[elegida].nombre}</b><small>En ${arma ? 'esta arma' : 'este equipo'}: ${textoGema(elegida, arma)}</small></span><button class="btn chico" id="p-engarzar" ${n > gs.length ? '' : 'disabled'}>Engarzar</button></div>` : ''}` : ''}
       </div>`;
     }
     const k = s ? (s.r ? 'e:' + s.r : 'i:' + s.i) : null;

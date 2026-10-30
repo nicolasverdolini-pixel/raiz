@@ -96,7 +96,7 @@ const PROC = { pocion: () => frasco('#c0201a'), eter: () => frasco('#2a6ae0'), v
 
 function clave(it) { return it.b + ':' + O.rareza(it); }
 export function modeloDe(b) {
-  if (PROC[b]) return { proc: PROC[b], t: 0 };
+  if (PROC[O.BASES[b]?.de || b]) return { proc: PROC[O.BASES[b]?.de || b], t: 0 };
   const base = O.BASES[b]; if (!base?.r) return null;
   if (base.ala) return { alas: base.ala, t: 0 };
   if (base.bestia) { const k = (base.r === 'mascota' ? 'pet_' : 'mon_') + b; return VISUAL[k] ? { bicho: k, t: 0 } : null; }

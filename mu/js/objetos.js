@@ -94,21 +94,35 @@ export function sacrificioAlas(inv, receta) {
 }
 // Gemas para engarzar (como en Diablo): en el arma suman daño de su elemento; en la armadura, resistencia.
 // El Ojo de Halcón da crítico. Se ponen en los engarces del equipo con el herrero.
-const engarce = (id, nombre, elem, desc) => B[id] = { id, nombre, engarce: true, elem, pila: true, precio: 0, valor: 4000, desc };
-engarce('rubi', 'Rubí de Brasa', 'fuego', 'En el arma: +10% del daño como fuego. En la armadura: +12% de resistencia al fuego.');
-engarce('zafiro', 'Zafiro de Escarcha', 'hielo', 'En el arma: +10% del daño como hielo. En la armadura: +12% de resistencia al hielo.');
-engarce('topacio', 'Topacio de Tormenta', 'rayo', 'En el arma: +10% del daño como rayo. En la armadura: +12% de resistencia al rayo.');
-engarce('esmeralda', 'Esmeralda Podrida', 'veneno', 'En el arma: +10% del daño como veneno. En la armadura: +12% de resistencia al veneno.');
-engarce('onix', 'Ónix de Sombra', 'sombra', 'En el arma: +10% del daño como sombra. En la armadura: +12% de resistencia a la sombra.');
-engarce('ojo', 'Ojo de Halcón', null, 'En el arma: +4% de crítico y +20% de daño crítico. En la armadura: +2% de crítico.');
+// Cada gema tiene cuatro calidades: tres iguales se combinan en la Joyera y dan una de la calidad siguiente.
+export const CALIDADES = [
+  { nombre: 'Común', fem: '', mas: '', efecto: 1 },
+  { nombre: 'Rara', fem: 'rara', mas: 'raro', efecto: 2, oro: 5000 },
+  { nombre: 'Legendaria', fem: 'legendaria', mas: 'legendario', efecto: 3.5, oro: 50000 },
+  { nombre: 'Mítica', fem: 'mítica', mas: 'mítico', efecto: 6, oro: 300000 },
+];
+const gemaEngarce = (id, nombre, elem, fem) => CALIDADES.forEach((c, i) => {
+  const k = i ? id + (i + 1) : id, n = c.efecto, pct = Math.round(10 * n), res = Math.round(12 * n);
+  B[k] = { id: k, nombre: i ? `${nombre} ${fem ? c.fem : c.mas}` : nombre, engarce: true, elem, pila: true, precio: 0, valor: 4000, de: id, calidad: i,
+    desc: elem ? `En el arma: +${pct}% del daño como ${elem === 'sombra' ? 'sombra' : elem}. En la armadura: +${res}% de resistencia ${elem === 'sombra' ? 'a la sombra' : `al ${elem}`}.` : `En el arma: +${Math.round(4 * n)}% de crítico y +${Math.round(20 * n)}% de daño crítico. En la armadura: +${Math.round(2 * n)}% de crítico.` };
+});
+gemaEngarce('rubi', 'Rubí de Brasa', 'fuego');
+gemaEngarce('zafiro', 'Zafiro de Escarcha', 'hielo');
+gemaEngarce('topacio', 'Topacio de Tormenta', 'rayo');
+gemaEngarce('esmeralda', 'Esmeralda Podrida', 'veneno', true);
+gemaEngarce('onix', 'Ónix de Sombra', 'sombra');
+gemaEngarce('ojo', 'Ojo de Halcón', null);
+// La gema que sale al combinar tres de esta (null si ya es la mejor).
+export const gemaSiguiente = g => { const b = B[g]; return b?.engarce && b.calidad < CALIDADES.length - 1 ? b.de + (b.calidad + 2) : null; };
 export const GEMAS = ['rubi', 'zafiro', 'topacio', 'esmeralda', 'onix', 'ojo'];
 // Engarces: cuántos puede tener según la rareza, y lo que cuesta abrir uno más.
 export const ENGARCES = { max: [1, 2, 2, 3], abrir: n => 3000 * (n + 1) ** 2, sacar: 1500 };
 export const maxEngarces = it => (BASES[it.b]?.especial ? 0 : ENGARCES.max[rareza(it)]);
 export function efectoGema(g, enArma) {
   const b = BASES[g]; if (!b) return {};
-  if (g === 'ojo') return enArma ? { crit: 4, critDano: 20 } : { crit: 2 };
-  return enArma ? { elem: { [b.elem]: 10 } } : { res: { [b.elem]: 12 } };
+  const k = CALIDADES[b.calidad || 0].efecto;
+  if (b.de === 'ojo') return enArma ? { crit: Math.round(4 * k), critDano: Math.round(20 * k) } : { crit: Math.round(2 * k) };
+  return enArma ? { elem: { [b.elem]: Math.round(10 * k) } } : { res: { [b.elem]: Math.round(12 * k) } };
 }
 export const BASES = B;
 // Nivel visual de lo que tiene puesto (0 = Cuero / nivel 1 ... 6 = Último Rey), para vestir al personaje. -1 = nada.
@@ -178,10 +192,11 @@ export const RAREZAS = [
   { nombre: 'Legendario', color: '#ffb84a', opciones: [3, 3], poder: 1.35 },
   { nombre: 'Mítico', color: '#ff3b4a', opciones: [4, 4], poder: 1.7 },
 ];
-export const rareza = it => it?.ra || (it?.x?.length ? 1 : 0);
+export const rareza = it => it?.ra || (it?.x?.length ? 1 : 0) || BASES[it?.b]?.calidad || 0;
 
 export function nombreObjeto(it) {
   const b = BASES[it.b]; if (!b) return '¿?';
+  if (b.engarce) return b.nombre;
   const ra = rareza(it);
   const nombre = ra === 1 ? `Excelente ${b.nombre}` : ra === 2 ? `${b.nombre} de los Antiguos` : ra === 3 ? `${b.nombre} del Sol Hondo` : b.nombre;
   return `${nombre}${it.n ? ' +' + it.n : ''}`;
@@ -224,6 +239,9 @@ export const FORJA = {
 // Cada atalaya vende el equipo de su nivel (tier 1 a 4).
 const SETS_ID = ['cuero', 'vigia', 'osario', 'foso', 'velo', 'escoria', 'rey', 'escarcha', 'draco'];
 const equipoDeTier = t => ['espada', 'ballesta', 'baculo', 'hacha', 'dagas', 'cetro', 'garras'].map(a => a + t).concat(['escudo' + t, ...['casco', 'armadura', 'guantes', 'botas'].map(r => `${r}_${SETS_ID[t - 1]}`)]);
+// Trampitas para que haya que viajar: no todo está en la capital.
+export const JOYERAS = [3, 6];    // Atalaya Hundida y Atalaya Calcinada: las gemas se trabajan solo acá
+export const CALDEROS = [1, 5];   // Atalaya Ahogada y Atalaya de Sal: solo estos herreros tienen caldero
 const ATALAYAS = [
   { x: 0, z: 0, tier: 1, nombres: ['Úrsula la Boticaria', 'Tordo el Herrero'], vidente: true, domadora: 'Mastín el Domador', bestias: ['tabano', 'anima_g', 'lobo_m'] },
   { x: -62, z: 46, tier: 2, nombres: ['Bruma la Ahogada', 'Garfio el Herrero'] },
@@ -243,6 +261,7 @@ export const NPCS = ATALAYAS.flatMap((a, i) => {
     { id: 'herrero' + i, rol: 'herrero', atalaya: i, nombre: a.nombres[1], modelo: 'npc_herrero.glb', x: a.x + 4.4, z: a.z - 2.4, giro: -0.9,
       frase: i ? 'Acá el hierro es mejor. Y más caro. Lo vale.' : 'El hierro no miente. Las gemas sí, a veces.', vende: equipoDeTier(a.tier), forja: true },
   ];
+  if (JOYERAS.includes(i)) lista.push({ id: 'joyera' + i, rol: 'joyera', atalaya: i, nombre: 'La Joyera', modelo: 'npc_vidente.glb', tinte: '#3a2a5a', x: a.x - 5.2, z: a.z + 1.4, giro: 1.4, frase: 'Tres piedras iguales valen más juntas. Dámelas y te muestro.' });
   lista.push({ id: 'baul' + i, rol: 'baul', atalaya: i, nombre: 'Baúl de la cuenta', x: a.x + 1.8, z: a.z + 1.6, giro: 0.6, frase: 'Lo que guardes acá lo ven todos tus personajes.' });
   lista.push({ id: 'tablon' + i, rol: 'tablon', atalaya: i, nombre: 'Tablón de Encargos', x: a.x - 2.6, z: a.z + 3.4, giro: 2.4, frase: 'Pedidos clavados con cuchillo. Siempre hay uno nuevo.' });
   lista.push({ id: 'farol' + i, rol: 'farol', atalaya: i, nombre: 'Farol', x: a.x, z: a.z, frase: 'Desde acá se viaja a las atalayas que ya encendiste.' });
