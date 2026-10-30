@@ -279,6 +279,7 @@ export class Mapa extends DurableObject {
     if (!this.reloj) { this.reloj = setInterval(() => this.tick(), R.TICK * 1000); }
     if (p.d.hermandad) await this.cargarHerm(p);
     this.recompensaDiaria(p); this.objetivosHoy(p);
+    this.progresoAnterior(p);
     // Logros que ya estaban cumplidos de antes (nivel, lugares, misiones, renaceres).
     this.contar(p, 'nivel', p.d.nivel, true); this.contar(p, 'lugares', p.d.lugares.length, true);
     this.contar(p, 'misiones', p.d.misiones.hechas.length, true); this.contar(p, 'renaceres', p.d.resets || 0, true);
@@ -292,10 +293,10 @@ export class Mapa extends DurableObject {
     if (p.d.objetivos?.dia !== hoy) { p.d.objetivos = { dia: hoy, lista: R.objetivosDelDia(p.d.nivel, Math.random), cobrado: false }; p.cambioMis = true; }
     return p.d.objetivos;
   }
-  contar(p, cont, valor, maximo = false) {
+  contar(p, cont, valor, maximo = false, sinObjetivos = false) {
     const L = p.d.logros || (p.d.logros = { c: {}, hechos: [] });
     L.c[cont] = maximo ? Math.max(L.c[cont] || 0, valor) : (L.c[cont] || 0) + valor;
-    if (!maximo) {
+    if (!maximo && !sinObjetivos) {
       const O2 = this.objetivosHoy(p); let cambio = false;
       for (const o of O2.lista) if (o.cont === cont && o.prog < o.meta) { o.prog = Math.min(o.meta, o.prog + valor); cambio = true; if (o.prog >= o.meta) this.aviso(p, `Objetivo del día cumplido: ${R.textoObjetivo(o)}.`); }
       if (cambio) { p.cambioMis = true; if (!O2.cobrado && O2.lista.every(o => o.prog >= o.meta)) this.cofreDelDia(p); }
@@ -308,6 +309,28 @@ export class Mapa extends DurableObject {
       p.priv.push(['logro', lg.titulo, lg.desc, oro]); p.cambioInv = true; p.cambioMis = true;
       this.msgTodos(`${p.nombre} consiguió el logro «${lg.titulo}».`);
     }
+  }
+  // Los logros se agregaron con el juego andando: a los personajes de antes se les reconoce lo que ya hicieron.
+  // Las muertes se calculan por la experiencia que juntaron (cuántos monstruos de su nivel hacen falta para llegar
+  // a donde están); la forja, las rarezas y las alas, por lo que tienen puesto, en la mochila y en el baúl.
+  progresoAnterior(p) {
+    const L = p.d.logros || (p.d.logros = { c: {}, hechos: [] });
+    if (L.retro) return; L.retro = true;
+    if (p.d.nivel <= 1 && !p.d.resets) return;
+    const comunes = R.TIPOS.map(t => R.MONSTRUOS[t]).filter(m => !m.jefe && !m.soloEvento);
+    const expDe = n => { const cerca = comunes.filter(m => Math.abs(m.nivel - n) <= 6); const l = cerca.length ? cerca : [comunes.reduce((a, m) => (Math.abs(m.nivel - n) < Math.abs(a.nivel - n) ? m : a))]; return l.reduce((a, m) => a + m.exp, 0) / l.length; };
+    const hasta = top => { let k = 0; for (let n = 1; n < top; n++) k += R.expParaSubir(n) / expDe(n); return k; };
+    const muertes = Math.round(hasta(p.d.nivel) + (p.d.resets || 0) * hasta(R.RENACER.nivel));
+    const todo = [...Object.values(p.d.equipo || {}), ...(p.d.inv || []), ...(p.baul || [])].filter(Boolean);
+    const forja = Math.max(0, ...todo.filter(it => O.forjable(it.b)).map(it => it.n || 0));
+    const leg = todo.filter(it => O.rareza(it) === 2).length, mit = todo.filter(it => O.rareza(it) === 3).length;
+    const alas = Math.max(0, ...todo.map(it => O.BASES[it.b]?.ala || 0));
+    if (muertes) this.contar(p, 'muertes', Math.max(0, muertes - (L.c.muertes || 0)), false, true);
+    if (forja) this.contar(p, 'forja', forja, true);
+    if (leg) this.contar(p, 'legendarios', Math.max(0, leg - (L.c.legendarios || 0)), false, true);
+    if (mit) this.contar(p, 'miticos', Math.max(0, mit - (L.c.miticos || 0)), false, true);
+    if (alas) this.contar(p, 'alas', alas, true);
+    this.aviso(p, `Se te reconoció lo que hiciste antes de los logros: unos ${muertes.toLocaleString('es-AR')} monstruos cazados.`);
   }
   cofreDelDia(p) {
     const O2 = p.d.objetivos; O2.cobrado = true;
