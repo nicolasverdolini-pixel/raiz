@@ -61,6 +61,7 @@ export const LOGROS = [
   LG('leg1', 'legendarios', 1, 'Afortunado', 'Encontrá un objeto legendario.', 200), LG('mit1', 'miticos', 1, 'Tocado por el Sol', 'Encontrá un objeto mítico.', 600),
   LG('ase1', 'asedios', 1, 'Señor del Bastión', 'Ganá un Asedio con tu hermandad.', 500), LG('san20', 'santuarios', 20, 'Devoto', 'Usá 20 santuarios.', 120),
   LG('alas3', 'alas', 3, 'Alado del Sol', 'Conseguí las Alas del Sol Hondo.', 800),
+  LG('cal10', 'calderos', 10, 'Alquimista del Caos', 'Usá 10 veces el Caldero del Caos.', 300),
 ];
 // Objetivos del día: tres por día y por personaje. Cumplidos los tres, se abre un cofre.
 export const OBJETIVOS = [

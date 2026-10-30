@@ -221,6 +221,7 @@ export class Mapa extends DurableObject {
       case 'vender': return this.vender(p, m.i | 0);
       case 'forjar': return this.forjar(p, m.i, m.r);
       case 'engarce': return this.engarce(p, m);
+      case 'caldero': return this.caldero(p, m);
       case 'aprender': return this.aprender(p, String(m.h || ''));
       case 'vela': return this.vela(p, String(m.lugar || ''));
       case 'viajar': return this.viajar(p, m.i | 0);
@@ -619,6 +620,29 @@ export class Mapa extends DurableObject {
     const oro = O.precioVenta(it) * (it.c || 1);
     p.d.inv[i] = null; p.d.oro += oro; p.cambioInv = true;
     this.aviso(p, `Vendiste ${O.nombreObjeto(it)} por ${oro} de oro.`);
+  }
+
+  // Caldero del Caos: se pierden los tres equipos; si sale, aparece uno de rareza mayor; si no, vuelve algo de su valor.
+  caldero(p, m) {
+    if (!this.rolCerca(p, 'herrero')) return this.aviso(p, 'El Caldero del Caos está con el herrero.');
+    const is = [...new Set((Array.isArray(m.is) ? m.is : []).map(x => x | 0))];
+    if (is.length !== 3 || is.some(i => this.bloqueado(p, i))) return;
+    const lista = is.map(i => p.d.inv[i]), C2 = O.calderoListo(lista);
+    if (!C2) return this.aviso(p, 'Hacen falta tres equipos de la misma rareza, sin gemas (legendario como máximo).');
+    if (p.d.oro < C2.oro) return this.aviso(p, `El caldero cuesta ${C2.oro.toLocaleString('es-AR')} de oro.`);
+    p.d.oro -= C2.oro;
+    const valor = lista.reduce((a, it) => a + O.precioVenta(it), 0);
+    for (const i of is) p.d.inv[i] = null;
+    if (Math.random() < C2.chance) {
+      const it = O.fundir(C2.ra, C2.nivel, p.d.clase, Math.random);
+      this.darOGuardar(p, it, 'Caldero del Caos');
+      p.priv.push(['caldero', 'ok', `¡El caldero escupió ${O.nombreObjeto(it)}!`, O.rareza(it)]);
+      if (O.rareza(it) === 2) this.contar(p, 'legendarios', 1); if (O.rareza(it) === 3) { this.contar(p, 'miticos', 1); this.msgTodos(`¡${p.nombre} sacó un objeto MÍTICO del Caldero del Caos!`, true); }
+    } else {
+      const vuelve = Math.round(valor * O.CALDERO.devuelve); p.d.oro += vuelve;
+      p.priv.push(['caldero', 'mal', `El caldero se lo tragó todo. Te devolvió ${vuelve.toLocaleString('es-AR')} de oro.`, 0]);
+    }
+    this.contar(p, 'calderos', 1); p.cambioInv = true; this.guardar(p);
   }
 
   // Engarces: abrir uno nuevo, poner una gema o sacarla (se recupera pagando). Todo con el herrero.

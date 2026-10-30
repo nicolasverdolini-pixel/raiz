@@ -291,6 +291,20 @@ export function equipoAlAzar(nv, rnd, probExc, clase, probLeg = 0, probMit = 0) 
   return it;
 }
 
+// Caldero del Caos: tres equipos de la misma rareza (y sin gemas) se funden en uno de la rareza siguiente, si sale bien.
+export const CALDERO = { chance: [0.6, 0.35, 0.15], oro: [2000, 25000, 150000], devuelve: 0.2 };
+export function calderoListo(lista) {
+  if (lista.length !== 3 || lista.some(it => !forjable(it?.b) || it.g?.length)) return null;
+  const ra = rareza(lista[0]); if (ra > 2 || lista.some(it => rareza(it) !== ra)) return null;
+  return { ra, chance: CALDERO.chance[ra], oro: CALDERO.oro[ra], nivel: Math.max(...lista.map(it => BASES[it.b].req)) };
+}
+// El resultado: un equipo al azar del nivel del mejor que entró, con la rareza siguiente.
+export function fundir(ra, nivel, clase, rnd) {
+  const pedida = ra + 1;
+  for (let i = 0; i < 50; i++) { const it = equipoAlAzar(nivel, rnd, pedida === 1 ? 1 : 0, clase, pedida === 2 ? 1 : 0, pedida === 3 ? 1 : 0); if (puedeUsar(it.b, clase)) return it; }
+  return { b: `armadura_${SETS_VIS[Math.max(0, SETS.findIndex(x => x[2] > nivel) - 1)] || 'cuero'}`, n: 0 };
+}
+
 export function precioVenta(it) {
   const b = BASES[it.b]; if (!b) return 0;
   const base = b.precio || b.valor || (b.gema ? 800 : 300);

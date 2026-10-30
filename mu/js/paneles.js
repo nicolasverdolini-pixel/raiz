@@ -336,7 +336,7 @@ export class Paneles {
   npc(id, tab, elegido) {
     const n = O.NPCS.find(x => x.id === id), d = this.ctx.mio(); if (!n || !d) return;
     if (elegido) { this.forjaSel = elegido; this.sel = null; }
-    const tabs = n.rol === 'herrero' ? [['tienda', 'Comprar'], ['forja', 'Forja'], ['engarces', 'Engarces'], ['vender', 'Vender']]
+    const tabs = n.rol === 'herrero' ? [['tienda', 'Comprar'], ['forja', 'Forja'], ['engarces', 'Engarces'], ['caldero', 'Caldero'], ['vender', 'Vender']]
       : n.rol === 'vidente' ? [['eventos', 'Eventos'], ['pozo', 'Pozo'], ['tienda', 'Comprar'], ['asedio', 'Asedio'], ['alas', 'Alas'], ['renacer', 'Renacer'], ['ranking', 'Ranking'], ['viajes', 'Velas']] : [['tienda', 'Comprar'], ['vender', 'Vender']];
     tab = tab || tabs[0][0];
     let cuerpo = `<p class="frase">«${n.frase}»</p>`;
@@ -344,6 +344,7 @@ export class Paneles {
     if (tab === 'vender') cuerpo += this.htmlVender(d);
     if (tab === 'forja') cuerpo += this.htmlForja(d);
     if (tab === 'engarces') cuerpo += this.htmlEngarces(d);
+    if (tab === 'caldero') cuerpo += this.htmlCaldero(d);
     if (tab === 'eventos') cuerpo += this.htmlEventos();
     if (tab === 'viajes') cuerpo += this.htmlVelas(d);
     if (tab === 'pozo') cuerpo += this.htmlPozo(d);
@@ -362,6 +363,8 @@ export class Paneles {
     this.el.querySelectorAll('[data-lugar]').forEach(b => b.onclick = () => { m({ t: 'vela', lugar: b.dataset.lugar }); this.cerrar(); });
     this.el.querySelectorAll('[data-fsel]').forEach(b => b.onclick = () => { const [t, k] = b.dataset.fsel.split(':'); this.forjaSel = t === 'e' ? { r: k } : { i: +k }; this.npc(id, 'forja'); });
     const bf = $('#p-forjar', this.el); if (bf) bf.onclick = () => m({ t: 'forjar', ...this.forjaSel });
+    this.el.querySelectorAll('[data-csel]').forEach(b => b.onclick = () => { const i = +b.dataset.csel, s = this.calSel = (this.calSel || []).filter(x => d.inv[x]); if (s.includes(i)) s.splice(s.indexOf(i), 1); else if (s.length < 3) s.push(i); this.npc(id, 'caldero'); });
+    const bc = $('#p-caldero', this.el); if (bc) bc.onclick = () => { if (confirm('Los tres equipos se pierden, salga bien o mal. ¿Seguís?')) { m({ t: 'caldero', is: this.calSel }); this.calSel = []; } };
     this.el.querySelectorAll('[data-esel]').forEach(b => b.onclick = () => { const [t, k] = b.dataset.esel.split(':'); this.engSel = t === 'e' ? { r: k } : { i: +k }; this.npc(id, 'engarces'); });
     const ab = $('#p-abrir', this.el); if (ab) ab.onclick = () => m({ t: 'engarce', a: 'abrir', ...this.engSel });
     this.el.querySelectorAll('[data-poner]').forEach(b => b.onclick = () => m({ t: 'engarce', a: 'poner', gema: b.dataset.poner, ...this.engSel }));
@@ -403,6 +406,18 @@ export class Paneles {
     }
     const k = s ? (s.r ? 'e:' + s.r : 'i:' + s.i) : null;
     return `<div class="tienda-grid"><div><div class="grilla">${lista.map(([kk, x]) => casilla(x, `data-fsel="${kk}"`).replace('class="slot ', `class="slot ${kk === k ? 'sel ' : ''}`)).join('')}</div></div><div>${det}</div></div>`;
+  }
+
+  htmlCaldero(d) {
+    const sel = (this.calSel || []).filter(i => d.inv[i]), lista = d.inv.map((it, i) => [it, i]).filter(([it]) => it && O.forjable(it.b) && !it.g?.length);
+    const elegidos = sel.map(i => d.inv[i]), info = O.calderoListo(elegidos), R2 = O.RAREZAS;
+    return `<p class="nota">Tirá <b>tres equipos de la misma rareza</b> al Caldero del Caos. Si sale bien, aparece uno de la rareza siguiente, para tu clase y del nivel del mejor que pusiste. Los tres se pierden siempre; si falla, te devuelve un poco de oro.</p>
+      <div class="lista caldero-info">${O.CALDERO.chance.map((c, r) => `<div class="fila-t"><span><b style="color:${r ? R2[r].color : ''}">${R2[r].nombre}</b> → <b style="color:${R2[r + 1].color}">${R2[r + 1].nombre}</b><small>${Math.round(c * 100)}% · ${O.CALDERO.oro[r].toLocaleString('es-AR')} de oro</small></span></div>`).join('')}</div>
+      <div class="tienda-grid"><div><div class="grilla">${lista.map(([it, i]) => casilla(it, `data-csel="${i}"`).replace('class="slot ', `class="slot ${sel.includes(i) ? 'sel ' : ''}`)).join('') || '<p class="nota">No tenés equipos libres en la mochila.</p>'}</div></div>
+      <div class="forja-det"><span>Elegidos: <b>${sel.length}</b> de 3</span>
+        ${sel.length === 3 && !info ? '<span class="peligro">Tienen que ser de la misma rareza (hasta legendario).</span>' : ''}
+        ${info ? `<span>Sale <b>${Math.round(info.chance * 100)}%</b> de las veces · ${info.oro.toLocaleString('es-AR')} de oro</span>` : ''}
+        <button class="btn" id="p-caldero" ${info && d.oro >= info.oro ? '' : 'disabled'}>Fundir</button></div></div>`;
   }
 
   htmlEngarces(d) {

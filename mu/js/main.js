@@ -364,6 +364,7 @@ function evento(ev) {
   else if (tipo === 'mision') { SND.sfx.nivel(); hud.toast(`${a}. «${b}»`, 'grande'); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } }
   else if (tipo === 'oro') { hud.ganancia(0, a); SND.sfx.oro(); }
   else if (tipo === 'recoge') { SND.sfx.recoger(b); hud.botin(a, b); if (b >= 1) hud.toast(`Recogiste ${a}`, ['', 'excelente', 'legendario', 'mitico'][b]); }
+  else if (tipo === 'caldero') { SND.sfx.forja(a === 'ok'); hud.toast(b, a === 'ok' ? (['exp', 'excelente', 'legendario', 'mitico'][c] || 'grande') : 'malo'); if (a === 'ok') { if (c >= 2) hud.destello(COLOR_RAREZA[c]); if (yo) { const p = pos(yo); FX.nivel(p.x, p.y, p.z); } } }
   else if (tipo === 'alas') { SND.sfx.forja(a === 'ok'); hud.toast(b, a === 'ok' ? 'grande' : 'malo'); if (a === 'ok') SND.sfx.nivel(); }
   else if (tipo === 'junta') { FX.chispas(b, R.altura(b, c) + 0.4, c, '#f0c040', 8); }
   else if (tipo === 'forja') { SND.sfx.forja(a === 'ok'); hud.toast(b, a === 'ok' ? 'grande' : 'malo'); const n = rolCerca('herrero') || { x: lx, z: lz }; if (a === 'ok') FX.nivel(n.x, 0, n.z); else FX.chispas(n.x, 1.2, n.z, a === 'roto' ? '#ff3b2a' : '#8c7f6a', 30); }
