@@ -110,6 +110,14 @@ export class Personaje extends DurableObject {
   async hGuardar(h) { await this.ctx.storage.put('herm', h); }
   async hBorrar() { await this.ctx.storage.delete('herm'); }
 
+  // Correo: deja una carta en el personaje de esta cuenta (si existe). La retira en el baúl.
+  async correoPoner(pj, carta) {
+    const c = await this.leer(), d = c.personajes[pj.toLowerCase()]; if (!d) return false;
+    d.correo = d.correo || []; if (d.correo.length >= 40) return false;
+    d.correo.push(carta); await this.ctx.storage.put('cuenta', c); return true;
+  }
+  async duenoDe() { return (await this.ctx.storage.get('dueno')) || null; }
+
   // Registro de nombres (este objeto es "pj:<nombre>").
   async reservar(cuenta) {
     const dueno = await this.ctx.storage.get('dueno');
@@ -196,6 +204,7 @@ export class Mapa extends DurableObject {
       case 'com': return this.comercio(p, m);
       case 'puesto': return this.puesto(p, m);
       case 'baul': return this.usarBaul(p, m);
+      case 'correo': return this.correo(p, m);
       case 'mision': return this.mision(p, m);
       case 'chat': return this.chat(p, String(m.txt || ''));
       case 'renacer': return this.renacer(p);
@@ -266,6 +275,7 @@ export class Mapa extends DurableObject {
     if (!this.reloj) { this.reloj = setInterval(() => this.tick(), R.TICK * 1000); }
     if (p.d.hermandad) await this.cargarHerm(p);
     this.recompensaDiaria(p);
+    if (p.d.correo?.length) setTimeout(() => this.aviso(p, `Tenés ${p.d.correo.length} ${p.d.correo.length === 1 ? 'carta' : 'cartas'} en el correo del baúl.`), 4000);
   }
 
   // Un regalo por día, por personaje. El oro crece con el nivel.
@@ -276,7 +286,7 @@ export class Mapa extends DurableObject {
     const oro = Math.round(pr.oro * (1 + p.d.nivel / 20)), cosas = [...pr.items];
     for (let i = 0; i < (pr.gema || 0); i++) cosas.push({ b: O.GEMAS[Math.floor(Math.random() * O.GEMAS.length)], c: 1 });
     p.d.oro += oro; const dadas = [];
-    for (const it of cosas) if (this.agregar(p, { ...it })) dadas.push(`${it.c > 1 ? it.c + ' × ' : ''}${O.BASES[it.b].nombre}`);
+    for (const it of cosas) { this.darOGuardar(p, { ...it }, 'Regalo del día'); dadas.push(`${it.c > 1 ? it.c + ' × ' : ''}${O.BASES[it.b].nombre}`); }
     p.d.diaria = { dia: hoy, racha }; p.cambioInv = true; this.guardar(p);
     setTimeout(() => this.enviar(p.s, { t: 'diaria', racha, oro, cosas: dadas }), 1500);
   }
@@ -854,7 +864,7 @@ export class Mapa extends DurableObject {
     for (const p of this.jug.values()) {
       if (!p.enBastion) continue;
       const premio = p.d.hermandad === gana ? R.BASTION.premio.ganador : R.BASTION.premio.otros;
-      p.d.oro += premio; if (p.d.hermandad === gana) this.agregar(p, { b: 'abismo', c: 1 });
+      p.d.oro += premio; if (p.d.hermandad === gana) this.darOGuardar(p, { b: 'abismo', c: 1 }, 'Asedio del Bastión');
       p.cambioInv = true; p.objetivoJ = null; p.enBastion = false;
       this.aviso(p, `El asedio terminó. Te llevás ${premio.toLocaleString('es-AR')} de oro${p.d.hermandad === gana ? ' y una Gema del Abismo' : ''}.`);
       if (p.muerto) { p.muerto = 0.1; } else {
@@ -970,7 +980,7 @@ export class Mapa extends DurableObject {
     if (premio.equipo) cosas.push(O.equipoAlAzar(p.d.nivel, Math.random, premio.equipo.exc || 0, p.d.clase, premio.equipo.leg || 0, premio.equipo.mit || 0));
     for (const it of cosas) {
       if (this.agregar(p, { ...it })) { p.priv.push(['recoge', O.nombreObjeto(it), O.rareza(it)]); if (O.rareza(it) === 3) this.msgTodos(`¡${p.nombre} recibió un objeto MÍTICO: ${O.nombreObjeto(it)}!`); }
-      else this.soltar({ x, z }, [{ item: it }], 'p' + p.id);
+      else this.darOGuardar(p, it, 'Recompensa de misión');
     }
     p.cambioInv = true; this.guardar(p);
   }
@@ -1023,6 +1033,49 @@ export class Mapa extends DurableObject {
       p.d.inv[i] = it; p.baul[j] = null;
     } else return;
     p.cambioInv = true; this.guardar(p);
+  }
+
+  // ----- correo: lo que no entra en la mochila y lo que te mandan otros, se retira en el baúl -----
+  darOGuardar(p, it, de) {
+    if (this.agregar(p, { ...it })) return true;
+    p.d.correo = p.d.correo || [];
+    p.d.correo.push({ de, it, t: Date.now() }); p.cambioInv = true;
+    this.aviso(p, `No te entraba en la mochila: ${O.nombreObjeto(it)} quedó guardado en el correo del baúl.`);
+    return false;
+  }
+  async correo(p, m) {
+    p.d.correo = p.d.correo || [];
+    if (m.a === 'tomar') {
+      if (!this.rolCerca(p, 'baul')) return this.aviso(p, 'El correo se retira en el baúl de cualquier atalaya.');
+      const k = m.k | 0, c = p.d.correo[k]; if (!c) return;
+      if (c.it && !this.agregar(p, { ...c.it })) return this.aviso(p, 'La mochila está llena.');
+      if (c.oro) p.d.oro += c.oro;
+      p.d.correo.splice(k, 1); p.cambioInv = true; this.guardar(p);
+      return this.aviso(p, `Retiraste ${c.it ? O.nombreObjeto(c.it) : ''}${c.it && c.oro ? ' y ' : ''}${c.oro ? c.oro.toLocaleString('es-AR') + ' de oro' : ''}.`);
+    }
+    if (m.a === 'enviar') {
+      if (!this.rolCerca(p, 'baul')) return this.aviso(p, 'Las cartas se mandan desde el baúl.');
+      const para = String(m.para || '').trim(), oro = Math.max(0, Math.floor(+m.oro || 0)), i = m.i == null || m.i === '' ? -1 : m.i | 0;
+      if (!/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]{3,14}$/.test(para) || para.toLowerCase() === p.nombre.toLowerCase()) return this.aviso(p, 'Escribí bien el nombre del personaje.');
+      const it = i >= 0 ? p.d.inv[i] : null;
+      if (i >= 0 && (!it || this.bloqueado(p, i))) return;
+      if (!it && !oro) return this.aviso(p, 'Elegí algo para mandar o poné oro.');
+      const costo = 100; if (p.d.oro < oro + costo) return this.aviso(p, `No te alcanza: el envío cuesta ${costo} de oro más lo que mandes.`);
+      if (p.enviando) return; p.enviando = true;
+      try {
+        const dueno = await this.cuenta('pj:' + para).duenoDe();
+        if (!dueno) return this.aviso(p, `No existe ningún personaje llamado ${para}.`);
+        if (it && p.d.inv[i] !== it) return;
+        const carta = { de: p.nombre, it: it ? JSON.parse(JSON.stringify(it)) : null, oro, t: Date.now() };
+        const q = [...this.jug.values()].find(x => x.nombre.toLowerCase() === para.toLowerCase());
+        let ok;
+        if (q) { q.d.correo = q.d.correo || []; ok = q.d.correo.length < 40; if (ok) { q.d.correo.push(carta); q.cambioInv = true; this.guardar(q); this.aviso(q, `Te llegó una carta de ${p.nombre}. Retirala en el baúl.`); } }
+        else ok = await this.cuenta(dueno).correoPoner(para, carta).catch(() => false);
+        if (!ok) return this.aviso(p, `El correo de ${para} está lleno.`);
+        if (it) p.d.inv[i] = null; p.d.oro -= oro + costo; p.cambioInv = true; this.guardar(p);
+        this.aviso(p, `Mandaste ${it ? O.nombreObjeto(it) : ''}${it && oro ? ' y ' : ''}${oro ? oro.toLocaleString('es-AR') + ' de oro' : ''} a ${para}.`);
+      } finally { p.enviando = false; }
+    }
   }
 
   // ----- comercio entre jugadores -----
@@ -1606,7 +1659,7 @@ export class Mapa extends DurableObject {
       for (const x of this.siervos.values()) if (dist(x, p) < VISTA) sv.push([x.id, r2(x.x), r2(x.z), r2(x.dir), x.mueve ? 1 : 0, x.dueno]);
       const foto = { t: 's', j, m, d: dr, sv, sa: this.santuarios.map(t => (t > 0 ? 0 : 1)), ev: p.priv.length ? ev.concat(p.priv) : ev, yo };
       if (p.cambioMis || p.cambioInv) { p.cambioMis = false; foto.mis = p.d.misiones; }
-      if (p.cambioInv) { p.cambioInv = false; foto.inv = { oro: p.d.oro, inv: p.d.inv, equipo: p.d.equipo, arbol: p.d.arbol, lugares: p.d.lugares, atalayas: p.d.atalayas, der: p.der, baul: p.baul }; }
+      if (p.cambioInv) { p.cambioInv = false; foto.inv = { oro: p.d.oro, inv: p.d.inv, equipo: p.d.equipo, arbol: p.d.arbol, lugares: p.d.lugares, atalayas: p.d.atalayas, der: p.der, baul: p.baul, correo: p.d.correo || [] }; }
       this.enviar(p.s, foto);
       p.priv = [];
     }

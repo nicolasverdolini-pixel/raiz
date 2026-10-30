@@ -208,6 +208,7 @@ export class Paneles {
     if (tipo === 'e') acc.push(['quitar', 'Sacar']);
     else if (b.r) { const m = O.motivoNoPuede(d, it); acc.push(['equipar', m ? 'No podés usarlo' : 'Ponerse', !!m]); }
     else if (b.uso === 'cura' || b.uso === 'mana') acc.push(['usar', 'Usar']);
+    else if (b.uso === 'viaje') acc.push(['vela', 'Prender (viajar)']);
     if (b.r && this.ctx.rolCerca('herrero')) acc.push(['forjar', 'Forjar']);
     if (tipo === 'i' && (this.ctx.rolCerca('herrero') || this.ctx.rolCerca('mercader'))) acc.push(['vender', `Vender · ${O.precioVenta(it) * (it.c || 1)} oro`]);
     if (tipo === 'i' && this.ctx.rolCerca('baul')) acc.push(['baul', 'Guardar en el baúl']);
@@ -229,6 +230,7 @@ export class Paneles {
       if (a === 'baul') { m({ t: 'baul', a: 'poner', i: +k }); this.sel = null; }
       if (a === 'forjar') return this.npc(this.ctx.rolCerca('herrero').id, 'forja', tipo === 'e' ? { r: k } : { i: +k });
       if (a === 'ofrecer') m({ t: 'com', a: this.ctx.ofrecido(+k) ? 'sacar' : 'poner', i: +k });
+      if (a === 'vela') return this.velas();
     });
   }
 
@@ -402,11 +404,21 @@ export class Paneles {
     }).join('')}</div>`;
   }
 
+  // La Vela de Paso se prende desde la mochila, en cualquier lado: lista los lugares conocidos, por región.
+  velas() {
+    const d = this.ctx.mio(); if (!d) return;
+    this.marco('Vela de Paso', 'Te lleva a cualquier lugar que ya descubriste', null, null, this.htmlVelas(d), 'velas', []);
+    this.el.querySelectorAll('[data-lugar]').forEach(b => b.onclick = () => { this.ctx.mandar({ t: 'vela', lugar: b.dataset.lugar }); this.cerrar(); });
+  }
   htmlVelas(d) {
     const velas = d.inv.reduce((a, x) => a + (x?.b === 'vela' ? x.c : 0), 0);
     return `<p class="nota">Velas de Paso: <b>${velas}</b>. Te llevan a cualquier lugar que ya conozcas, no solo a las atalayas.</p>
-      <div class="lista">${R.MAPA.lugares.map(l => `<div class="fila-t ${d.lugares.includes(l.nombre) ? '' : 'gris'}"><span><b>${l.nombre}</b><small>${l.frase}</small></span>
-        <button class="btn chico" data-lugar="${l.nombre}" ${d.lugares.includes(l.nombre) && velas ? '' : 'disabled'}>Ir</button></div>`).join('')}</div>`;
+      ${[['Páramo del Luto', null], ...R.ISLAS.map(i => [i.nombre, i.id])].map(([titulo, id]) => {
+        const ls = R.MAPA.lugares.filter(l => (R.islaDe(l.x, l.z)?.id || null) === id && d.lugares.includes(l.nombre));
+        return ls.length ? `<h3>${titulo}</h3><div class="lista">${ls.map(l => `<div class="fila-t"><span><b>${l.nombre}</b><small>${l.frase}</small></span>
+          <button class="btn chico" data-lugar="${l.nombre}" ${velas ? '' : 'disabled'}>Ir</button></div>`).join('')}</div>` : '';
+      }).join('')}
+      <p class="nota">Descubrís lugares caminando cerca. Las velas se compran con Úrsula y en las otras mercaderas.</p>`;
   }
 
   htmlPozo(d) {
@@ -511,7 +523,18 @@ export class Paneles {
       <div class="tienda-grid"><div><h3>Baúl</h3><div class="grilla">${d.baul.map((x, i) => casilla(x, `data-bsel="b:${i}"`).replace('class="slot', `class="slot ${sel === 'b:' + i ? 'sel' : ''}`)).join('')}</div>
         <h3>Mochila</h3><div class="grilla">${d.inv.map((x, i) => casilla(x, `data-bsel="i:${i}"`).replace('class="slot', `class="slot ${sel === 'i:' + i ? 'sel' : ''}`)).join('')}</div></div>
       <div>${it ? ficha(it, d, `<button class="btn chico" id="b-mover">${tipo === 'b' ? 'Sacar a la mochila' : 'Guardar en el baúl'}</button>`) : '<p class="nota">Tocá algo del baúl o de tu mochila.</p>'}</div></div>`;
-    this.marco('Baúl de la cuenta', null, null, null, cuerpo, 'baul', []);
+    const correo = d.correo || [], deMochila = tipo === 'i' ? +k : null;
+    const cartas = `<div class="correo"><h3>Correo${correo.length ? ` (${correo.length})` : ''}</h3>
+      ${correo.length ? correo.map((c, i) => `<div class="fila-t"><span class="ic">${c.it ? imagen(c.it) : iconoObjeto('oro')}</span><span><b>${c.it ? esc(O.nombreObjeto(c.it)) + (c.it.c > 1 ? ' × ' + c.it.c : '') : ''}${c.it && c.oro ? ' + ' : ''}${c.oro ? c.oro.toLocaleString('es-AR') + ' de oro' : ''}</b><small>De ${esc(c.de)}</small></span><button class="btn chico" data-carta="${i}">Retirar</button></div>`).join('') : '<p class="nota">No tenés cartas. Acá queda lo que no te entra en la mochila y lo que te mandan otros.</p>'}
+      <h3>Mandar una carta</h3><p class="nota">${deMochila != null ? `Va: <b>${esc(O.nombreObjeto(d.inv[deMochila]))}</b>.` : 'Tocá algo de tu mochila para mandarlo, o mandá solo oro.'} Cuesta 100 de oro.</p>
+      <div class="fila"><input id="co-para" maxlength="14" placeholder="Nombre del personaje" value="${esc(this.coPara || '')}"><input id="co-oro" type="number" min="0" inputmode="numeric" placeholder="Oro" value="${this.coOro || ''}"></div>
+      <div class="acciones"><button class="btn chico" id="co-enviar">Mandar</button></div></div>`;
+    this.marco('Baúl de la cuenta', null, null, null, cuerpo + cartas, 'baul', []);
+    this.el.querySelectorAll('[data-carta]').forEach(b => b.onclick = () => this.ctx.mandar({ t: 'correo', a: 'tomar', k: +b.dataset.carta }));
+    const cp = $('#co-para', this.el), co = $('#co-oro', this.el);
+    for (const x of [cp, co]) x.addEventListener('keydown', e => e.stopPropagation());
+    cp.oninput = () => { this.coPara = cp.value; }; co.oninput = () => { this.coOro = co.value; };
+    $('#co-enviar', this.el).onclick = () => { this.ctx.mandar({ t: 'correo', a: 'enviar', para: cp.value, oro: +co.value || 0, i: deMochila ?? '' }); this.sel = null; };
     this.el.querySelectorAll('[data-bsel]').forEach(b => b.onclick = () => { const [t, i] = b.dataset.bsel.split(':'); this.sel = (t === 'b' ? d.baul[+i] : d.inv[+i]) ? b.dataset.bsel : null; this.baul(); });
     const mv = $('#b-mover', this.el);
     if (mv) mv.onclick = () => { this.ctx.mandar(tipo === 'b' ? { t: 'baul', a: 'sacar', j: +k } : { t: 'baul', a: 'poner', i: +k }); this.sel = null; };

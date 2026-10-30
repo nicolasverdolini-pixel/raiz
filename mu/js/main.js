@@ -66,6 +66,7 @@ const mapa = new Mapa(() => mio && {
   yo: { x: lx, z: lz, dir: ldir }, nivel: mio.nivel, atalayas: mio.atalayas || [0], lugares: mio.lugares || [],
   sendas: O.NPCS.filter(n => n.rol === 'senda'),
   misiones: marcasMision,
+  npcs: MI.NPC_MISION.map(n => ({ x: n.x, z: n.z, nombre: n.nombre, est: MI.estadoNpc(mio, n.id) })),
   grupo: (estado?.grupo || []).map(g => entes.get(g[0])).filter(e => e && e !== yo).map(e => ({ x: pos(e).x, z: pos(e).z })),
 });
 const seleccion = new Seleccion(E, {
@@ -540,8 +541,10 @@ function actualizarEntes(dt) {
 
 function dibujarTextos(dt) {
   const d = Math.min(devicePixelRatio || 1, 2), W = innerWidth, H = innerHeight;
-  if (lienzo.width !== Math.round(W * d)) { lienzo.width = Math.round(W * d); lienzo.height = Math.round(H * d); }
-  tc.setTransform(d, 0, 0, d, 0, 0); tc.clearRect(0, 0, W, H);
+  // Ancho y alto: en el celu el alto cambia solo (la barra del navegador aparece y desaparece) y si no se acomoda,
+  // los nombres quedan corridos respecto de los personajes.
+  if (lienzo.width !== Math.round(W * d) || lienzo.height !== Math.round(H * d)) { lienzo.width = Math.round(W * d); lienzo.height = Math.round(H * d); }
+  tc.setTransform(d, 0, 0, d, 0, 0); tc.globalAlpha = 1; tc.clearRect(0, 0, W, H);
   if (!yo) return;
   tc.textAlign = 'center'; tc.textBaseline = 'middle';
   const proy = (x, y, z) => { v3.set(x, y, z).project(E.camara); return v3.z > 1 ? null : [(v3.x * 0.5 + 0.5) * W, (-v3.y * 0.5 + 0.5) * H]; };

@@ -11,7 +11,7 @@ export class Mapa {
     this.datos = datos; this.region = 'paramo';
     const el = document.createElement('div'); el.id = 'mapa'; el.className = 'caja'; el.hidden = true;
     el.innerHTML = `<header><b>Mapa</b><span class="tabs"><button data-r="paramo" class="on">Páramo del Luto</button>${R.ISLAS.map(i => `<button data-r="${i.id}">${i.nombre}</button>`).join('')}</span><span class="zoom"><button data-z="-1" aria-label="Alejar">−</button><button data-z="1" aria-label="Acercar">+</button><button data-z="0">Yo</button></span><button class="x" aria-label="Cerrar">✕</button></header>
-      <canvas></canvas><p class="nota leyenda"><span class="ley mi">! misión</span><span class="ley yo">▲ vos</span><span class="ley gr">● tu grupo</span><span class="ley at">◆ atalaya</span><span class="ley ca">✦ campamento</span><span class="ley zn">○ monstruos (nivel)</span></p>`;
+      <canvas></canvas><p class="nota leyenda"><span class="ley mi">! misión nueva · ✓ para entregar</span><span class="ley mi">◎ dónde ir</span><span class="ley yo">▲ vos</span><span class="ley gr">● tu grupo</span><span class="ley at">◆ atalaya</span><span class="ley ca">✦ campamento</span><span class="ley zn">○ monstruos (nivel)</span></p>`;
     document.getElementById('hud').appendChild(el); this.el = el;
     el.addEventListener('pointerdown', e => e.stopPropagation());
     $('.x', el).onclick = () => this.cerrar();
@@ -104,13 +104,21 @@ export class Mapa {
     });
     // Portal de la Senda Negra.
     for (const n of d.sendas) { if (!dentro(n.x, n.z)) continue; const [x, y] = P(n.x, n.z); c.fillStyle = '#b07ad8'; c.beginPath(); c.arc(x, y, 4, 0, 7); c.fill(); }
+    // Gente con misiones: dónde está cada una. «!» tiene una nueva para vos, «✓» tenés una para entregar, «…» en curso.
+    for (const n of d.npcs || []) {
+      if (!dentro(n.x, n.z)) continue;
+      const [x, y] = P(n.x, n.z), col = n.est === 'nueva' ? '#ffd24a' : n.est === 'lista' ? '#7fe07a' : n.est === 'curso' ? '#d8cfbd' : '#6a625a';
+      c.fillStyle = 'rgba(10,8,8,.9)'; c.beginPath(); c.arc(x, y, 7, 0, 7); c.fill(); c.strokeStyle = col; c.lineWidth = 1.5; c.stroke();
+      c.fillStyle = col; c.font = '700 10px Spectral, Georgia, serif'; c.fillText(n.est === 'nueva' ? '!' : n.est === 'lista' ? '✓' : n.est === 'curso' ? '…' : '·', x, y + 0.5);
+      if (grande || n.est === 'nueva' || n.est === 'lista') { c.font = letra(10, 'italic 600'); c.strokeStyle = 'rgba(0,0,0,.85)'; c.lineWidth = 3; c.strokeText(n.nombre, x, y + 13); c.fillText(n.nombre, x, y + 13); }
+    }
     // Misiones activas: «!» dorado (o «✓» verde si ya está para cobrar), con el nombre al acercar.
     for (const m of d.misiones || []) {
       if (!dentro(m.x, m.z)) continue;
       const [x, y] = P(m.x, m.z);
       c.fillStyle = m.lista ? '#7fe07a' : '#ffd24a'; c.strokeStyle = '#000'; c.lineWidth = 3;
       c.beginPath(); c.arc(x, y - 16, 9, 0, 7); c.fillStyle = 'rgba(10,8,8,.85)'; c.fill(); c.strokeStyle = m.lista ? '#7fe07a' : '#ffd24a'; c.lineWidth = 2; c.stroke();
-      c.fillStyle = m.lista ? '#7fe07a' : '#ffd24a'; c.font = '700 13px Spectral, Georgia, serif'; c.fillText(m.lista ? '✓' : '!', x, y - 15);
+      c.fillStyle = m.lista ? '#7fe07a' : '#ffd24a'; c.font = '700 13px Spectral, Georgia, serif'; c.fillText(m.lista ? '✓' : '◎', x, y - 15);
       if (grande) { c.font = letra(11, 'italic 600'); c.strokeStyle = 'rgba(0,0,0,.85)'; c.lineWidth = 3; c.strokeText(m.nombre, x, y - 32); c.fillText(m.nombre, x, y - 32); }
     }
     // Grupo y vos.
