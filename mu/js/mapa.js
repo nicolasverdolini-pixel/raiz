@@ -62,7 +62,7 @@ export class Mapa {
     const grande = V.zoom >= 2;
     // Fondo: tierra gastada y borde.
     c.fillStyle = '#16120f';
-    if (costa) { c.beginPath(); c.arc(...P(I.x, I.z), I.r * k, 0, 7); c.fill(); c.strokeStyle = { costa: '#3a5a6a', yermo: '#8a3a14', trono: '#6a7a9a' }[I.id]; c.lineWidth = 3; c.stroke(); }
+    if (costa) { c.beginPath(); c.arc(...P(I.x, I.z), I.r * k, 0, 7); c.fill(); c.strokeStyle = { costa: '#3a5a6a', yermo: '#8a3a14', trono: '#6a7a9a', hielo: '#8ac0dc', crater: '#c8501a' }[I.id]; c.lineWidth = 3; c.stroke(); }
     else { const [x0, z0] = P(-R.MUNDO, -R.MUNDO); c.fillRect(x0, z0, R.MUNDO * 2 * k, R.MUNDO * 2 * k); c.strokeStyle = '#4a4038'; c.lineWidth = 2; c.strokeRect(x0, z0, R.MUNDO * 2 * k, R.MUNDO * 2 * k); }
     c.strokeStyle = 'rgba(216,207,189,.05)'; c.lineWidth = 1;
     for (let g = -150; g <= 150; g += 25) { const [a] = P(base + g, 0), [, b] = P(0, bz + g); c.beginPath(); c.moveTo(a, 0); c.lineTo(a, H); c.moveTo(0, b); c.lineTo(W, b); c.stroke(); }

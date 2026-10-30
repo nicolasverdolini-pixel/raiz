@@ -15,6 +15,8 @@ export const PUEBLOS = [
   { nombre: 'Atalaya de Sal', x: 600, z: 0, r: 8, tier: 5, frase: 'Al otro lado de la Senda Negra. Acá el mar también está muerto.' },
   { nombre: 'Atalaya Calcinada', x: 0, z: 600, r: 8, tier: 6, frase: 'Arde sin leña. Nadie sabe qué la alimenta.' },
   { nombre: 'Atalaya del Último Rey', x: -600, z: 0, r: 8, tier: 7, frase: 'El rey murió de pie. Su guardia todavía lo espera.' },
+  { nombre: 'Atalaya de Escarcha', x: 600, z: 600, r: 8, tier: 8, frase: 'El farol da una luz azul que no calienta a nadie.' },
+  { nombre: 'Atalaya del Dragón', x: -600, z: 600, r: 8, tier: 9, frase: 'Construida entre las costillas de algo que murió volando.' },
 ];
 // La Costa de la Sal Negra: una isla aparte, al otro lado de la Senda Negra.
 export const COSTA = { x: 600, z: 0, r: 92, nivel: 45 };
@@ -23,6 +25,8 @@ export const ISLAS = [
   { id: 'costa', nombre: 'Costa de la Sal Negra', ...COSTA, atalaya: 5, frase: 'El mar también está muerto.', niveles: '48 a 75' },
   { id: 'yermo', nombre: 'Yermo Calcinado', x: 0, z: 600, r: 100, nivel: 75, atalaya: 6, frase: 'La tierra todavía arde debajo de la ceniza.', niveles: '78 a 112' },
   { id: 'trono', nombre: 'Ciudad del Trono Hundido', x: -600, z: 0, r: 104, nivel: 110, atalaya: 7, frase: 'Acá reinó el último rey del Sol. Todavía reina.', niveles: '114 a 155' },
+  { id: 'hielo', nombre: 'Glaciar del Silencio', x: 600, z: 600, r: 100, nivel: 150, atalaya: 8, frase: 'Acá el grito se congela antes de salir.', niveles: '158 a 202' },
+  { id: 'crater', nombre: 'Cráter del Dragón', x: -600, z: 600, r: 104, nivel: 195, atalaya: 9, frase: 'Lo primero que vio el mundo fue este fuego.', niveles: '205 a 265' },
 ];
 export const islaDe = (x, z) => (Math.abs(x) > 400 || Math.abs(z) > 400 ? ISLAS.find(i => Math.hypot(x - i.x, z - i.z) < i.r + 20) || null : null);
 export const enCosta = (x, z) => !!islaDe(x, z);
@@ -293,6 +297,42 @@ Object.assign(MONSTRUOS, {
 });
 TIPOS.push('calcinado', 'perrobrasa', 'tejedoraceniza', 'diablo', 'devorador', 'coloso', 'sacerdoteazufre', 'senorbrasas', 'grandevorador',
   'guardiareal', 'espectrocorte', 'sabueso', 'verdugo', 'gargola', 'caballerohueco', 'arzobispo', 'reinahueca', 'ultimorey');
+// ----- Glaciar del Silencio (150 a 195) y Cráter del Dragón (195 en adelante): criaturas que no aparecen en ningún otro lado -----
+Object.assign(MONSTRUOS, {
+  yeti: M({ nombre: 'Yeti del Silencio', nivel: 158, hp: 30000, dano: [400, 520], def: 100, exp: 21000, zona: { x: 560, z: 560, r: 18 }, cantidad: 14, reaparece: 18, vel: 3.2, alcance: 1.9, radio: 0.8,
+               habs: [{ t: 'pisoton', cada: 10, radio: 4, dano: [420, 520] }], desc: 'No ruge. Lo último que escuchás es tu propio paso.' }),
+  palido: M({ nombre: 'Cazador Pálido', nivel: 166, hp: 26000, dano: [430, 560], def: 104, exp: 20000, zona: { x: 640, z: 555, r: 17 }, cantidad: 14, reaparece: 18, vel: 4.6, cadencia: 1.0, vista: 11, radio: 0.6,
+               habs: [{ t: 'carga', cada: 8, alcance: 12, dano: [480, 600] }], desc: 'Vino de arriba cuando el cielo todavía tenía estrellas.' }),
+  mascarahielo: M({ nombre: 'Máscara de Escarcha', nivel: 174, hp: 28000, dano: [460, 590], def: 108, exp: 23000, zona: { x: 550, z: 640, r: 17 }, cantidad: 12, reaparece: 18, vel: 2.8, alcance: 10, cadencia: 2.2, distancia: 'azul', vista: 12,
+               desc: 'La máscara flota sola. Lo que la llevaba se quedó en el hielo.' }),
+  ojohelado: M({ nombre: 'Ojo del Deshielo', nivel: 182, hp: 34000, dano: [500, 640], def: 112, exp: 26000, zona: { x: 650, z: 640, r: 16 }, cantidad: 12, reaparece: 18, vel: 3.2, alcance: 9, cadencia: 2.0, distancia: 'azul', vista: 12,
+               habs: [{ t: 'rayo', cada: 8, alcance: 11, dano: [520, 640], color: 'azul', radio: 3 }], desc: 'Tres ojos que no pestañean desde el fin del Sol.' }),
+  buitrerey: M({ nombre: 'Buitre Coronado', nivel: 192, hp: 42000, dano: [550, 700], def: 118, exp: 31000, zona: { x: 600, z: 672, r: 15 }, cantidad: 10, reaparece: 20, vel: 4.2, cadencia: 1.3, vista: 12, radio: 0.8,
+               desc: 'Se comió a un rey y se quedó con la corona.' }),
+  padrenieve: M({ nombre: 'Padre de las Nieves', nivel: 188, hp: 1400000, dano: [640, 820], def: 124, exp: 900000, jefe: true, vista: 13, radio: 2, alcance: 3.4, cadencia: 1.9, vel: 2.8,
+               zona: { x: 545, z: 668, r: 1 }, cantidad: 1, reaparece: 720, furia: 0.3, habs: [{ t: 'invocar', cada: 15, cual: 'yeti', n: 2, max: 4 }, { t: 'pisoton', cada: 8, radio: 7, dano: [1000, 1250] }],
+               desc: 'Todos los yetis son hijos suyos. Ninguno lo vio dormir.' }),
+  reinabuitres: M({ nombre: 'Emperatriz del Deshielo', nivel: 200, hp: 1800000, dano: [700, 900], def: 130, exp: 1100000, jefe: true, vista: 14, radio: 1.8, alcance: 3, cadencia: 1.8, vel: 3.2,
+               zona: { x: 668, z: 668, r: 1 }, cantidad: 1, reaparece: 780, furia: 0.3, habs: [{ t: 'rayo', cada: 6, alcance: 15, dano: [1100, 1300], color: 'azul', radio: 4 }, { t: 'invocar', cada: 16, cual: 'buitrerey', n: 2, max: 4 }],
+               desc: 'Reina sobre lo único que queda: el frío.' }),
+  draguito: M({ nombre: 'Cría de Dragón', nivel: 205, hp: 46000, dano: [620, 790], def: 134, exp: 36000, zona: { x: -560, z: 556, r: 18 }, cantidad: 14, reaparece: 18, vel: 4.2, cadencia: 1.2, vista: 11, radio: 0.7,
+               desc: 'Chica, hambrienta y ya escupe fuego.' }),
+  saurio: M({ nombre: 'Saurio de Ceniza', nivel: 214, hp: 56000, dano: [680, 860], def: 140, exp: 41000, zona: { x: -645, z: 560, r: 17 }, cantidad: 14, reaparece: 18, vel: 3.4, alcance: 1.9, radio: 0.8,
+               desc: 'Camina sobre brasas y las encuentra frías.' }),
+  simio: M({ nombre: 'Simio del Cráter', nivel: 224, hp: 60000, dano: [740, 930], def: 146, exp: 46000, zona: { x: -550, z: 642, r: 17 }, cantidad: 12, reaparece: 18, vel: 4.4, cadencia: 1.1, radio: 0.8, vista: 10,
+               habs: [{ t: 'carga', cada: 9, alcance: 12, dano: [800, 980] }], desc: 'Aprendió a usar el fuego. Lo aprendió demasiado bien.' }),
+  micelio: M({ nombre: 'Portador del Micelio', nivel: 236, hp: 70000, dano: [800, 1010], def: 152, exp: 53000, zona: { x: -650, z: 645, r: 16 }, cantidad: 12, reaparece: 20, vel: 2.6, alcance: 2, radio: 0.9, veneno: { prob: 0.4, dps: 180, dura: 6 },
+               habs: [{ t: 'pisoton', cada: 9, radio: 5, dano: [820, 980] }], desc: 'Lo que crece sobre los dragones muertos también tiene hambre.' }),
+  dragonjoven: M({ nombre: 'Dragón Joven', nivel: 248, hp: 84000, dano: [880, 1110], def: 160, exp: 62000, zona: { x: -600, z: 676, r: 15 }, cantidad: 10, reaparece: 22, vel: 3.8, alcance: 9, cadencia: 2.0, distancia: 'fuego', vista: 13, radio: 1,
+               habs: [{ t: 'rayo', cada: 7, alcance: 13, dano: [950, 1150], color: 'fuego', radio: 3.5 }], desc: 'Todavía no aprendió a tener miedo.' }),
+  reymicelio: M({ nombre: 'Rey del Micelio', nivel: 240, hp: 2400000, dano: [950, 1200], def: 165, exp: 1500000, jefe: true, vista: 13, radio: 2, alcance: 3.4, cadencia: 1.9, vel: 2.6,
+               zona: { x: -668, z: 672, r: 1 }, cantidad: 1, reaparece: 840, furia: 0.3, veneno: { prob: 0.5, dps: 260, dura: 7 }, habs: [{ t: 'invocar', cada: 14, cual: 'micelio', n: 2, max: 4 }, { t: 'pisoton', cada: 8, radio: 7, dano: [1400, 1700] }],
+               desc: 'Se comió el bosque, la montaña y al que vino a matarlo.' }),
+  dragonprimordial: M({ nombre: 'Dragón Primordial', nivel: 265, hp: 3600000, dano: [1100, 1400], def: 180, exp: 2400000, jefe: true, vista: 15, radio: 2.6, alcance: 4, cadencia: 2.0, vel: 3.4,
+               zona: { x: -530, z: 668, r: 1 }, cantidad: 1, reaparece: 960, furia: 0.3, habs: [{ t: 'rayo', cada: 6, alcance: 16, dano: [1700, 2000], color: 'fuego', radio: 5 }, { t: 'carga', cada: 10, alcance: 18, dano: [1800, 2200] }, { t: 'pisoton', cada: 8, radio: 8, dano: [1500, 1800] }],
+               desc: 'Encendió el Sol Hondo. También lo apagó.' }),
+});
+TIPOS.push('yeti', 'palido', 'mascarahielo', 'ojohelado', 'buitrerey', 'padrenieve', 'reinabuitres', 'draguito', 'saurio', 'simio', 'micelio', 'dragonjoven', 'reymicelio', 'dragonprimordial');
 // ---------- Elementos ----------
 // Cada habilidad y cada ataque de monstruo puede ser de un elemento. Contra uno débil pega 50% más; contra uno que resiste, la mitad.
 export const ELEMENTOS = {
@@ -314,6 +354,9 @@ const AFIN = {
   calcinado: AF('fuego', 'hielo', 'fuego'), perrobrasa: AF('fuego', 'hielo', 'fuego'), tejedoraceniza: AF('fuego', 'hielo', 'fuego'), diablo: AF('fuego', 'hielo', 'fuego'),
   devorador: AF('fuego', 'hielo', 'fuego'), coloso: AF('fuego', 'rayo', 'fuego'), sacerdoteazufre: AF('fuego', 'hielo', 'fuego'), senorbrasas: AF('fuego', 'hielo', 'fuego'), grandevorador: AF('fuego', 'hielo', 'fuego'),
   guardiareal: AF(null, 'rayo', 'sombra'), espectrocorte: AF('sombra', 'fuego', 'hielo'), sabueso: AF('hielo', 'fuego', 'hielo'), verdugo: AF('sombra', 'rayo', 'sombra'),
+  yeti: AF('hielo', 'fuego', 'hielo'), palido: AF('sombra', 'fuego', 'hielo'), mascarahielo: AF('hielo', 'rayo', 'hielo'), ojohelado: AF('hielo', 'fuego', 'hielo'), buitrerey: AF('hielo', 'rayo', 'sombra'),
+  padrenieve: AF('hielo', 'fuego', 'hielo'), reinabuitres: AF('hielo', 'fuego', 'hielo'), draguito: AF('fuego', 'hielo', 'fuego'), saurio: AF('fuego', 'hielo', 'fuego'), simio: AF('fuego', 'rayo', 'fuego'),
+  micelio: AF('veneno', 'fuego', 'veneno'), dragonjoven: AF('fuego', 'hielo', 'fuego'), reymicelio: AF('veneno', 'fuego', 'veneno'), dragonprimordial: AF('fuego', 'hielo', 'fuego'),
   gargola: AF(null, 'rayo', 'veneno'), caballerohueco: AF('sombra', 'rayo', 'sombra'), arzobispo: AF('sombra', 'fuego', 'sombra'), reinahueca: AF('hielo', 'fuego', 'hielo'), ultimorey: AF('sombra', 'rayo', 'sombra'),
 };
 for (const [k, a] of Object.entries(AFIN)) if (MONSTRUOS[k]) Object.assign(MONSTRUOS[k], { elem: a.atk, debil: a.debil, resiste: a.resiste });
@@ -410,6 +453,21 @@ MAPA.lugares.push(
   { nombre: 'Aposentos de la Reina', x: -662, z: -62, frase: 'Un espejo roto en cada pared.' },
   { nombre: 'Catedral Hundida', x: -540, z: -60, frase: 'La campana suena sola a medianoche.' },
   { nombre: 'Sala del Trono', x: -606, z: 86, frase: 'El rey sigue sentado. Te está mirando.' });
+MAPA.lugares.push(
+  { nombre: 'Llanura Muda', x: 560, z: 560, frase: 'Las huellas son enormes y no vuelven.' },
+  { nombre: 'Bosque de Estalactitas', x: 640, z: 555, frase: 'Cuelgan de un cielo que ya no está.' },
+  { nombre: 'Lago de las Máscaras', x: 550, z: 640, frase: 'Debajo del hielo, todas miran para arriba.' },
+  { nombre: 'Grieta Azul', x: 650, z: 640, frase: 'Algo parpadea allá abajo.' },
+  { nombre: 'Peñón del Buitre', x: 600, z: 672, frase: 'Huesos de reyes, bien pelados.' },
+  { nombre: 'Cueva del Padre', x: 545, z: 668, frase: 'Hace calor. Eso es lo peor.' },
+  { nombre: 'Palacio del Deshielo', x: 668, z: 668, frase: 'Lo construyó el frío, para ella.' },
+  { nombre: 'Nidada', x: -560, z: 556, frase: 'Cáscaras más grandes que una casa.' },
+  { nombre: 'Llano de Ceniza Viva', x: -645, z: 560, frase: 'La ceniza se mueve aunque no haya viento.' },
+  { nombre: 'Costillar', x: -550, z: 642, frase: 'Caminás por adentro de algo que fue enorme.' },
+  { nombre: 'Jardín del Micelio', x: -650, z: 645, frase: 'Crece sobre lo que murió. Acá murió mucho.' },
+  { nombre: 'Ladera del Dragón', x: -600, z: 676, frase: 'La piedra está rayada por garras.' },
+  { nombre: 'Corona de Hongos', x: -668, z: 672, frase: 'Un rey sin cabeza, o una cabeza sin rey.' },
+  { nombre: 'Boca del Cráter', x: -530, z: 668, frase: 'Acá se encendió el Sol. Acá se apagó.' });
 MAPA.lugares.push(...PUEBLOS.slice(1).map(p => ({ nombre: p.nombre, x: p.x, z: p.z, frase: p.frase, atalaya: true })));
 // Campamentos: llenan los huecos del Páramo. Cada uno tiene su manada y un santuario que da fuerzas por un rato.
 export const SANTUARIOS = {
@@ -441,6 +499,8 @@ export function altura(x, z) {
     const lx = x - isla.x, lz = z - isla.z, d = Math.hypot(lx, lz);
     let h = isla.id === 'costa' ? Math.sin(lx * 0.07) * 0.6 + Math.cos(lz * 0.06 + lx * 0.03) * 0.5 + Math.sin((lx - lz) * 0.17) * 0.12
       : isla.id === 'yermo' ? Math.abs(Math.sin(lx * 0.06) + Math.cos(lz * 0.05 + lx * 0.02)) * 0.9 - 0.4 + Math.sin((lx + lz) * 0.21) * 0.15
+      : isla.id === 'hielo' ? Math.sin(lx * 0.04 + lz * 0.02) * 0.4 + Math.cos(lz * 0.05) * 0.25
+      : isla.id === 'crater' ? Math.sin(d * 0.09) * 0.45 + Math.sin(lx * 0.13) * Math.cos(lz * 0.11) * 0.2
       : Math.sin(lx * 0.05) * 0.25 + Math.cos(lz * 0.04) * 0.2;
     for (const p of PUEBLOS) { const dp = Math.hypot(x - p.x, z - p.z); if (dp < p.r + 5) h *= Math.max(0, (dp - p.r) / 5); }
     if (d > isla.r - 8) h -= (d - (isla.r - 8)) * 0.35;
@@ -481,7 +541,7 @@ export const GOLPE = { NORMAL: 0, CRITICO: 1, EXCELENTE: 2, HABILIDAD: 3 };
 // algo forjado, puntos repartidos con sentido), para que en cualquier región un monstruo común muera en unos segundos
 // y te dure lo mismo. Cada monstruo conserva su carácter: los que eran más duros o más dañinos que sus vecinos lo siguen siendo.
 {
-  const REQS = [1, 10, 24, 38, 55, 80, 115], SET = ['cuero', 'vigia', 'osario', 'foso', 'velo', 'escoria', 'rey'];
+  const REQS = [1, 10, 24, 38, 55, 80, 115, 155, 200], SET = ['cuero', 'vigia', 'osario', 'foso', 'velo', 'escoria', 'rey', 'escarcha', 'draco'];
   const ref = (clase, L) => {
     const c = CLASES[clase], d = { clase, nivel: L, ...c.base, puntos: 0, sinMaestria: true }, pts = (L - 1) * PUNTOS_POR_NIVEL;
     d[c.atributo] += Math.round(pts * 0.55); d.vit += Math.round(pts * 0.3); d.sue += Math.round(pts * 0.1); d.tem += Math.round(pts * 0.05);
@@ -508,7 +568,7 @@ export const GOLPE = { NORMAL: 0, CRITICO: 1, EXCELENTE: 2, HABILIDAD: 3 };
     caracter[k] = { hp: Math.max(0.6, Math.min(1.6, fh)), dano: Math.max(0.7, Math.min(1.4, fd)) };
   }
   const poner = (m, kHp, kDano) => {
-    const R0 = medio(Math.min(160, m.nivel + (m.nivel < 10 ? 0 : 2))), cad = m.cadencia || 1.5;
+    const R0 = medio(Math.min(280, m.nivel + (m.nivel < 10 ? 0 : 2))), cad = m.cadencia || 1.5;
     m.hp = Math.round(R0.dano * SEG_MATAR(m.nivel) * kHp / 10) * 10 + Math.round(m.def * 0.5 * 4);
     // Al principio el jugador tiene poca armadura: la parte que «come» la defensa crece de a poco hasta el nivel 20.
     const golpe = (R0.hp / SEG_AGUANTAR(m.nivel)) * cad * kDano + R0.def * 0.5 * (0.3 + 0.7 * Math.min(1, m.nivel / 20)), r = m.dano[1] / m.dano[0];

@@ -34,6 +34,14 @@ export const NPC_MISION = [
     saludo: 'Le cargaba el escudo al rey. Ahora no tengo a quién.' },
   { id: 'bufon', nombre: 'El Bufón', modelo: 'npc_vidente', tinte: '#5a2a4a', x: -625, z: 30, giro: 2.2,
     saludo: '¿Sabés por qué el rey no se ríe? Porque está muerto. Ja. Ja.' },
+  { id: 'cartografa', nombre: 'La Cartógrafa', modelo: 'npc_vidente', tinte: '#3a5068', x: 620, z: 585, giro: 2.4,
+    saludo: 'Vine a dibujar el mapa de este lugar. Hace treinta años.' },
+  { id: 'montanes', nombre: 'El Último Montañés', modelo: 'npc_herrero', tinte: '#4a5a68', x: 578, z: 615, giro: 0.8,
+    saludo: 'Hablá bajo. Acá hasta el silencio te escucha.' },
+  { id: 'domador', nombre: 'El Domador Quemado', modelo: 'npc_herrero', tinte: '#5a2a1a', x: -580, z: 585, giro: -2.2,
+    saludo: 'Crié a uno desde el huevo. Mirá lo que me dejó.' },
+  { id: 'cronista', nombre: 'La Cronista del Fuego', modelo: 'npc_vidente', tinte: '#6a3a18', x: -625, z: 615, giro: 1.4,
+    saludo: 'Escribo lo que pasó antes del Sol. Falta poco para que lo sepas vos también.' },
   { id: 'penitente', nombre: 'El Penitente', modelo: 'npc_vidente', tinte: '#5a1a14', x: 72, z: 82, giro: -2.4,
     saludo: 'Yo abrí el Foso. Me queda poca vida para pedir perdón.' },
 ];
@@ -123,6 +131,32 @@ export const MISIONES = Object.fromEntries([
     'Los Espectros de la Corte no se ríen de mis chistes. Veinte, para que aprendan.', 'Silencio. Mejor público que antes.'),
   M('buf2', 'bufon', 'La reina no se ríe', 138, { tipo: 'jefe', mon: 'reinahueca' }, { exp: 3400000, oro: 600000, equipo: { exc: 1, leg: 0.8, mit: 0.2 } },
     'La Reina Hueca nunca se rió. Ni una vez en cien años. Andá a verla.', 'Ahora tampoco se ríe. Pero por otro motivo.', 'buf1'),
+  // ----- Glaciar del Silencio -----
+  M('car1', 'cartografa', 'Pasos grandes', 158, { tipo: 'matar', mon: 'yeti', n: 20 }, { exp: 3000000, oro: 700000, items: [{ b: 'abismo', c: 4 }] },
+    'Veinte Yetis. No puedo dibujar con ellos respirándome en la nuca.', 'Ahora sí se oye el lápiz.'),
+  M('car2', 'cartografa', 'Máscaras bajo el hielo', 172, { tipo: 'juntar', mon: 'mascarahielo', cosa: 'Astilla de máscara', prob: 0.4, n: 10 }, { exp: 4800000, oro: 1000000, equipo: { exc: 1, leg: 0.5, mit: 0.1 } },
+    'Traeme diez astillas de Máscara de Escarcha. Quiero saber qué cara escondían.', 'Ninguna. Eso es lo que me asusta.', 'car1'),
+  M('car3', 'cartografa', 'El que no duerme', 188, { tipo: 'jefe', mon: 'padrenieve' }, { exp: 9000000, oro: 2000000, equipo: { exc: 1, leg: 0.8, mit: 0.25 }, items: [{ b: 'guardiana', c: 5 }] },
+    'El Padre de las Nieves está en su cueva. Llevá a todos los que conozcas.', 'Terminé el mapa. Le faltaba este agujero.', 'car2'),
+  M('mon1', 'montanes', 'Los que bajaron', 166, { tipo: 'matar', mon: 'palido', n: 20 }, { exp: 3800000, oro: 800000, items: [{ b: 'abismo', c: 4 }] },
+    'Veinte Cazadores Pálidos. Bajaron del cielo y se quedaron con mi aldea.', 'Mi aldea sigue vacía, pero ahora es mía.'),
+  M('mon2', 'montanes', 'Tres ojos', 182, { tipo: 'matar', mon: 'ojohelado', n: 18 }, { exp: 5500000, oro: 1200000, items: [{ b: 'guardiana', c: 3 }] },
+    'Dieciocho Ojos del Deshielo. Me miran mientras duermo.', 'Hoy voy a dormir. Creo.', 'mon1'),
+  M('mon3', 'montanes', 'Cae el frío', 200, { tipo: 'jefe', mon: 'reinabuitres' }, { exp: 12000000, oro: 3000000, equipo: { exc: 1, leg: 1, mit: 0.3 }, items: [{ b: 'guardiana', c: 6 }] },
+    'La Emperatriz del Deshielo manda en todo esto. Abrile la puerta al calor.', 'Mirá, gotea. Hace mil años que no goteaba.', 'mon2'),
+  // ----- Cráter del Dragón -----
+  M('dom1', 'domador', 'Hambre chica', 205, { tipo: 'matar', mon: 'draguito', n: 25 }, { exp: 8000000, oro: 2000000, items: [{ b: 'guardiana', c: 4 }] },
+    'Veinticinco Crías de Dragón. Si crecen, no queda nadie.', 'Duele. Yo les ponía nombre.'),
+  M('dom2', 'domador', 'Sigue subiendo', 224, { tipo: 'matar', mon: 'simio', n: 22 }, { exp: 12000000, oro: 3000000, equipo: { exc: 1, leg: 0.8, mit: 0.2 } },
+    'Veintidós Simios del Cráter. Les robaron el fuego a mis dragones.', 'El fuego volvió a quien le corresponde. Lástima.', 'dom1'),
+  M('dom3', 'domador', 'El rey que crece', 240, { tipo: 'jefe', mon: 'reymicelio' }, { exp: 20000000, oro: 5000000, equipo: { exc: 1, leg: 1, mit: 0.4 }, items: [{ b: 'guardiana', c: 8 }] },
+    'El Rey del Micelio se está comiendo a los dragones muertos. Y a los vivos.', 'Queda el olor. Va a quedar siempre.', 'dom2'),
+  M('cro1', 'cronista', 'Página quemada', 214, { tipo: 'juntar', mon: 'saurio', cosa: 'Hoja de ceniza', prob: 0.4, n: 12 }, { exp: 10000000, oro: 2500000, items: [{ b: 'guardiana', c: 4 }] },
+    'Los Saurios se comieron mi crónica. Traeme doce hojas, aunque estén quemadas.', 'Se lee poco. Se lee suficiente.'),
+  M('cro2', 'cronista', 'Sus hijos', 248, { tipo: 'matar', mon: 'dragonjoven', n: 15 }, { exp: 16000000, oro: 4000000, equipo: { exc: 1, leg: 1, mit: 0.3 } },
+    'Quince Dragones Jóvenes. El viejo tiene que sentir que le faltan.', 'Ya se despertó. Sentiste el temblor.', 'cro1'),
+  M('cro3', 'cronista', 'El que encendió el Sol', 265, { tipo: 'jefe', mon: 'dragonprimordial' }, { exp: 40000000, oro: 10000000, equipo: { exc: 1, leg: 1, mit: 0.6 }, items: [{ b: 'guardiana', c: 10 }] },
+    'El Dragón Primordial encendió el Sol Hondo y lo apagó. Acá termina la crónica.', 'Escribí tu nombre al final. Nadie va a leerlo. Igual lo escribí.', 'cro2'),
 ].map(m => [m.id, m]));
 
 export function misionesDe(npc) { return Object.values(MISIONES).filter(m => m.npc === npc); }
@@ -155,7 +189,8 @@ export function textoObjetivo(m, prog = 0) {
 // ---------- Tablón de Encargos (uno por atalaya, sin fin) ----------
 const LOCALES = [['rata', 'sapo', 'arana', 'avispon', 'sierpe'], ['sierpe', 'lobo', 'ciervo', 'avispon', 'arana'], ['huesudo', 'anima', 'degollador', 'ciervo'],
   ['bruto', 'acechador', 'degollador', 'anima'], ['engendro', 'acechador', 'bruto'], ['ahogado', 'marinero', 'abisal', 'farero', 'pirata', 'brutosal', 'leviatanmenor'],
-  ['calcinado', 'perrobrasa', 'tejedoraceniza', 'diablo', 'devorador', 'coloso', 'sacerdoteazufre'], ['guardiareal', 'espectrocorte', 'sabueso', 'verdugo', 'gargola', 'caballerohueco', 'arzobispo']];
+  ['calcinado', 'perrobrasa', 'tejedoraceniza', 'diablo', 'devorador', 'coloso', 'sacerdoteazufre'], ['guardiareal', 'espectrocorte', 'sabueso', 'verdugo', 'gargola', 'caballerohueco', 'arzobispo'],
+  ['yeti', 'palido', 'mascarahielo', 'ojohelado', 'buitrerey'], ['draguito', 'saurio', 'simio', 'micelio', 'dragonjoven']];
 export function nuevoEncargo(atalaya, nivelPj, rnd = Math.random) {
   const lista = LOCALES[atalaya] || LOCALES[0];
   const posibles = lista.filter(t => MONSTRUOS[t].nivel <= nivelPj + 6);

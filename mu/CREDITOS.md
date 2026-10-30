@@ -17,3 +17,6 @@ Monstruos agregados después (también CC0):
 - Fotos de objetos: renders 3D de los modelos de arriba y pociones, gemas y velas hechas con geometría para el juego.
 - Tipografía: Spectral y Spectral SC (Production Type, licencia SIL Open Font).
 - Música y efectos de sonido: generados por el juego en el momento (síntesis), hechos para Sendas del Éter.
+
+Monstruos nuevos (Glaciar del Silencio, Cráter del Dragón y varias islas):
+- **Ultimate Monsters Pack**, de **Quaternius** (licencia CC0, dominio público) — https://quaternius.com/packs/ultimatemonsters.html. Se les apagaron los colores y se les hicieron brillar los ojos para que encajen con el juego.

@@ -25,8 +25,8 @@ const MODELO = {
 const L = n => [n + 'Left', n + 'Right'];
 // Las mismas piezas que se ve puestas el personaje (vestir.js); de los guantes, solo el brazo derecho.
 const PIEZA = Object.fromEntries(Object.entries(PIEZAS).map(([r, l]) => [r, l.map(([a, n]) => [a, r === 'guantes' ? n.filter(x => x.endsWith('Right')) : n])]));
-const SETS = ['cuero', 'vigia', 'osario', 'foso', 'velo', 'escoria', 'rey'];
-const TINTE_TIER = [null, '#8fa8c8', '#5a4a52', '#7a2420', '#3a6a8a', '#8a2a0a', '#d8b050'];
+const SETS = ['cuero', 'vigia', 'osario', 'foso', 'velo', 'escoria', 'rey', 'escarcha', 'draco'];
+const TINTE_TIER = [null, '#8fa8c8', '#5a4a52', '#7a2420', '#3a6a8a', '#8a2a0a', '#d8b050', '#bfe4f4', '#c8341a'];
 
 let renderer, scene, camara;
 const modelos = {}, fotos = {}, pedidos = {};
@@ -100,10 +100,10 @@ export function modeloDe(b) {
   const base = O.BASES[b]; if (!base?.r) return null;
   if (base.ala) return { alas: base.ala, t: 0 };
   if (base.bestia) { const k = (base.r === 'mascota' ? 'pet_' : 'mon_') + b; return VISUAL[k] ? { bicho: k, t: 0 } : null; }
-  if (PIEZA[base.r]) { const t = SETS.indexOf(b.split('_')[1]); return t >= 0 ? { pieza: PIEZA[base.r][t], t } : null; }
+  if (PIEZA[base.r]) { const t = SETS.indexOf(b.split('_')[1]); return t >= 0 ? { pieza: PIEZA[base.r][Math.min(t, 6)], t } : null; }
   const tipo = base.r === 'escudo' ? 'escudo' : b.replace(/\d+$/, '');
   const t = (+b.match(/(\d+)$/)?.[1] || 1) - 1;
-  return MODELO[tipo] ? { archivo: MODELO[tipo][t], t } : null;
+  return MODELO[tipo] ? { archivo: MODELO[tipo][Math.min(t, 6)], t } : null;
 }
 
 // Retrato del personaje (cabeza y hombros) para el botón de la mochila.

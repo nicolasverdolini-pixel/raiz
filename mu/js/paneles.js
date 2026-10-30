@@ -576,6 +576,8 @@ export class Paneles {
       costa: 'Una isla rodeada de mar muerto. Ahogados, piratas sin cuello y algo enorme en la Fosa.',
       yermo: 'Tierra quemada que todavía arde. Calcinados, perros de brasa, colosos de escoria y un volcán que respira.',
       trono: 'La ciudad del último rey del Sol. Su guardia sigue de ronda, los espectros siguen bailando y el rey sigue en el trono.',
+      hielo: 'Un desierto de hielo donde nada hace ruido. Yetis, cazadores que bajaron del cielo y máscaras que flotan solas.',
+      crater: 'El lugar donde se encendió el Sol Hondo. Dragones, simios de fuego y el que empezó todo.',
     };
     const titulo = destino ? destino.nombre : R.PUEBLOS[n.destino]?.nombre || 'Páramo del Luto';
     const cuerpo = `<p class="frase">«${n.frase}»</p><div class="mision"><b>${titulo}</b>

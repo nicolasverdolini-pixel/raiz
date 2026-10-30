@@ -19,7 +19,7 @@ export const PIEZAS = {
     ['guardian.glb', L('Knight_Leg')], ['barbaro.glb', L('Barbarian_Leg')], ['guardian.glb', L('Knight_Leg')]],
 };
 // Color de cada nivel (el mismo que en las fotos de la mochila).
-const TINTE = [null, '#8fa8c8', '#5a4a52', '#7a2420', '#3a6a8a', '#8a2a0a', '#d8b050'];
+const TINTE = [null, '#8fa8c8', '#5a4a52', '#7a2420', '#3a6a8a', '#8a2a0a', '#d8b050', '#bfe4f4', '#c8341a'];
 // Qué mallas propias del personaje tapa cada pieza.
 const PROPIAS = { casco: /(Helmet|_Hat|Hood$)/, armadura: /(_Body|_Cape|_Cloak)$/, guantes: /_Arm(Left|Right)$/, botas: /_Leg(Left|Right)$/ };
 // Armas por nivel (archivos de modelos/armas, iguales a las fotos).

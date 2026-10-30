@@ -20,8 +20,14 @@ const ARMAS = {
   nigromante: [['cetro', ['Cetro de Hueso', 'Cetro de Vigía', 'Cetro del Luto', 'Cetro del Éter', 'Cetro del Velo', 'Cetro de Escoria', 'Cetro del Último Rey']], [[3, 6], [8, 13], [18, 27], [30, 43], [45, 63], [63, 88], [86, 121]]],
   desterrado: [['garras', ['Garras de Hierro', 'Garras de Vigía', 'Garras del Luto', 'Garras del Éter', 'Garras del Velo', 'Garras de Escoria', 'Garras del Último Rey']], [[5, 8], [10, 16], [21, 31], [35, 50], [51, 73], [72, 102], [99, 140]]],
 };
-const REQ = [1, 10, 24, 38, 55, 80, 115], PRECIO = [60, 900, 6000, 30000, 120000, 450000, 1500000];
-for (const [clase, [[pref, nombres], dmgs]] of Object.entries(ARMAS)) nombres.forEach((n, i) => arma(pref + (i + 1), n, clase, REQ[i], dmgs[i], PRECIO[i]));
+const REQ = [1, 10, 24, 38, 55, 80, 115, 155, 200], PRECIO = [60, 900, 6000, 30000, 120000, 450000, 1500000, 4000000, 10000000];
+// Las dos últimas tandas de armas (Glaciar y Dragón) salen de la anterior: mismo arma, más daño.
+for (const [clase, [[pref, nombres], dmgs]] of Object.entries(ARMAS)) {
+  const base = nombres[6].split(' ')[0], ult = dmgs[6];
+  nombres.push(`${base} de Escarcha`, `${base} del Dragón`);
+  dmgs.push(ult.map(v => Math.round(v * 1.38)), ult.map(v => Math.round(v * 1.86)));
+  nombres.forEach((n, i) => arma(pref + (i + 1), n, clase, REQ[i], dmgs[i], PRECIO[i]));
+}
 escudo('escudo1', 'Rodela de Pino', 1, 3, 50);
 escudo('escudo2', 'Escudo de Atalaya', 10, 8, 800);
 escudo('escudo3', 'Égida Hueca', 24, 16, 5500);
@@ -29,6 +35,8 @@ escudo('escudo4', 'Baluarte Negro', 38, 26, 28000);
 escudo('escudo5', 'Muro del Velo', 55, 38, 110000);
 escudo('escudo6', 'Égida de Escoria', 80, 54, 420000);
 escudo('escudo7', 'Pavés del Último Rey', 115, 74, 1400000);
+escudo('escudo8', 'Muro de Escarcha', 155, 100, 3800000);
+escudo('escudo9', 'Escama del Dragón', 200, 132, 9500000);
 const SETS = [
   ['cuero', 'de Cuero Gastado', 1, 1],
   ['vigia', 'de Vigía', 12, 2.4],
@@ -37,6 +45,8 @@ const SETS = [
   ['velo', 'del Velo', 55, 11],
   ['escoria', 'de Escoria', 80, 15.5],
   ['rey', 'del Último Rey', 115, 21.5],
+  ['escarcha', 'de Escarcha', 155, 29],
+  ['draco', 'del Dragón', 200, 38],
 ];
 const PIEZAS = [['casco', 'Capucha', 2, 40], ['armadura', 'Cota', 4, 80], ['guantes', 'Guanteletes', 1, 30], ['botas', 'Botas', 1, 30]];
 for (const [sid, sn, req, k] of SETS) for (const [r, pn, def, precio] of PIEZAS) {
@@ -102,7 +112,7 @@ export function efectoGema(g, enArma) {
 }
 export const BASES = B;
 // Nivel visual de lo que tiene puesto (0 = Cuero / nivel 1 ... 6 = Último Rey), para vestir al personaje. -1 = nada.
-const SETS_VIS = ['cuero', 'vigia', 'osario', 'foso', 'velo', 'escoria', 'rey'];
+const SETS_VIS = ['cuero', 'vigia', 'osario', 'foso', 'velo', 'escoria', 'rey', 'escarcha', 'draco'];
 export function nivelVisual(it) {
   const b = it && B[it.b]; if (!b?.r || b.especial) return -1;
   if (b.r === 'arma' || b.r === 'escudo') return (+it.b.match(/(\d+)$/)?.[1] || 1) - 1;
@@ -110,7 +120,7 @@ export function nivelVisual(it) {
 }
 // Bonus de set: llevar varias piezas (casco, armadura, guantes, botas) del mismo set suma extra. Más fuerte cuanto más alto el set.
 export const SETS_BONUS = SETS_VIS.map((id, t) => ({
-  id, nombre: { cuero: 'Cuero Gastado', vigia: 'Vigía', osario: 'Osario', foso: 'Foso', velo: 'Velo', escoria: 'Escoria', rey: 'Último Rey' }[id],
+  id, nombre: { cuero: 'Cuero Gastado', vigia: 'Vigía', osario: 'Osario', foso: 'Foso', velo: 'Velo', escoria: 'Escoria', rey: 'Último Rey', escarcha: 'Escarcha', draco: 'Dragón' }[id],
   2: { defPct: 6 + t * 3, hpPct: 2 + t },
   4: { dmgPct: 5 + t * 3, crit: 1 + Math.floor(t / 2), resTodo: 4 + t * 3, ...(t >= 5 ? { velMov: 5 } : {}) },
 }));
@@ -131,13 +141,13 @@ export const puedeUsar = (b, clase) => !BASES[b]?.clase || BASES[b].clase === cl
 // ---------- requisitos para ponerse un equipo ----------
 // Nivel y atributos mínimos. Suben con la rareza y con la forja: un nivel 1 no puede usar un mítico.
 const STAT_ARMA = { guardian: 'fue', barbaro: 'fue', desterrado: 'fue', cazadora: 'agi', sombra: 'agi', arcanista: 'ene', nigromante: 'ene' };
-const TIER = req => (req >= 115 ? 6 : req >= 80 ? 5 : req >= 55 ? 4 : req >= 38 ? 3 : req >= 24 ? 2 : req >= 10 ? 1 : 0);
+const TIER = req => (req >= 200 ? 8 : req >= 155 ? 7 : req >= 115 ? 6 : req >= 80 ? 5 : req >= 55 ? 4 : req >= 38 ? 3 : req >= 24 ? 2 : req >= 10 ? 1 : 0);
 export function requisitos(it) {
   const b = BASES[it.b]; if (!b?.r) return null;
   if (b.especial) return { nivel: b.req, stat: {} };
   const t = TIER(b.req), ra = rareza(it), n = it.n || 0;
   const nivel = b.req + [0, 0, 8, 15][ra] + Math.floor(n / 3) + (ra === 3 ? Math.max(0, 40 - b.req - 15) : 0);
-  const base = b.r === 'arma' ? [0, 45, 90, 150, 220, 320, 450][t] : b.r === 'escudo' ? [0, 35, 70, 120, 180, 260, 360][t] : [0, 30, 60, 100, 150, 220, 300][t];
+  const base = b.r === 'arma' ? [0, 45, 90, 150, 220, 320, 450, 620, 820][t] : b.r === 'escudo' ? [0, 35, 70, 120, 180, 260, 360, 500, 660][t] : [0, 30, 60, 100, 150, 220, 300, 400, 520][t];
   const k = b.r === 'arma' ? STAT_ARMA[b.clase] || 'fue' : b.r === 'escudo' ? 'fue' : 'vit';
   const valor = Math.round(base * (1 + 0.2 * ra) + n * 2 + (ra === 3 ? 40 : 0));
   return { nivel, stat: valor ? { [k]: valor } : {} };
@@ -212,7 +222,7 @@ export const FORJA = {
 
 // ---------- NPCs de cada atalaya ----------
 // Cada atalaya vende el equipo de su nivel (tier 1 a 4).
-const SETS_ID = ['cuero', 'vigia', 'osario', 'foso', 'velo', 'escoria', 'rey'];
+const SETS_ID = ['cuero', 'vigia', 'osario', 'foso', 'velo', 'escoria', 'rey', 'escarcha', 'draco'];
 const equipoDeTier = t => ['espada', 'ballesta', 'baculo', 'hacha', 'dagas', 'cetro', 'garras'].map(a => a + t).concat(['escudo' + t, ...['casco', 'armadura', 'guantes', 'botas'].map(r => `${r}_${SETS_ID[t - 1]}`)]);
 const ATALAYAS = [
   { x: 0, z: 0, tier: 1, nombres: ['Úrsula la Boticaria', 'Tordo el Herrero'], vidente: true, domadora: 'Mastín el Domador', bestias: ['tabano', 'anima_g', 'lobo_m'] },
@@ -223,6 +233,8 @@ const ATALAYAS = [
   { x: 600, z: 0, tier: 5, nombres: ['Sal la Mercadera', 'Ancla el Herrero'] },
   { x: 0, z: 600, tier: 6, nombres: ['Hollín la Mercadera', 'Fragua el Herrero'] },
   { x: -600, z: 0, tier: 7, nombres: ['La Copera del Rey', 'Herrero de la Corte'] },
+  { x: 600, z: 600, tier: 8, nombres: ['Nieve la Mercadera', 'Témpano el Herrero'] },
+  { x: -600, z: 600, tier: 9, nombres: ['Escama la Mercadera', 'Colmillo el Herrero'] },
 ];
 export const NPCS = ATALAYAS.flatMap((a, i) => {
   const lista = [
@@ -247,7 +259,11 @@ NPCS.push(
   { id: 'senda5y', rol: 'senda', atalaya: 5, destino: 6, nombre: 'Senda de Brasa', x: 605.2, z: 2.6, frase: 'Huele a azufre. Lleva al Yermo Calcinado (nivel 75).' },
   { id: 'senda6', rol: 'senda', atalaya: 6, destino: 5, nombre: 'Senda de Brasa', x: -5.4, z: 600.8, frase: 'Vuelve a la Costa, a la Atalaya de Sal.' },
   { id: 'senda6t', rol: 'senda', atalaya: 6, destino: 7, nombre: 'Senda del Rey', x: 5.2, z: 602.6, frase: 'Una escalera de piedra que baja. Lleva a la Ciudad del Trono Hundido (nivel 110).' },
-  { id: 'senda7', rol: 'senda', atalaya: 7, destino: 6, nombre: 'Senda del Rey', x: -594.8, z: 2.6, frase: 'Vuelve al Yermo, a la Atalaya Calcinada.' });
+  { id: 'senda7', rol: 'senda', atalaya: 7, destino: 6, nombre: 'Senda del Rey', x: -594.8, z: 2.6, frase: 'Vuelve al Yermo, a la Atalaya Calcinada.' },
+  { id: 'senda7h', rol: 'senda', atalaya: 7, destino: 8, nombre: 'Senda de Escarcha', x: -605.2, z: 2.6, frase: 'Una puerta de hielo que no se derrite. Lleva al Glaciar del Silencio (nivel 150).' },
+  { id: 'senda8', rol: 'senda', atalaya: 8, destino: 7, nombre: 'Senda de Escarcha', x: 594.8, z: 602.6, frase: 'Vuelve a la Ciudad, a la Atalaya del Último Rey.' },
+  { id: 'senda8c', rol: 'senda', atalaya: 8, destino: 9, nombre: 'Senda del Dragón', x: 605.2, z: 602.6, frase: 'El aire quema aunque estés en el hielo. Lleva al Cráter del Dragón (nivel 195).' },
+  { id: 'senda9', rol: 'senda', atalaya: 9, destino: 8, nombre: 'Senda del Dragón', x: -594.8, z: 602.6, frase: 'Vuelve al Glaciar, a la Atalaya de Escarcha.' });
 export const DIST_NPC = 4.5;
 
 // ---------- lo que tiran los monstruos ----------
