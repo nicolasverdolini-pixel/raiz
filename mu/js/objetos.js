@@ -349,6 +349,10 @@ export const ordenMochila = (x, y) => {
   return pesoObjeto(a) - pesoObjeto(b) || rareza(y) - rareza(x) || (b?.req || 0) - (a?.req || 0) || (y.n || 0) - (x.n || 0) || x.b.localeCompare(y.b);
 };
 
+// Qué equipo se levanta del piso. Las alas, mascotas y monturas se levantan siempre, y también lo que no es equipo.
+export const FILTROS = ['Todo', 'Excelente o mejor', 'Legendario o mejor', 'Solo mítico', 'Nada de equipo'];
+export const pasaFiltro = (it, filtro) => { const b = BASES[it?.b]; return !filtro || !b?.r || b.ala || b.bestia || rareza(it) >= filtro; };
+
 export function precioVenta(it) {
   const b = BASES[it.b]; if (!b) return 0;
   const base = b.precio || b.valor || (b.gema ? 800 : 300);

@@ -215,12 +215,15 @@ export class Paneles {
   htmlEquipo(d) {
     const ranuras = O.RANURAS.filter(r => r !== 'escudo' || C.CLASES[d.clase].escudo);
     const eq = ranuras.map(r => casilla(d.equipo[r], `data-e="${r}" class-sel="${this.sel === 'e:' + r}"`, d.equipo[r] ? '' : `<small class="vacio">${O.NOMBRE_RANURA[r]}</small>`)).join('');
+    const comunes = d.inv.filter(it => it && O.BASES[it.b]?.r && !O.BASES[it.b].ala && !O.BASES[it.b].bestia && !O.rareza(it) && !it.g?.length).length;
     const inv = d.inv.map((it, i) => casilla(it, `data-i="${i}"`, this.ctx.ofrecido?.(i) ? '<small class="cant">✓</small>' : '')).join('');
     // Tres columnas que entran en la pantalla: lo puesto, la ficha del objeto elegido (siempre a la vista) y la mochila.
     return `<div class="equipo-grid">
       <div class="col-eq"><div class="eq">${eq}</div><div class="fila-oro">${this.oro(d)}</div><button class="btn chico sec" id="p-cambiar">Cambiar de personaje</button><button class="link" id="p-tuto">¿Cómo se juega?</button></div>
       <div class="col-ficha" id="p-ficha">${this.htmlFicha(d)}</div>
-      <div class="col-inv"><div class="inv">${inv}</div><button class="btn chico sec" id="p-ordenar">Ordenar</button></div></div>`;
+      <div class="col-inv"><div class="inv">${inv}</div>
+        <div class="fila-inv"><button class="btn chico sec" id="p-ordenar">Ordenar</button><button class="btn chico sec" id="p-comunes" ${comunes ? '' : 'disabled'}>Tirar comunes${comunes ? ` (${comunes})` : ''}</button></div>
+        <label class="filtro-inv">Levantar equipo <select id="p-filtro">${O.FILTROS.map((t, i) => `<option value="${i}" ${(d.filtro || 0) === i ? 'selected' : ''}>${t}</option>`).join('')}</select></label></div></div>`;
   }
 
   htmlFicha(d) {
@@ -235,6 +238,7 @@ export class Paneles {
     if (b.r && this.ctx.rolCerca('herrero')) acc.push(['forjar', 'Forjar']);
     if (tipo === 'i' && (this.ctx.rolCerca('herrero') || this.ctx.rolCerca('mercader'))) acc.push(['vender', `Vender · ${O.precioVenta(it) * (it.c || 1)} oro`]);
     if (tipo === 'i' && this.ctx.rolCerca('baul')) acc.push(['baul', 'Guardar en el baúl']);
+    if (tipo === 'i') acc.push(['tirar', 'Tirar']);
     if (tipo === 'i' && this.ctx.comerciando?.()) acc.push(['ofrecer', this.ctx.ofrecido(+k) ? 'Sacar del comercio' : 'Ofrecer']);
     return ficha(it, d, acc.map(([a, n, off]) => `<button class="btn chico" data-a="${a}" ${off ? 'disabled' : ''}>${n}</button>`).join(''));
   }
@@ -273,11 +277,14 @@ export class Paneles {
       if (b.dataset.i != null) this.arrastrable(b, d);
     });
     const ord = $('#p-ordenar', this.el); if (ord) ord.onclick = () => { this.sel = null; this.ctx.mandar({ t: 'ordenar' }); };
+    const com = $('#p-comunes', this.el); if (com) com.onclick = () => { if (confirm('¿Tirar todo el equipo común de la mochila? No se recupera. Lo que tiene gemas se salva.')) { this.sel = null; this.ctx.mandar({ t: 'tirar', comunes: true }); } };
+    const fil = $('#p-filtro', this.el); if (fil) fil.onchange = () => this.ctx.mandar({ t: 'filtro', n: +fil.value });
     this.el.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
       const [tipo, k] = this.sel.split(':'), a = b.dataset.a, m = this.ctx.mandar;
       if (a === 'quitar') m({ t: 'quitar', r: k });
       if (a === 'equipar' || a === 'usar') m({ t: a, i: +k });
       if (a === 'vender') { m({ t: 'vender', i: +k }); this.sel = null; }
+      if (a === 'tirar') { if (confirm(`¿Tirar ${O.nombreObjeto(d.inv[+k])}? No se recupera.`)) { m({ t: 'tirar', i: +k }); this.sel = null; } }
       if (a === 'baul') { m({ t: 'baul', a: 'poner', i: +k }); this.sel = null; }
       if (a === 'forjar') return this.npc(this.ctx.rolCerca('herrero').id, 'forja', tipo === 'e' ? { r: k } : { i: +k });
       if (a === 'ofrecer') m({ t: 'com', a: this.ctx.ofrecido(+k) ? 'sacar' : 'poner', i: +k });

@@ -569,6 +569,9 @@ input:focus { outline: 1px solid var(--sangre-2); }
 
 /* Mochila: arrastrar con el dedo */
 .col-inv .inv .slot { touch-action: none; }
-.col-inv #p-ordenar { width: 100%; margin-top: 6px; }
+.fila-inv { display: flex; gap: 6px; margin-top: 6px; }
+.fila-inv .btn { flex: 1; margin: 0; padding-left: 4px; padding-right: 4px; }
+.filtro-inv { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 6px; margin-top: 5px; font-size: 12px; color: var(--hueso-2); }
+.filtro-inv select { flex: 1; min-width: 0; background: #0d0c0e; color: #d8cfbd; border: 1px solid #3a3330; border-radius: 4px; padding: 4px; font: inherit; }
 .slot.origen { opacity: .3; }
 .slot.arrastrando { position: fixed; z-index: 9999; transform: translate(-50%, -60%) scale(1.15); pointer-events: none; opacity: .92; box-shadow: 0 8px 18px rgba(0,0,0,.7); }

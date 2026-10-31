@@ -1,5 +1,5 @@
 // Guarda el juego para que abra rápido. El juego necesita conexión para jugar online.
-const CACHE = 'sendas-v38';
+const CACHE = 'sendas-v39';
 self.addEventListener('install', e => self.skipWaiting());
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('sendas-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));

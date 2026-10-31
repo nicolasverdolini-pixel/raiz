@@ -221,6 +221,8 @@ export class Mapa extends DurableObject {
       case 'usar': return this.usar(p, m.i | 0);
       case 'equipar': return this.equipar(p, m.i | 0);
       case 'ordenar': return this.ordenar(p);
+      case 'tirar': return this.tirar(p, m);
+      case 'filtro': p.d.filtro = Math.max(0, Math.min(O.FILTROS.length - 1, m.n | 0)); p.cambioInv = true; return this.guardar(p);
       case 'mover': return this.moverInv(p, m.de | 0, m.a | 0);
       case 'quitar': return this.quitar(p, String(m.r || ''));
       case 'comprar': return this.comprar(p, String(m.npc || ''), String(m.b || ''), m.c | 0);
@@ -386,9 +388,10 @@ export class Mapa extends DurableObject {
 
   // Una sola vez: los que llegaron antes del arreglo del Pozo, cuando el premio se podía perder, reciben tres premios.
   compensarPozo(p) {
-    if (p.d.comp1 || p.d.nivel < R.POZO.nivelMin) return;
-    p.d.comp1 = true;
-    setTimeout(() => { if (this.jug.has(p.id)) this.darPremioPozo(p, this.jefeDeNivel(p.d.nivel), 3, 'Premios del Pozo que te debíamos'); }, 3000);
+    const veces = (p.d.comp1 ? 0 : 3) + (p.d.comp2 ? 0 : 1);
+    if (!veces || p.d.nivel < R.POZO.nivelMin) return;
+    p.d.comp1 = p.d.comp2 = true;
+    setTimeout(() => { if (this.jug.has(p.id)) this.darPremioPozo(p, this.jefeDeNivel(p.d.nivel), veces, 'Premio del Pozo que te debíamos'); }, 3000);
   }
 
   // Un regalo por día, por personaje. El oro crece con el nivel.
@@ -610,6 +613,19 @@ export class Mapa extends DurableObject {
     for (const [b, total] of juntos) for (let n = total; n > 0; n -= O.PILA) lista.push({ b, c: Math.min(n, O.PILA) });
     lista.sort(O.ordenMochila);
     p.d.inv = [...lista, ...Array(O.MOCHILA).fill(null)].slice(0, Math.max(O.MOCHILA, p.d.inv.length, lista.length));
+    p.cambioInv = true; this.guardar(p);
+  }
+  // Tirar: uno, o todo el equipo común de la mochila de una vez. No se recupera.
+  tirar(p, m) {
+    if (p.com || p.puesto) return this.aviso(p, 'Cerrá el comercio o el puesto primero.');
+    if (m.comunes) {
+      let n = 0;
+      p.d.inv.forEach((it, i) => { if (it && O.BASES[it.b]?.r && !O.BASES[it.b].ala && !O.BASES[it.b].bestia && !O.rareza(it) && !it.g?.length) { p.d.inv[i] = null; n++; } });
+      if (n) this.aviso(p, `Tiraste ${n} ${n === 1 ? 'objeto común' : 'objetos comunes'}.`);
+    } else {
+      const i = m.i | 0, it = p.d.inv[i]; if (!it) return;
+      p.d.inv[i] = null; this.aviso(p, `Tiraste ${O.nombreObjeto(it)}.`);
+    }
     p.cambioInv = true; this.guardar(p);
   }
   // Mover con el dedo: si el lugar está ocupado, los dos cambian de casillero.
@@ -1122,7 +1138,7 @@ export class Mapa extends DurableObject {
   juntarPozo(p) {
     for (const d of [...this.drops.values()]) {
       if (Math.hypot(d.x - R.POZO.x, d.z - R.POZO.z) > R.POZO.r + 4 || (d.dueno !== 'p' + p.id && d.dueno !== 'g' + p.grupo)) continue;
-      if (d.oro) p.d.oro += d.oro; else this.darOGuardar(p, d.item, 'Pozo de las Almas');
+      if (d.oro) p.d.oro += d.oro; else if (O.pasaFiltro(d.item, p.d.filtro)) this.darOGuardar(p, d.item, 'Pozo de las Almas');
       this.drops.delete(d.id); p.cambioInv = true;
     }
   }
@@ -1400,7 +1416,7 @@ export class Mapa extends DurableObject {
       const dd = Math.hypot(d.x - p.x, d.z - p.z);
       if (dd > (d.oro && p.der.junta ? 7 : 1.5)) continue;
       const mio = !d.dueno || d.t > 15 || d.dueno === 'p' + p.id || d.dueno === 'g' + p.grupo;
-      if (!mio) continue;
+      if (!mio || (d.item && !O.pasaFiltro(d.item, p.d.filtro))) continue;
       if (d.oro) { if (dd > 1.5) this.ev.push(['junta', p.id, r2(d.x), r2(d.z)]); d.oro = Math.round(d.oro * (1 + ((p.der.oroPct || 0) + (p.der.oroSuerte || 0)) / 100)); p.d.oro += d.oro; p.cambioInv = true; p.priv.push(['oro', d.oro]); this.drops.delete(d.id); this.contar(p, 'oroJuntado', d.oro); continue; }
       if (this.agregar(p, { ...d.item })) {
         this.drops.delete(d.id); p.priv.push(['recoge', O.nombreObjeto(d.item), O.rareza(d.item)]);
@@ -1913,7 +1929,7 @@ export class Mapa extends DurableObject {
       for (const x of this.siervos.values()) if (dist(x, p) < VISTA) sv.push([x.id, r2(x.x), r2(x.z), r2(x.dir), x.mueve ? 1 : 0, x.dueno]);
       const foto = { t: 's', j, m, d: dr, sv, sa: this.santuarios.map(t => (t > 0 ? 0 : 1)), ev: p.priv.length ? ev.concat(p.priv) : ev, yo };
       if (p.cambioMis || p.cambioInv) { p.cambioMis = false; foto.mis = p.d.misiones; foto.logros = { ...(p.d.logros || { c: {}, hechos: [] }), titulo: p.d.titulo || null, objetivos: p.d.objetivos || null }; }
-      if (p.cambioInv) { p.cambioInv = false; foto.inv = { oro: p.d.oro, inv: p.d.inv, equipo: p.d.equipo, arbol: p.d.arbol, lugares: p.d.lugares, atalayas: p.d.atalayas, der: p.der, baul: p.baul, correo: p.d.correo || [], barra: p.d.barra || null }; }
+      if (p.cambioInv) { p.cambioInv = false; foto.inv = { oro: p.d.oro, inv: p.d.inv, equipo: p.d.equipo, arbol: p.d.arbol, lugares: p.d.lugares, atalayas: p.d.atalayas, der: p.der, baul: p.baul, correo: p.d.correo || [], barra: p.d.barra || null, filtro: p.d.filtro || 0 }; }
       this.enviar(p.s, foto);
       p.priv = [];
     }
