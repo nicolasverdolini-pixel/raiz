@@ -1,4 +1,5 @@
 // Sendas del Éter: une el mundo 3D, la conexión, los controles y la pantalla.
+import { anchoP, altoP } from './pantalla.js';
 import * as THREE from 'three';
 import * as R from './reglas.js';
 import { cargarTodo, crear, VISUAL } from './modelos.js';
@@ -405,7 +406,7 @@ lienzo.addEventListener('pointerdown', e => {
   if (seleccion.activa) return seleccion.tocar(e.clientX, e.clientY, E.camara);
   if (!yo) return;
   document.getElementById('menu-jug').hidden = true;
-  if (e.pointerType !== 'mouse' && !stick && e.clientX < innerWidth * 0.45 && e.clientY > innerHeight * 0.3) {
+  if (e.pointerType !== 'mouse' && !stick && e.clientX < anchoP() * 0.45 && e.clientY > altoP() * 0.3) {
     stick = { id: e.pointerId, x0: e.clientX, y0: e.clientY, kx: 0, ky: 0 };
     hud.stick(true, e.clientX, e.clientY);
   } else toque = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
@@ -439,25 +440,25 @@ function elegir(sx, sy) {
     if (e === yo || e.muerto || e.aliado) continue;
     const p = pos(e); v3.set(p.x, p.y + e.vis.alto * 0.5, p.z).project(E.camara);
     if (v3.z > 1) continue;
-    const x = (v3.x * 0.5 + 0.5) * innerWidth, y = (-v3.y * 0.5 + 0.5) * innerHeight;
+    const x = (v3.x * 0.5 + 0.5) * anchoP(), y = (-v3.y * 0.5 + 0.5) * altoP();
     const d = Math.hypot(x - sx, y - sy) - (e.esJ ? 0 : 8) - (e.def?.jefe ? 30 : 0);
     if (d < md) { md = d; mejor = e; }
   }
   for (const n of [...O.NPCS, ...MI.NPC_MISION]) {
     if (Math.hypot(n.x - lx, n.z - lz) > 30) continue;
     v3.set(n.x, R.altura(n.x, n.z) + (n.rol === 'farol' ? 2.5 : 1), n.z).project(E.camara);
-    const x = (v3.x * 0.5 + 0.5) * innerWidth, y = (-v3.y * 0.5 + 0.5) * innerHeight;
+    const x = (v3.x * 0.5 + 0.5) * anchoP(), y = (-v3.y * 0.5 + 0.5) * altoP();
     if (Math.hypot(x - sx, y - sy) < 46) { if (npcCerca(n.id)) abrirNpc(n.id); else { destino = { x: n.x, z: n.z }; npcPendiente = n.id; soltarObjetivo(); } return; }
   }
   for (const d of drops.values()) {
     const p = d.obj.position; v3.set(p.x, p.y, p.z).project(E.camara);
-    const x = (v3.x * 0.5 + 0.5) * innerWidth, y = (-v3.y * 0.5 + 0.5) * innerHeight;
+    const x = (v3.x * 0.5 + 0.5) * anchoP(), y = (-v3.y * 0.5 + 0.5) * altoP();
     if (Math.hypot(x - sx, y - sy) < 36) { destino = { x: d.x, z: d.z }; soltarObjetivo(); return; }
   }
   if (mejor && !mejor.esJ) { marcarObjetivo(mejor.id); return; }
   if (mejor && mejor.esJ && enemigo(mejor)) { marcarObjetivo(mejor.id); return; }
   if (mejor && mejor.esJ) { hud.menuJugador(mejor, sx, sy); return; }
-  ray.setFromCamera({ x: sx / innerWidth * 2 - 1, y: -(sy / innerHeight) * 2 + 1 }, E.camara);
+  ray.setFromCamera({ x: sx / anchoP() * 2 - 1, y: -(sy / altoP()) * 2 + 1 }, E.camara);
   const hit = ray.intersectObjects(E.terrenos)[0];
   if (hit) { destino = { x: hit.point.x, z: hit.point.z }; soltarObjetivo(); FX.golpeSuelo(hit.point.x, hit.point.y, hit.point.z, '#8c7f6a'); }
 }
@@ -562,7 +563,7 @@ function actualizarEntes(dt) {
 }
 
 function dibujarTextos(dt) {
-  const d = Math.min(devicePixelRatio || 1, 2), W = innerWidth, H = innerHeight;
+  const d = Math.min(devicePixelRatio || 1, 2), W = anchoP(), H = altoP();
   // Ancho y alto: en el celu el alto cambia solo (la barra del navegador aparece y desaparece) y si no se acomoda,
   // los nombres quedan corridos respecto de los personajes.
   if (lienzo.width !== Math.round(W * d) || lienzo.height !== Math.round(H * d)) { lienzo.width = Math.round(W * d); lienzo.height = Math.round(H * d); }
@@ -582,14 +583,14 @@ function dibujarTextos(dt) {
       tc.fillStyle = e === yo ? '#efe6d2' : enemigo(e) ? '#ff5a4a' : mismo ? '#a8d48f' : '#b9c1c9';
       tc.strokeText(t, s[0], s[1]); tc.fillText(t, s[0], s[1]);
       if (e.puesto) {
-        tc.font = '600 13px "Spectral SC", Spectral, Georgia, serif'; const w = tc.measureText(e.puesto).width + 16, y0 = s[1] - (e.herm ? 46 : 32);
+        tc.font = '600 13px "Spectral SC", Spectral, Georgia, serif'; const w = tc.measureText(e.puesto).width + 16, y0 = s[1] - 32 - (e.herm ? 13 : 0) - (e.titulo ? 13 : 0);
         tc.fillStyle = 'rgba(42,26,14,.92)'; tc.fillRect(s[0] - w / 2, y0 - 10, w, 20); tc.strokeStyle = '#c9a24a'; tc.lineWidth = 1.5; tc.strokeRect(s[0] - w / 2, y0 - 10, w, 20);
         tc.fillStyle = '#f0d9a0'; tc.fillText(e.puesto, s[0], y0 + 1); tc.font = '600 14px "Spectral SC", Spectral, Georgia, serif'; tc.lineWidth = 3; tc.strokeStyle = 'rgba(0,0,0,.8)';
       }
-      let arriba = 13;
+      let arriba = 14;
       if (e.titulo) {
         tc.font = 'italic 600 10.5px Spectral, Georgia, serif'; tc.fillStyle = '#e9c37a'; tc.lineWidth = 2.5;
-        tc.strokeText(`«${e.titulo}»`, s[0], s[1] - arriba); tc.fillText(`«${e.titulo}»`, s[0], s[1] - arriba); tc.lineWidth = 3; arriba += 12;
+        tc.strokeText(`«${e.titulo}»`, s[0], s[1] - arriba); tc.fillText(`«${e.titulo}»`, s[0], s[1] - arriba); tc.lineWidth = 3; arriba += 13;
       }
       if (e.herm) {
         const [hn, hs, hc, senor] = e.herm, ht = `${senor ? '♛\uFE0E ' : ''}${hs}\uFE0E ${hn}`;
@@ -831,7 +832,7 @@ function cuadro() {
     moverme(dt); actualizarEntes(dt);
     for (const e of entes.values()) if (e.aureola && !e.muerto && Math.random() < dt * 14) { const p = pos(e); FX.chispas(p.x + (Math.random() - 0.5) * 0.8, p.y + 0.3 + Math.random() * 1.4, p.z + (Math.random() - 0.5) * 0.8, e.aureola, 1); }
     v3.set(lx, R.altura(lx, lz), lz); if (foco.distanceTo(v3) > 25) foco.copy(v3); else foco.lerp(v3, Math.min(1, dt * 6));
-    const vertical = innerWidth < innerHeight;
+    const vertical = anchoP() < altoP();
     E.camara.position.set(foco.x, foco.y + (vertical ? 15 : 12.5), foco.z + (vertical ? 12 : 10.5));
     if (temblor > 0) { temblor -= dt; E.camara.position.x += (Math.random() - 0.5) * temblor; E.camara.position.y += (Math.random() - 0.5) * temblor; }
     mira.set(foco.x, foco.y + 1, foco.z); E.camara.lookAt(mira);

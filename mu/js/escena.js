@@ -1,4 +1,5 @@
 // El mundo en 3D: el Páramo del Luto. Noche, niebla, árboles muertos, la Atalaya del Farol.
+import { anchoP, altoP } from './pantalla.js';
 import * as THREE from 'three';
 import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
 import * as R from './reglas.js';
@@ -53,11 +54,13 @@ export function crearEscena(canvas) {
   function ambiente(modo) { amb = AMB[modo] ? modo : 'normal'; }
 
   function ajustar() {
-    const w = innerWidth, h = innerHeight;
+    const w = anchoP(), h = altoP();
     renderer.setSize(w, h, false); camara.aspect = w / h;
     camara.fov = w < h ? 52 : 38; camara.updateProjectionMatrix();
   }
   addEventListener('resize', ajustar); ajustar();
+  // Al girar el celu el tamaño tarda en acomodarse.
+  addEventListener('orientationchange', () => { for (const ms of [150, 400, 900]) setTimeout(() => dispatchEvent(new Event('resize')), ms); });
 
   let t = 0;
   function actualizar(dt, foco) {

@@ -374,7 +374,6 @@ input:focus { outline: 1px solid var(--sangre-2); }
 #h-asedio .as-fila { display: flex; justify-content: space-between; gap: 6px; }
 #h-asedio .as-fila span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #h-asedio .link { align-self: flex-start; margin-top: 4px; }
-@media (max-height: 480px) { #h-asedio { top: auto; bottom: calc(150px + env(safe-area-inset-bottom)); left: calc(10px + env(safe-area-inset-left)); right: auto; width: 170px; } }
 .stat small .principal { color: #e9c37a; font-weight: 600; }
 
 /* ===== Pestañas: entran todas en el celu parado ===== */
@@ -575,3 +574,18 @@ input:focus { outline: 1px solid var(--sangre-2); }
 .filtro-inv select { flex: 1; min-width: 0; background: #0d0c0e; color: #d8cfbd; border: 1px solid #3a3330; border-radius: 4px; padding: 4px; font: inherit; }
 .slot.origen { opacity: .3; }
 .slot.arrastrando { position: fixed; z-index: 9999; transform: translate(-50%, -60%) scale(1.15); pointer-events: none; opacity: .92; box-shadow: 0 8px 18px rgba(0,0,0,.7); }
+
+/* Celu acostado: cada cosa en su lugar */
+@media (max-height: 480px) {
+  #hud #h-asedio { top: calc(126px + env(safe-area-inset-top)); bottom: auto; left: calc(10px + env(safe-area-inset-left)); right: auto; width: 170px; padding: 6px 8px; }
+  #hud.con-asedio #h-mis { display: none; }
+  .abajo { left: calc(10px + env(safe-area-inset-left)); transform: none; width: min(340px, 44vw); min-width: 0; }
+  .arriba-der { padding-right: 84px; min-height: 76px; }
+  .arriba-der #h-mini { position: absolute; right: 0; top: 0; width: 76px; }
+}
+/* Instalado en la pantalla de inicio del iPhone: que llegue hasta abajo también después de girar */
+@media (display-mode: standalone) {
+  html, body { height: 100lvh; }
+  #mundo, #textos { bottom: auto; height: 100lvh; }
+  #hud { bottom: auto; height: 100lvh; }
+}

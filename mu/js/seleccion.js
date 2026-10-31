@@ -1,4 +1,5 @@
 // Pantalla de personajes: al pie de la Atalaya del Farol, tus personajes esperan alrededor del fuego.
+import { anchoP, altoP } from './pantalla.js';
 import * as THREE from 'three';
 import * as C from './clases.js';
 import * as R from './reglas.js';
@@ -89,7 +90,7 @@ export class Seleccion {
     this.anillo.rotation.z += dt;
     // Los personajes quedan en la mitad de arriba de la pantalla; abajo va la lista.
     const f = this.figuras[this.sel], mira = f ? new THREE.Vector3(f.x * 0.6, -0.6, f.z * 0.4) : new THREE.Vector3(0, -0.4, 0);
-    const vertical = innerWidth < innerHeight;
+    const vertical = anchoP() < altoP();
     camara.position.lerp(new THREE.Vector3(mira.x * 0.4, vertical ? 5 : 4.2, vertical ? 13 : 11.5), Math.min(1, dt * 2));
     camara.lookAt(mira);
   }
@@ -98,7 +99,7 @@ export class Seleccion {
     const v = new THREE.Vector3();
     this.figuras.forEach((f, i) => {
       v.set(f.x, 1, f.z).project(camara);
-      const x = (v.x * 0.5 + 0.5) * innerWidth, y = (-v.y * 0.5 + 0.5) * innerHeight;
+      const x = (v.x * 0.5 + 0.5) * anchoP(), y = (-v.y * 0.5 + 0.5) * altoP();
       if (Math.hypot(x - sx, y - sy) < 60) this.elegir(i);
     });
   }

@@ -1,4 +1,5 @@
 // La pantalla de juego: vida, energía, experiencia, habilidades, grupo, puntos, avisos.
+import { anchoP, altoP } from './pantalla.js';
 import * as R from './reglas.js';
 import * as C from './clases.js';
 import { iconoHab, iconoAtaque, iconoObjeto, iconoBoton } from './iconos.js';
@@ -139,6 +140,7 @@ export class Hud {
     const as = yo.asedio, ak = JSON.stringify(as);
     if (ak !== this.ak) {
       this.ak = ak; const el = $('#h-asedio'); el.hidden = !as;
+      $('#hud').classList.toggle('con-asedio', !!as);
       if (as) {
         el.innerHTML = `<b>Asedio del Bastión</b><small>${as.dueno ? `Altar: <span style="color:${as.lista.find(x => x[0] === as.dueno)?.[3] || '#d4a24a'}">${esc(as.dueno)}</span>` : as.dueno === '' ? '<span class="peligro">Altar disputado</span>' : 'Altar libre'}</small>
           ${as.lista.map(([n, pts, sim, col]) => `<div class="as-fila"><span style="color:${col}">${sim}&#xFE0E; ${esc(n)}</span><b>${pts}</b></div>`).join('')}
@@ -292,7 +294,7 @@ export class Hud {
   menuJugador(e, x, y) {
     const m = $('#menu-jug');
     m.innerHTML = `<b>${esc(e.nombre)}</b><small>${C.CLASES[e.tipo]?.nombre || ''} · Nv ${e.nivel}</small>${e.puesto ? '<button class="btn" id="mj-puesto">Ver puesto</button>' : ''}<button class="btn" id="mj-inv">Invitar al grupo</button>${this.cb.lideroHerm?.() && !e.herm ? '<button class="btn" id="mj-herm">Invitar a la hermandad</button>' : ''}<button class="btn" id="mj-com">Comerciar</button><button class="btn sec" id="mj-no">Cerrar</button>`;
-    m.style.left = Math.min(innerWidth - 190, Math.max(10, x - 90)) + 'px'; m.style.top = Math.min(innerHeight - 150, Math.max(10, y - 140)) + 'px';
+    m.style.left = Math.min(anchoP() - 190, Math.max(10, x - 90)) + 'px'; m.style.top = Math.min(altoP() - 150, Math.max(10, y - 140)) + 'px';
     m.hidden = false;
     $('#mj-inv').onclick = () => { m.hidden = true; this.cb.invitar(e.id); };
     $('#mj-com').onclick = () => { m.hidden = true; this.cb.comerciar(e.id); };
